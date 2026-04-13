@@ -35,7 +35,7 @@ const VEHICLES = [
 ];
 
 export default function GrassCalculator() {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY || "";
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey,
     libraries: LIBRARIES,
@@ -142,6 +142,67 @@ export default function GrassCalculator() {
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
     pdf.save(`Lawn_Grass_Estimate_${new Date().getTime()}.pdf`);
   };
+
+  // -------------------------Payment function-----------------------
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePayment = async () => {
+    if (!result?.total) return;
+
+    // Load Razorpay
+    const res = await loadRazorpay();
+    if (!res) {
+      alert("Razorpay failed to load");
+      return;
+    }
+
+    // Create order from your API
+    const orderRes = await fetch("/api/razorpay/create-order", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: result.total,
+      }),
+    });
+
+    const order = await orderRes.json();
+
+    // Razorpay options
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: order.amount,
+      currency: "INR",
+      name: "Aelorix",
+      description: "Grass Delivery Payment",
+      order_id: order.id,
+
+      handler: function (response: any) {
+        console.log("Payment Success:", response);
+        alert("Payment Successful ✅");
+      },
+
+      prefill: {
+        contact: formData.whatsapp,
+      },
+
+      theme: {
+        color: "#16a34a",
+      },
+    };
+
+    const paymentObject = new (window as any).Razorpay(options);
+    paymentObject.open();
+  };
+  // -------------------------Payment function-----------------------
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 font-sans md:p-8">
@@ -426,6 +487,14 @@ export default function GrassCalculator() {
                   </div>
 
                   <div className="space-y-3 pt-2">
+                    {result && (
+                      <button
+                        onClick={handlePayment}
+                        className="w-full rounded-2xl bg-emerald-600 py-4 font-semibold text-white"
+                      >
+                        Pay ₹ {result.total.toLocaleString()}
+                      </button>
+                    )}
                     <button className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] py-4 font-semibold text-white shadow-sm transition-colors hover:bg-[#20bd5a]">
                       <MessageSquare size={18} /> Send Quote to WhatsApp
                     </button>

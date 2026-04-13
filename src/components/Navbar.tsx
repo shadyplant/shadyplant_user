@@ -44,10 +44,13 @@ export default function Navbar() {
         </div>
 
         {/* Action Button */}
-        <button className="theme-button group relative hidden overflow-hidden rounded-full px-8 py-3 text-lg font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98] md:inline-flex cursor-pointer">
+        <Link
+          href="/get-quote"
+          className="theme-button group relative hidden overflow-hidden rounded-full px-8 py-3 text-lg font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98] md:inline-flex cursor-pointer"
+        >
           <span className="absolute inset-y-0 left-[-30%] w-16 -skew-x-12 bg-white/20 opacity-0 transition-all duration-500 group-hover:left-[110%] group-hover:opacity-100" />
           <span className="relative z-10">Get Quote</span>
-        </button>
+        </Link>
 
         <button
           type="button"

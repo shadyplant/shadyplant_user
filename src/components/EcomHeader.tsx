@@ -1,23 +1,18 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Heart, Menu, Search, ShoppingCart, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Heart, Menu, Search, ShoppingCart, UserRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import GGNIcon from "@/app/GGN.ico";
+import { getCartCount, useCartItems } from "@/components/cartStore";
 import { useWishlistItems } from "@/components/wishlistStore";
 import { latestProducts } from "@/content/store";
 
-const navLinks = [
-  { label: "Home", href: "/" },
-  { label: "Order Page", href: "/order" },
-  { label: "Cart", href: "/cart" },
-  { label: "Blogs", href: "/blogs" },
-];
+const navLinks = [{ label: "Orders", href: "/order" }];
 
 const stickyHeaderClass =
   "border-b border-white/20 bg-[rgba(248,251,246,0.34)] [box-shadow:0_6px_16px_-4px_rgba(36,54,27,0.12)] backdrop-blur-2xl backdrop-saturate-150";
+
 type Suggestion = {
   label: string;
   meta: string;
@@ -25,12 +20,15 @@ type Suggestion = {
 };
 
 export default function EcomHeader() {
+  const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const cartItems = useCartItems();
   const wishlistItems = useWishlistItems();
+  const cartCount = getCartCount(cartItems);
   const wishlistCount = wishlistItems.length;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -41,14 +39,17 @@ export default function EcomHeader() {
 
     return latestProducts
       .filter((product) =>
-        [product.name, product.category, product.badge, product.description].some((value) =>
-          value.toLowerCase().includes(normalizedSearch),
-        ),
+        [
+          product.name,
+          product.category,
+          product.badge,
+          product.description,
+        ].some((value) => value.toLowerCase().includes(normalizedSearch)),
       )
       .map((product) => ({
         label: product.name,
-        meta: `${product.category} • ₹${product.price}`,
-        href: `/order?search=${encodeURIComponent(product.name)}`,
+        meta: `${product.category} - ${product.price}`,
+        href: `/products/${product.id}`,
       }))
       .slice(0, 6);
   }, [normalizedSearch]);
@@ -61,14 +62,35 @@ export default function EcomHeader() {
     setIsSearchFocused(false);
   }
 
+  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    closeOverlays();
+
+    const trimmedSearch = searchTerm.trim();
+
+    if (!trimmedSearch) {
+      router.push("/search");
+      return;
+    }
+
+    router.push(`/search?q=${encodeURIComponent(trimmedSearch)}`);
+  }
+
   function renderSearchBox(placeholder: string, mobile = false) {
     return (
-      <div className={`relative ${mobile ? "mt-3 md:hidden" : "hidden flex-1 md:flex"}`}>
-        <div
+      <div
+        className={`relative ${
+          mobile
+            ? "mt-3 md:hidden"
+            : "hidden flex-1 md:flex md:min-w-[340px] lg:min-w-[460px] xl:min-w-[560px]"
+        }`}
+      >
+        <form
+          onSubmit={submitSearch}
           className={
             mobile
               ? "flex items-center gap-2 rounded-[1rem] border border-[#d9e4d5] bg-white/65 px-3 py-2.5"
-              : "theme-input flex items-center gap-3 rounded-[1.15rem] border border-[#24361b]/10 bg-white/65 px-4 py-2.5"
+              : "theme-input flex w-full items-center gap-3 rounded-[1.15rem] border border-[#24361b]/10 bg-white/65 px-4 py-2.5 lg:max-w-[560px] xl:max-w-[680px]"
           }
         >
           <Search size={17} className="text-[#69845d]" />
@@ -83,11 +105,36 @@ export default function EcomHeader() {
             placeholder={placeholder}
             className="w-full bg-transparent text-sm text-[#163318] outline-none placeholder:text-[#6f8167]"
           />
-        </div>
+          <button
+            type="submit"
+            className="rounded-full bg-[#214f14] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#163915]"
+          >
+            Go
+          </button>
+        </form>
 
         {showSuggestions ? (
           <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-[#d7dfd2] bg-white shadow-xl">
             <div className="p-2">
+              <Link
+                href={
+                  normalizedSearch
+                    ? `/search?q=${encodeURIComponent(searchTerm.trim())}`
+                    : "/search"
+                }
+                onClick={closeOverlays}
+                className="mb-2 flex items-center justify-between rounded-2xl bg-[#f4f8ef] px-3 py-3 transition-colors hover:bg-[#ebf3e2]"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-[#173d12]">
+                    View all search results
+                  </p>
+                  <p className="text-xs text-[#6b8b58]">
+                    Open filtered results for &quot;{searchTerm.trim()}&quot;
+                  </p>
+                </div>
+              </Link>
+
               {suggestions.map((suggestion) => (
                 <Link
                   key={`${suggestion.meta}-${suggestion.label}`}
@@ -96,7 +143,9 @@ export default function EcomHeader() {
                   className="flex items-center justify-between rounded-2xl px-3 py-3 transition-colors hover:bg-[#f4f8ef]"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-[#173d12]">{suggestion.label}</p>
+                    <p className="text-sm font-semibold text-[#173d12]">
+                      {suggestion.label}
+                    </p>
                     <p className="text-xs text-[#6b8b58]">{suggestion.meta}</p>
                   </div>
                 </Link>
@@ -120,9 +169,6 @@ export default function EcomHeader() {
         <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-3">
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex shrink-0 items-center gap-2">
-              {/* <span className="relative h-8 w-8 overflow-hidden rounded-full">
-                <Image src={GGNIcon} alt="Logo" fill className="object-contain" />
-              </span> */}
               <span className="text-base font-black uppercase tracking-[0.2em] text-[#1f1d1b] md:block">
                 Grass
               </span>
@@ -155,7 +201,11 @@ export default function EcomHeader() {
                 {mobileSearchOpen ? <X size={20} /> : <Search size={20} />}
               </button>
 
-              <Link href="/order" className="relative p-2" aria-label="View wishlist">
+              <Link
+                href="/wishlist"
+                className="relative hidden p-2 md:inline-flex"
+                aria-label="View wishlist"
+              >
                 <Heart
                   size={20}
                   fill={wishlistCount > 0 ? "#008000" : "none"}
@@ -168,8 +218,29 @@ export default function EcomHeader() {
                 ) : null}
               </Link>
 
-              <Link href="/cart" className="p-2" aria-label="View cart">
+              <Link
+                href="/profile"
+                className={`rounded-full p-2 transition-colors ${
+                  pathname === "/profile"
+                    ? "bg-[#edf5e1] text-[#214f14]"
+                    : "text-[#214f14] hover:bg-[#edf5e1]"
+                }`}
+                aria-label="View profile"
+              >
+                <UserRound size={20} />
+              </Link>
+
+              <Link
+                href="/cart"
+                className="relative hidden p-2 md:inline-flex"
+                aria-label="View cart"
+              >
                 <ShoppingCart size={20} />
+                {cartCount > 0 ? (
+                  <span className="absolute right-0 top-0 h-4 min-w-4 rounded-full bg-[#214f14] px-1 text-center text-[10px] leading-4 text-white">
+                    {cartCount}
+                  </span>
+                ) : null}
               </Link>
 
               <button

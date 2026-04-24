@@ -3,9 +3,9 @@ import { Leaf, Mail, MapPin, Phone } from "lucide-react";
 
 const footerLinks = [
   { label: "Home", href: "/" },
-  { label: "Order Page", href: "/order" },
+  { label: "Orders", href: "/order" },
+  { label: "Wishlist", href: "/wishlist" },
   { label: "Cart", href: "/cart" },
-  { label: "Blogs", href: "/blogs" },
 ];
 
 export default function SiteFooter() {

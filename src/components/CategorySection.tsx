@@ -11,16 +11,15 @@ import {
   Trees,
   Wrench,
 } from "lucide-react";
-import { categoryBar } from "@/content/store";
 
 const categoryIcons = [
-  { label: "For You", icon: Home },
-  { label: "Indoor", icon: Sprout },
-  { label: "Outdoor", icon: Trees },
-  { label: "Lawns", icon: Scissors },
-  { label: "Ferns", icon: Flower2 },
-  { label: "Planters", icon: Package2 },
-  { label: "Tools", icon: Wrench },
+  { label: "For You", icon: Home, href: "/search" },
+  { label: "Indoor", icon: Sprout, href: "/search?category=Indoor%20Plants" },
+  { label: "Outdoor", icon: Trees, href: "/search?category=Outdoor%20Plants" },
+  { label: "Lawns", icon: Scissors, href: "/search?category=Lawn%20Grass" },
+  { label: "Ferns", icon: Flower2, href: "/search?category=Ferns" },
+  { label: "Planters", icon: Package2, href: "/search?q=planters" },
+  { label: "Tools", icon: Wrench, href: "/search?q=tools" },
 ];
 
 /**
@@ -30,10 +29,10 @@ export default function CategorySection() {
   return (
     <div className="border-b border-[#dfe6d8] bg-white/95">
       {/* Icon Navigation */}
-      <div className="mx-auto flex max-w-7xl gap-3 overflow-x-auto px-4 py-2 md:gap-4 md:px-6 md:py-2.5 scrollbar-hide">
-        {categoryIcons.map(({ label, icon: Icon }, index) => (
+      <div className="mx-auto flex w-full max-w-7xl justify-start gap-3 overflow-x-auto px-4 py-2 scrollbar-hide md:justify-center md:gap-4 md:px-6 md:py-2.5">
+        {categoryIcons.map(({ label, icon: Icon, href }, index) => (
           <Link
-            href={`/order?category=${encodeURIComponent(label)}`}
+            href={href}
             key={label}
             className="flex min-w-[62px] flex-col items-center gap-1.5 text-center transition-transform active:scale-95 md:min-w-[70px]"
           >
@@ -51,19 +50,6 @@ export default function CategorySection() {
             >
               {label}
             </span>
-          </Link>
-        ))}
-      </div>
-
-      {/* Text Pills (Desktop Only) */}
-      <div className="mx-auto hidden max-w-7xl gap-2 overflow-x-auto px-4 pb-3 text-sm font-semibold text-[#214f14] md:flex md:px-6 scrollbar-hide">
-        {categoryBar.map((category) => (
-          <Link
-            key={category}
-            href={`/order?category=${encodeURIComponent(category)}`}
-            className="whitespace-nowrap rounded-full border border-[#d8dfd4] bg-[#f5f7f2] px-3 py-1.5 transition-colors hover:bg-[#eaf3de]"
-          >
-            {category}
           </Link>
         ))}
       </div>

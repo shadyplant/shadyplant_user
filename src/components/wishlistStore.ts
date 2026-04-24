@@ -32,6 +32,24 @@ export function writeWishlist(items: string[]) {
   window.dispatchEvent(new Event(WISHLIST_EVENT));
 }
 
+export function clearWishlist() {
+  writeWishlist([]);
+}
+
+export function removeWishlistItem(productId: string) {
+  writeWishlist(readWishlist().filter((item) => item !== productId));
+}
+
+export function addWishlistItem(productId: string) {
+  const items = readWishlist();
+
+  if (items.includes(productId)) {
+    return;
+  }
+
+  writeWishlist([...items, productId]);
+}
+
 function subscribe(callback: () => void) {
   if (typeof window === "undefined") {
     return () => undefined;

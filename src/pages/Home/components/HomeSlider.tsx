@@ -12,7 +12,7 @@ const slides = [
     description: "Fresh plants and lawn picks for homes, balconies, and garden corners.",
     image:
       "https://www.ugaoo.com/cdn/shop/files/1_1d02edd3-c551-4566-8adb-a8d83c389eb5.jpg?v=17745218870",
-    href: "/order",
+    href: "/products/areca-palm",
     chip: "Best seller",
   },
   {
@@ -30,7 +30,7 @@ const slides = [
     description: "Low-maintenance greens that instantly lift living rooms, lobbies, and desks.",
     image:
       "https://unsolicitedplanttalks.com/cdn/shop/articles/indoor_plants.jpg?v=1750698299",
-    href: "/order",
+    href: "/products/snake-plant",
     chip: "Indoor picks",
   },
 ];

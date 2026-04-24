@@ -18,7 +18,9 @@ const productSections: ProductSection[] = [
   {
     eyebrow: "Easy-care picks for homes",
     title: "Indoor plant favorites",
-    products: latestProducts.filter((product) => product.category === "Indoor Plants"),
+    products: latestProducts.filter(
+      (product) => product.category === "Indoor Plants",
+    ),
   },
   {
     eyebrow: "Fresh greens for open spaces",
@@ -47,13 +49,13 @@ function ProductGridSection({ eyebrow, title, products }: ProductSection) {
             {/* <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6b8b58] md:text-xs">
               {eyebrow}
             </p> */}
-            <h2 className="theme-section-title  text-xl font-black tracking-[-0.05em] md:mt-3 md:text-5xl">
+            <span className="theme-section-title  text-xl font-black tracking-[-0.05em] md:mt-3 md:text-3xl">
               {title}
-            </h2>
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-1 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-1 md:grid-cols-2 md:gap-5 xl:grid-cols-4">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

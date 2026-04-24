@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import EcomHeader from "@/components/EcomHeader";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import SiteFooter from "@/components/SiteFooter";
-import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -11,7 +10,6 @@ export default function SiteShell({ children }: { children: ReactNode }) {
       <main>{children}</main>
       <SiteFooter />
       <MobileBottomNav />
-      <WhatsAppButton />
     </div>
   );
 }

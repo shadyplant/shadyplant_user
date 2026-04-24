@@ -2,17 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Grid2x2, Home, ShoppingCart, UserRound } from "lucide-react";
+import { Heart, Home, PackageSearch, ShoppingCart } from "lucide-react";
+import { getCartCount, useCartItems } from "@/components/cartStore";
 
 const items = [
   { label: "Home", href: "/", icon: Home },
-  { label: "Categories", href: "/order", icon: Grid2x2 },
+  { label: "Orders", href: "/order", icon: PackageSearch },
   { label: "Cart", href: "/cart", icon: ShoppingCart },
-  { label: "Account", href: "/blogs", icon: UserRound },
+  { label: "Wishlist", href: "/wishlist", icon: Heart },
 ];
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const cartItems = useCartItems();
+  const cartCount = getCartCount(cartItems);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#d7dfd2] bg-white/95 px-3 py-2 backdrop-blur md:hidden">
@@ -28,7 +31,14 @@ export default function MobileBottomNav() {
                 active ? "text-[#24361b]" : "text-[#6f8167]"
               }`}
             >
-              <Icon size={19} />
+              <span className="relative">
+                <Icon size={19} />
+                {href === "/cart" && cartCount > 0 ? (
+                  <span className="absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#214f14] px-1 text-[10px] text-white">
+                    {cartCount}
+                  </span>
+                ) : null}
+              </span>
               <span>{label}</span>
             </Link>
           );

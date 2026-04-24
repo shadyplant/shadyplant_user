@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Plus, ShoppingCart, Star } from "lucide-react";
+import { Star } from "lucide-react";
+import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 import type { Product } from "@/content/store";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 type ProductCardProps = {
   product: Product;
@@ -16,13 +18,12 @@ export default function ProductCard({ product }: ProductCardProps) {
   );
 
   return (
-    <Link
-      href={`/products/${product.id}`}
-      className="group block rounded-xl border border-stone-100 bg-white p-2 transition-all duration-300 hover:shadow-md md:p-4"
-    >
-      <article>
-        {/* Image Container */}
-        <div className="relative aspect-square overflow-hidden rounded-lg bg-stone-50">
+    <article className="group rounded-xl border border-stone-100 bg-white p-2 transition-all duration-300 hover:shadow-md md:p-4">
+      <div className="relative">
+        <Link
+          href={`/products/${product.id}`}
+          className="relative block aspect-square overflow-hidden rounded-lg bg-stone-50"
+        >
           <Image
             src={product.image}
             alt={product.name}
@@ -30,79 +31,54 @@ export default function ProductCard({ product }: ProductCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover transition duration-500 group-hover:scale-105"
           />
-          {/* Rating Badge */}
-          <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[#171410] backdrop-blur-sm shadow-sm">
+          <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[#171410] shadow-sm backdrop-blur-sm">
             <Star size={12} fill="currentColor" className="text-yellow-500" />
             <span className="text-[10px] font-bold md:text-xs">
               4.{(product.price % 10) + 1}
             </span>
           </div>
-        </div>
+        </Link>
 
-        {/* Content Section */}
-        <div className="pt-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wider text-stone-500 md:text-xs">
-                {product.category}
-              </p>
-              <h3 className="mt-1 line-clamp-1 text-base font-bold text-[#171410] md:text-lg">
-                {product.name}
-              </h3>
-              <p className="text-xs text-stone-500">
-                {product.packLabel}
-              </p>
-            </div>
-
-            <WishlistButton
-              productId={product.id}
-              size={25}
-              className="mt-1 shrink-0 text-[#008000] hover:text-red-500 transition-colors"
-            />
-          </div>
-
-          {/* Pricing Section */}
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl font-bold text-[#171410] md:text-2xl">
-                  ₹{product.price}
-                </span>
-                <span className="text-sm text-stone-400 line-through">
-                  ₹{originalPrice}
-                </span>
-              </div>
-              <p className="text-[10px] font-medium text-green-600 md:text-xs">
-                {discountPercent}% OFF • SAVE MORE+
-              </p>
-            </div>
-
-            {/* Add Button */}
-            <button 
-            // bg-stone-900
-              aria-label="Add to cart"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white transition-colors hover:bg-stone-800 md:h-12 md:w-12"
-            >
-              {/* <Plus size={20} strokeWidth={2.5} /> */}
-              <AddToCartIcon />
-            </button>
-          </div>
-        </div>
-      </article>
-    </Link>
-  );
-}
-
-function AddToCartIcon() {
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      {/* Cart Icon */}
-      <ShoppingCart className="w-7 h-7 text-green-600" />
-
-      {/* Plus Icon */}
-      <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow">
-        <Plus className="w-4 h-4 text-green-600" />
+        <WishlistButton
+          productId={product.id}
+          size={25}
+          className="absolute right-3 top-3 z-20 shrink-0 touch-manipulation rounded-full bg-white/90 p-1.5 text-[#008000] shadow-sm transition-colors hover:text-red-500"
+        />
       </div>
-    </div>
+
+      <div className="pt-4">
+        <Link href={`/products/${product.id}`} className="block min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-stone-500 md:text-xs">
+            {product.category}
+          </p>
+          <h3 className="mt-1 line-clamp-1 text-base font-bold text-[#171410] md:text-lg">
+            {product.name}
+          </h3>
+          <p className="text-xs text-stone-500">{product.packLabel}</p>
+        </Link>
+
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-xl font-bold text-[#171410] md:text-2xl">
+                {formatCurrency(product.price)}
+              </span>
+              <span className="text-sm text-stone-400 line-through">
+                {formatCurrency(originalPrice)}
+              </span>
+            </div>
+            <p className="text-[10px] font-medium text-green-600 md:text-xs">
+              {discountPercent}% OFF • SAVE MORE+
+            </p>
+          </div>
+
+          <AddToCartButton
+            productId={product.id}
+            compact
+            className="relative z-20 flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-xl bg-[#214f14] text-white transition-colors hover:bg-[#163915] md:h-12 md:w-12"
+          />
+        </div>
+      </div>
+    </article>
   );
 }

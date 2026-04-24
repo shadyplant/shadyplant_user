@@ -1,11 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Leaf, ShieldCheck, Truck, Undo2,ArrowRight } from "lucide-react";
+import { ArrowRight, Leaf, ShieldCheck, Truck, Undo2 } from "lucide-react";
 import { notFound } from "next/navigation";
+import AddToCartButton from "@/components/AddToCartButton";
 import ProductCard from "@/components/ProductCard";
 import SiteShell from "@/components/SiteShell";
 import WishlistButton from "@/components/WishlistButton";
 import { getProductById, latestProducts } from "@/content/store";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 export function generateStaticParams() {
   return latestProducts.map((product) => ({ id: product.id }));
@@ -35,11 +37,15 @@ export default async function ProductDetailsPage({
             <Link href="/" className="hover:text-[#214f14]">
               Home
             </Link>
-            <span><ArrowRight size={16} /></span>
-            <Link href="/order" className="hover:text-[#214f14]">
-              Order
+            <span>
+              <ArrowRight size={16} />
+            </span>
+            <Link href="/" className="hover:text-[#214f14]">
+              Home
             </Link>
-            <span><ArrowRight size={16} /></span>
+            <span>
+              <ArrowRight size={16} />
+            </span>
             <span className="text-[#214f14]">{product.name}</span>
           </div>
 
@@ -70,7 +76,7 @@ export default async function ProductDetailsPage({
 
               <div className="mt-6 flex items-end gap-2">
                 <p className="text-3xl font-extrabold text-[#214f14] md:text-5xl">
-                  ₹{product.price}
+                  {formatCurrency(product.price)}
                 </p>
                 <span className="pb-1 text-sm font-semibold text-[#6c8a63]">{product.unit}</span>
               </div>
@@ -94,19 +100,20 @@ export default async function ProductDetailsPage({
               </div>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <button className="rounded-full border border-[#cfe0b5] bg-white px-5 py-3 text-sm font-semibold text-[#214f14]">
-                  Add to cart
-                </button>
+                <AddToCartButton
+                  productId={product.id}
+                  className="flex items-center justify-between rounded-full border border-[#cfe0b5] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#f3f8ec]"
+                />
                 <WishlistButton
                   productId={product.id}
                   size={20}
                   className="h-[50px] w-[50px] border border-[#cfe0b5] bg-white text-[#214f14]"
                 />
                 <Link
-                  href="/order"
+                  href="/cart"
                   className="theme-button rounded-full px-5 py-3 text-center text-sm font-semibold sm:col-span-2"
                 >
-                  Continue shopping
+                  View cart and checkout
                 </Link>
               </div>
 

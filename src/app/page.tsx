@@ -1,11 +1,10 @@
 import HomePage from "@/pages/Home/Layout";
+import SiteShell from "@/components/SiteShell";
 
 export default function Home() {
   return (
-    <div>
-      <main>
-        <HomePage />
-      </main>
-    </div>
+    <SiteShell>
+      <HomePage />
+    </SiteShell>
   );
 }

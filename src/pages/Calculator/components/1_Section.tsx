@@ -21,6 +21,14 @@ import {
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => {
+      open: () => void;
+    };
+  }
+}
+
 const LIBRARIES: "places"[] = ["places"];
 const WAREHOUSE_LOCATION = {
   lat: 26.2457163,
@@ -33,6 +41,28 @@ const VEHICLES = [
   { id: "medium", name: "Medium Truck", rate: 25, desc: "Up to 1200 sqft" },
   { id: "heavy", name: "Heavy Loader", rate: 45, desc: "Up to 3000 sqft" },
 ];
+
+type RazorpaySuccessResponse = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOptions = {
+  key: string | undefined;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpaySuccessResponse) => void;
+  prefill: {
+    contact: string;
+  };
+  theme: {
+    color: string;
+  };
+};
 
 export default function GrassCalculator() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -185,7 +215,7 @@ export default function GrassCalculator() {
       description: "Grass Delivery Payment",
       order_id: order.id,
 
-      handler: function (response: any) {
+      handler: function (response: RazorpaySuccessResponse) {
         console.log("Payment Success:", response);
         alert("Payment Successful ✅");
       },
@@ -199,7 +229,12 @@ export default function GrassCalculator() {
       },
     };
 
-    const paymentObject = new (window as any).Razorpay(options);
+    if (!window.Razorpay) {
+      alert("Razorpay is unavailable right now");
+      return;
+    }
+
+    const paymentObject = new window.Razorpay(options);
     paymentObject.open();
   };
   // -------------------------Payment function-----------------------

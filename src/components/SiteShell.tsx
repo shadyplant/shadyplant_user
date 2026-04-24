@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/pages/Home/components/7_Section";
-import WhatsAppButton from "@/pages/Home/components/Float_Button";
+import EcomHeader from "@/components/EcomHeader";
+import MobileBottomNav from "@/components/MobileBottomNav";
+import SiteFooter from "@/components/SiteFooter";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function SiteShell({ children }: { children: ReactNode }) {
   return (
-    <div className="theme-shell min-h-screen pt-24 md:pt-28">
-      <Navbar />
+    <div className="theme-shell min-h-screen">
+      <EcomHeader />
       <main>{children}</main>
-      <Footer />
+      <SiteFooter />
+      <MobileBottomNav />
       <WhatsAppButton />
     </div>
   );

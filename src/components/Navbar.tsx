@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Leaf, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import GGNIcon from "@/app/GGN.ico";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,16 +16,16 @@ export default function Navbar() {
   ];
 
   return (
-    <div className="fixed inset-x-0 top-0 z-50 w-full px-3 pt-3 md:px-6 md:pt-5">
+    <div className="sticky inset-x-0 top-0 z-50 w-full px-3 pt-3 md:px-6 md:pt-5">
       {/* Main Navbar */}
-      <nav className="theme-panel-strong mx-auto flex max-w-6xl items-center justify-between rounded-[2rem] px-4 py-3 md:px-6 md:py-4">
+      <nav className="theme-panel-strong mx-auto flex max-w-6xl items-center justify-between rounded-[2rem] border border-white/30 bg-[rgba(255,255,255,0.78)] px-4 py-3 backdrop-blur-xl md:px-6 md:py-4">
         {/* Logo Area */}
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-full border border-[#dcefbf] bg-white/85 p-2 pr-4 shadow-[0_12px_28px_rgba(33,79,20,0.08)]"
+          className="flex items-center gap-2 p-2 pr-4 shadow-[0_12px_28px_rgba(33,79,20,0.08)]"
         >
-          <div className="rounded-full bg-[#dff4be] p-1.5 text-[#1e4215]">
-            <Leaf size={20} />
+          <div className="relative h-8 w-8 overflow-hidden rounded-full">
+            <Image src={GGNIcon} alt="Grass Green Nursery logo" fill className="object-contain" />
           </div>
           <span className="text-[#1e4215] font-bold text-sm leading-tight">
             Grass <br /> Green Nursery

@@ -50,7 +50,7 @@ function createEmptyAddressForm(): AddressFormState {
 
 export default function ProfilePageClient() {
   const searchParams = useSearchParams();
-  const currentSection = resolveSection(searchParams?.get("section"));
+  const currentSection = resolveSection(searchParams?.get("section") ?? null);
   const profileData = useProfileData();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);

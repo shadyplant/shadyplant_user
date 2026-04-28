@@ -13,8 +13,8 @@ export default function SiteFooter() {
     <footer className="mt-20 border-t border-[#d7dfd2] bg-[#24361b] pb-18 text-[#edf8dd] md:pb-0">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-[1.2fr_0.8fr_0.9fr] md:px-6">
         <div>
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3">
-            <span className="rounded-full bg-[#dff5b6] p-2 text-[#173d12]">
+          <div className="inline-flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+            <span className="rounded-xl bg-[#dff5b6] p-2 text-[#173d12]">
               <Leaf size={18} />
             </span>
             <span className="text-sm font-black uppercase tracking-[0.2em]">
@@ -22,8 +22,9 @@ export default function SiteFooter() {
             </span>
           </div>
           <p className="mt-5 max-w-xl text-sm leading-7 text-[#d4e8c6]">
-            Plant-focused e-commerce storefront for indoor plants, outdoor plants,
-            lawn grass, ferns, and garden essentials with delivery-friendly ordering.
+            Plant-focused e-commerce storefront for indoor plants, outdoor
+            plants, lawn grass, ferns, and garden essentials with
+            delivery-friendly ordering.
           </p>
         </div>
 
@@ -33,7 +34,11 @@ export default function SiteFooter() {
           </h3>
           <div className="mt-4 flex flex-col gap-3 text-sm">
             {footerLinks.map((link) => (
-              <Link key={link.href} href={link.href} className="hover:text-white">
+              <Link
+                key={link.href}
+                href={link.href}
+                className="hover:text-white"
+              >
                 {link.label}
               </Link>
             ))}

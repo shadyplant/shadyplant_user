@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Heart, Home, PackageSearch, ShoppingCart } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartItems } from "@/components/cartStore";
 
 const items = [
@@ -14,6 +15,7 @@ const items = [
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
   const cartItems = useCartItems();
   const cartCount = getCartCount(cartItems);
 
@@ -21,12 +23,18 @@ export default function MobileBottomNav() {
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#d7dfd2] bg-white/95 px-3 py-2 backdrop-blur md:hidden">
       <div className="mx-auto grid max-w-xl grid-cols-4">
         {items.map(({ label, href, icon: Icon }) => {
+          const resolvedHref =
+            href === "/order" && !isAuthenticated
+              ? "/auth?next=/order"
+              : (href === "/cart" || href === "/wishlist") && !isAuthenticated
+                ? `/auth?next=${href}`
+                : href;
           const active = pathname === href;
 
           return (
             <Link
               key={href}
-              href={href}
+              href={resolvedHref}
               className={`flex flex-col items-center gap-1 rounded-2xl py-2 text-xs font-semibold ${
                 active ? "text-[#24361b]" : "text-[#6f8167]"
               }`}

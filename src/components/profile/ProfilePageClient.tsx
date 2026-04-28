@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   Heart,
@@ -11,155 +11,128 @@ import {
   MapPin,
   PackageSearch,
   Phone,
-  Plus,
+  Save,
+  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import SiteShell from "@/components/SiteShell";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
-  updateProfileData,
-  upsertProfileAddress,
-  useProfileData,
-  type ProfileAddress,
-} from "@/components/profileStore";
+  normalizeDeliveryAddress,
+  validateProfileForm,
+  type DeliveryAddress,
+} from "@/lib/validation";
 
 type ProfileSection = "profile" | "addresses";
 
-type AddressFormState = {
-  id: string;
-  label: string;
-  recipient: string;
-  phone: string;
-  address: string;
-  primary: boolean;
+type ProfileFormState = {
+  fullName: string;
+  phoneNumber: string;
+  deliveryAddress: DeliveryAddress;
 };
 
 function resolveSection(value: string | null): ProfileSection {
   return value === "addresses" ? "addresses" : "profile";
 }
 
-function createEmptyAddressForm(): AddressFormState {
+function createProfileFormState(
+  fullName = "",
+  phoneNumber = "",
+  deliveryAddress: Partial<DeliveryAddress> | null = null,
+): ProfileFormState {
   return {
-    id: "",
-    label: "",
-    recipient: "",
-    phone: "",
-    address: "",
-    primary: false,
+    fullName,
+    phoneNumber,
+    deliveryAddress: normalizeDeliveryAddress(deliveryAddress),
   };
 }
 
 export default function ProfilePageClient() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const currentSection = resolveSection(searchParams?.get("section") ?? null);
-  const profileData = useProfileData();
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isEditingEmail, setIsEditingEmail] = useState(false);
-  const [isEditingPhone, setIsEditingPhone] = useState(false);
-  const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [addressEditorTitle, setAddressEditorTitle] = useState("Add Address");
-  const [profileForm, setProfileForm] = useState({
-    firstName: profileData.firstName,
-    lastName: profileData.lastName,
-  });
-  const [emailForm, setEmailForm] = useState(profileData.email);
-  const [phoneForm, setPhoneForm] = useState(profileData.phone);
-  const [addressForm, setAddressForm] = useState<AddressFormState>(
-    createEmptyAddressForm(),
+  const { isAuthenticated, isReady, logout, updateProfile, user } = useAuth();
+  const [isSaving, setIsSaving] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<ProfileFormState>(createProfileFormState());
+
+  useEffect(() => {
+    if (user) {
+      setForm(
+        createProfileFormState(
+          user.fullName,
+          user.phoneNumber,
+          user.deliveryAddress,
+        ),
+      );
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isReady && !isAuthenticated) {
+      router.replace("/auth?next=/profile");
+    }
+  }, [isAuthenticated, isReady, router]);
+
+  const sidebarItems = useMemo(
+    () => [
+      {
+        label: "Profile Information",
+        href: "/profile",
+        active: currentSection === "profile",
+      },
+      { label: "My Orders", href: "/order", active: false },
+      {
+        label: "Delivery Address",
+        href: "/profile?section=addresses",
+        active: currentSection === "addresses",
+      },
+      { label: "My Wishlist", href: "/wishlist", active: false },
+    ],
+    [currentSection],
   );
 
-  const sidebarItems = [
-    {
-      label: "Profile Information",
-      href: "/profile",
-      active: currentSection === "profile",
-    },
-    { label: "My Orders", href: "/order", active: false },
-    {
-      label: "Manage Addresses",
-      href: "/profile?section=addresses",
-      active: currentSection === "addresses",
-    },
-    { label: "My Wishlist", href: "/wishlist", active: false },
-  ];
-
-  function openAddAddressForm() {
-    setAddressEditorTitle("Add Address");
-    setAddressForm(createEmptyAddressForm());
-    setIsEditingAddress(true);
+  if (!isReady) {
+    return (
+      <SiteShell>
+        <section className="px-4 py-8 md:px-6 md:py-12">
+          <div className="mx-auto max-w-4xl rounded-[1.8rem] border border-[#dbe8cd] bg-white p-6 text-sm text-[#58724f] shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
+            Loading your account...
+          </div>
+        </section>
+      </SiteShell>
+    );
   }
 
-  function openEditAddressForm(address: ProfileAddress) {
-    setAddressEditorTitle("Edit Address");
-    setAddressForm(address);
-    setIsEditingAddress(true);
+  if (!user) {
+    return null;
   }
 
-  function saveProfileName() {
-    updateProfileData({
-      firstName: profileForm.firstName.trim() || profileData.firstName,
-      lastName: profileForm.lastName.trim() || profileData.lastName,
-    });
-    setIsEditingProfile(false);
-  }
+  async function handleSave() {
+    setFeedback(null);
+    const validation = validateProfileForm(form);
+    setErrors(validation.errors);
 
-  function saveEmail() {
-    updateProfileData({
-      email: emailForm.trim() || profileData.email,
-    });
-    setIsEditingEmail(false);
-  }
-
-  function savePhone() {
-    updateProfileData({
-      phone: phoneForm.trim() || profileData.phone,
-    });
-    setIsEditingPhone(false);
-  }
-
-  function saveAddress() {
-    const nextAddress: ProfileAddress = {
-      id: addressForm.id || `address-${Date.now()}`,
-      label: addressForm.label.trim() || "Address",
-      recipient: addressForm.recipient.trim() || `${profileData.firstName} ${profileData.lastName}`,
-      phone: addressForm.phone.trim() || profileData.phone,
-      address: addressForm.address.trim(),
-      primary: addressForm.primary,
-    };
-
-    if (!nextAddress.address) {
+    if (!validation.data) {
       return;
     }
 
-    upsertProfileAddress(nextAddress);
-    setIsEditingAddress(false);
-    setAddressForm(createEmptyAddressForm());
+    setIsSaving(true);
+
+    try {
+      await updateProfile(validation.data);
+      setFeedback("Profile updated successfully.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to update profile.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function toggleProfileEditing() {
-    if (!isEditingProfile) {
-      setProfileForm({
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-      });
-    }
-
-    setIsEditingProfile((current) => !current);
-  }
-
-  function toggleEmailEditing() {
-    if (!isEditingEmail) {
-      setEmailForm(profileData.email);
-    }
-
-    setIsEditingEmail((current) => !current);
-  }
-
-  function togglePhoneEditing() {
-    if (!isEditingPhone) {
-      setPhoneForm(profileData.phone);
-    }
-
-    setIsEditingPhone((current) => !current);
+  async function handleLogout() {
+    await logout();
+    router.replace("/auth");
   }
 
   return (
@@ -174,10 +147,11 @@ export default function ProfilePageClient() {
                     <UserRound size={24} />
                   </div>
                   <div>
-                    <p className="text-sm text-[#58724f]">Hello,</p>
+                    <p className="text-sm text-[#58724f]">Signed in as</p>
                     <h1 className="text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                      {profileData.firstName} {profileData.lastName}
+                      {user.fullName}
                     </h1>
+                    <p className="mt-1 text-sm text-[#58724f]">{user.email}</p>
                   </div>
                 </div>
               </div>
@@ -209,6 +183,7 @@ export default function ProfilePageClient() {
                 <div className="border-t border-[#edf2e7] px-5 py-4">
                   <button
                     type="button"
+                    onClick={handleLogout}
                     className="flex w-full items-center gap-3 text-sm font-semibold text-[#c54b4b]"
                   >
                     <LogOut size={18} />
@@ -219,351 +194,321 @@ export default function ProfilePageClient() {
             </aside>
 
             <div className="rounded-[1.8rem] border border-[#dbe8cd] bg-white p-6 shadow-[0_18px_45px_rgba(33,79,20,0.06)] md:p-8">
-              {currentSection === "addresses" ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf2e7] pb-6">
                 <div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf2e7] pb-6">
-                    <div>
-                      <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
-                        Manage Addresses
-                      </h2>
-                      <p className="mt-2 text-sm text-[#58724f]">
-                        Keep delivery addresses ready for faster checkout.
-                      </p>
-                    </div>
+                  <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+                    {currentSection === "addresses"
+                      ? "Delivery Address"
+                      : "Personal Information"}
+                  </h2>
+                  <p className="mt-2 text-sm text-[#58724f]">
+                    Keep your delivery profile complete so checkout and order updates work smoothly.
+                  </p>
+                </div>
 
-                    <button
-                      type="button"
-                      onClick={openAddAddressForm}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#214f14] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
-                    >
-                      <Plus size={16} />
-                      Add New Address
-                    </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  <Save size={16} />
+                  {isSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+
+              {feedback ? (
+                <div className="mt-6 rounded-[1.3rem] border border-[#dbe8cd] bg-[#f7fbf2] p-4 text-sm text-[#244119]">
+                  {feedback}
+                </div>
+              ) : null}
+
+              {currentSection === "addresses" ? (
+                <div className="mt-6 space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Address line 1
+                      </span>
+                      <input
+                        type="text"
+                        value={form.deliveryAddress.line1}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            deliveryAddress: {
+                              ...current.deliveryAddress,
+                              line1: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                      />
+                      {errors.line1 ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">{errors.line1}</span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Address line 2
+                      </span>
+                      <input
+                        type="text"
+                        value={form.deliveryAddress.line2}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            deliveryAddress: {
+                              ...current.deliveryAddress,
+                              line2: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">City</span>
+                      <input
+                        type="text"
+                        value={form.deliveryAddress.city}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            deliveryAddress: {
+                              ...current.deliveryAddress,
+                              city: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                      />
+                      {errors.city ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">{errors.city}</span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">State</span>
+                      <input
+                        type="text"
+                        value={form.deliveryAddress.state}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            deliveryAddress: {
+                              ...current.deliveryAddress,
+                              state: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                      />
+                      {errors.state ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">{errors.state}</span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Postal code
+                      </span>
+                      <input
+                        type="text"
+                        value={form.deliveryAddress.postalCode}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            deliveryAddress: {
+                              ...current.deliveryAddress,
+                              postalCode: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                      />
+                      {errors.postalCode ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">{errors.postalCode}</span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Landmark
+                      </span>
+                      <input
+                        type="text"
+                        value={form.deliveryAddress.landmark}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            deliveryAddress: {
+                              ...current.deliveryAddress,
+                              landmark: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                      />
+                    </label>
+
+                    <label className="block md:col-span-2">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Delivery notes
+                      </span>
+                      <textarea
+                        rows={4}
+                        value={form.deliveryAddress.notes}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            deliveryAddress: {
+                              ...current.deliveryAddress,
+                              notes: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                      />
+                    </label>
                   </div>
 
-                  {isEditingAddress ? (
-                    <div className="mt-6 rounded-[1.5rem] border border-[#dbe8cd] bg-[#fbfdf8] p-5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                          {addressEditorTitle}
-                        </h3>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingAddress(false)}
-                          className="text-sm font-semibold text-[#214f14]"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-
-                      <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        <input
-                          type="text"
-                          value={addressForm.label}
-                          onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              label: event.target.value,
-                            }))
-                          }
-                          placeholder="Label (Home / Work)"
-                          className="rounded-[1.1rem] border border-[#dbe8cd] bg-white px-4 py-3 text-sm text-[#163915] outline-none"
-                        />
-                        <input
-                          type="text"
-                          value={addressForm.recipient}
-                          onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              recipient: event.target.value,
-                            }))
-                          }
-                          placeholder="Recipient name"
-                          className="rounded-[1.1rem] border border-[#dbe8cd] bg-white px-4 py-3 text-sm text-[#163915] outline-none"
-                        />
-                        <input
-                          type="text"
-                          value={addressForm.phone}
-                          onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              phone: event.target.value,
-                            }))
-                          }
-                          placeholder="Phone number"
-                          className="rounded-[1.1rem] border border-[#dbe8cd] bg-white px-4 py-3 text-sm text-[#163915] outline-none md:col-span-2"
-                        />
-                        <textarea
-                          value={addressForm.address}
-                          onChange={(event) =>
-                            setAddressForm((current) => ({
-                              ...current,
-                              address: event.target.value,
-                            }))
-                          }
-                          placeholder="Full delivery address"
-                          rows={4}
-                          className="rounded-[1.1rem] border border-[#dbe8cd] bg-white px-4 py-3 text-sm text-[#163915] outline-none md:col-span-2"
-                        />
-                        <label className="inline-flex items-center gap-3 text-sm font-semibold text-[#214f14] md:col-span-2">
-                          <input
-                            type="checkbox"
-                            checked={addressForm.primary}
-                            onChange={(event) =>
-                              setAddressForm((current) => ({
-                                ...current,
-                                primary: event.target.checked,
-                              }))
-                            }
-                            className="h-4 w-4 accent-[#214f14]"
-                          />
-                          Make this the default address
-                        </label>
-                      </div>
-
-                      <div className="mt-5">
-                        <button
-                          type="button"
-                          onClick={saveAddress}
-                          className="rounded-full bg-[#214f14] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
-                        >
-                          Save Address
-                        </button>
+                  <div className="rounded-[1.5rem] border border-[#dbe8cd] bg-[#fbfdf8] p-5 text-sm text-[#58724f]">
+                    <div className="flex items-start gap-3">
+                      <MapPin size={18} className="mt-0.5 shrink-0 text-[#214f14]" />
+                      <div>
+                        <p className="font-semibold text-[#163915]">Saved delivery profile</p>
+                        <p className="mt-2 leading-6">
+                          {[
+                            form.deliveryAddress.line1,
+                            form.deliveryAddress.line2,
+                            form.deliveryAddress.city,
+                            form.deliveryAddress.state,
+                            form.deliveryAddress.postalCode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ") || "Add your address to speed up checkout."}
+                        </p>
                       </div>
                     </div>
-                  ) : null}
-
-                  <div className="mt-6 grid gap-4">
-                    {profileData.addresses.map((address) => (
-                      <div
-                        key={address.id}
-                        className="rounded-[1.5rem] border border-[#dbe8cd] bg-[#fbfdf8] p-5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
-                              <Home size={18} />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="text-lg font-bold text-[#163915]">
-                                  {address.label}
-                                </p>
-                                {address.primary ? (
-                                  <span className="rounded-full bg-[#214f14] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
-                                    Default
-                                  </span>
-                                ) : null}
-                              </div>
-                              <p className="text-sm text-[#58724f]">
-                                {address.recipient} • {address.phone}
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => openEditAddressForm(address)}
-                            className="text-sm font-semibold text-[#214f14]"
-                          >
-                            Edit
-                          </button>
-                        </div>
-
-                        <div className="mt-4 rounded-[1.2rem] border border-[#dbe8cd] bg-white px-4 py-4 text-sm leading-6 text-[#58724f]">
-                          <div className="flex items-start gap-3">
-                            <MapPin size={16} className="mt-1 shrink-0 text-[#214f14]" />
-                            <p>{address.address}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
               ) : (
-                <div>
-                  <div className="border-b border-[#edf2e7] pb-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
-                        Personal Information
-                      </h2>
-                      <button
-                        type="button"
-                        onClick={toggleProfileEditing}
-                        className="text-sm font-semibold text-[#214f14]"
-                      >
-                        {isEditingProfile ? "Cancel" : "Edit"}
-                      </button>
-                    </div>
-
-                    <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div className="mt-6 space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Full name
+                      </span>
                       <input
                         type="text"
-                        value={
-                          isEditingProfile ? profileForm.firstName : profileData.firstName
-                        }
+                        value={form.fullName}
                         onChange={(event) =>
-                          setProfileForm((current) => ({
+                          setForm((current) => ({
                             ...current,
-                            firstName: event.target.value,
+                            fullName: event.target.value,
                           }))
                         }
-                        disabled={!isEditingProfile}
-                        className="rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-4 text-base text-[#163915] outline-none disabled:opacity-100"
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                       />
+                      {errors.fullName ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">{errors.fullName}</span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Phone number
+                      </span>
                       <input
-                        type="text"
-                        value={
-                          isEditingProfile ? profileForm.lastName : profileData.lastName
-                        }
+                        type="tel"
+                        value={form.phoneNumber}
                         onChange={(event) =>
-                          setProfileForm((current) => ({
+                          setForm((current) => ({
                             ...current,
-                            lastName: event.target.value,
+                            phoneNumber: event.target.value,
                           }))
                         }
-                        disabled={!isEditingProfile}
-                        className="rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-4 text-base text-[#163915] outline-none disabled:opacity-100"
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                       />
-                    </div>
+                      {errors.phoneNumber ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">{errors.phoneNumber}</span>
+                      ) : null}
+                    </label>
 
-                    {isEditingProfile ? (
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          onClick={saveProfileName}
-                          className="rounded-full bg-[#214f14] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    ) : null}
+                    <label className="block md:col-span-2">
+                      <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                        Verified email
+                      </span>
+                      <input
+                        type="email"
+                        value={user.email}
+                        disabled
+                        className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#f2f6ec] px-4 py-3 text-sm text-[#58724f] outline-none"
+                      />
+                    </label>
                   </div>
 
-                  <div className="border-b border-[#edf2e7] py-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                        Email Address
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={toggleEmailEditing}
-                        className="text-sm font-semibold text-[#214f14]"
-                      >
-                        {isEditingEmail ? "Cancel" : "Edit"}
-                      </button>
+                  <div className="rounded-[1.5rem] border border-[#dbe8cd] bg-[#f8fbf3] p-4 text-sm text-[#58724f]">
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck size={18} className="mt-0.5 shrink-0 text-[#214f14]" />
+                      <p>
+                        Your email stays tied to your verified account. Update phone and
+                        delivery details here so order coordination stays accurate.
+                      </p>
                     </div>
-
-                    <input
-                      type="email"
-                      value={isEditingEmail ? emailForm : profileData.email}
-                      onChange={(event) => setEmailForm(event.target.value)}
-                      disabled={!isEditingEmail}
-                      className="mt-5 max-w-xl rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-4 text-base text-[#163915] outline-none disabled:opacity-100"
-                    />
-
-                    {isEditingEmail ? (
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          onClick={saveEmail}
-                          className="rounded-full bg-[#214f14] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
-                        >
-                          Save Email
-                        </button>
-                      </div>
-                    ) : null}
                   </div>
 
-                  <div className="border-b border-[#edf2e7] py-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                        Mobile Number
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={togglePhoneEditing}
-                        className="text-sm font-semibold text-[#214f14]"
-                      >
-                        {isEditingPhone ? "Cancel" : "Edit"}
-                      </button>
-                    </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Link
+                      href="/order"
+                      className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
+                    >
+                      <PackageSearch size={18} className="text-[#214f14]" />
+                      <p className="mt-3 text-base font-bold text-[#163915]">
+                        Track Orders
+                      </p>
+                      <p className="mt-1 text-sm text-[#58724f]">
+                        View live status updates from your account.
+                      </p>
+                    </Link>
 
-                    <input
-                      type="text"
-                      value={isEditingPhone ? phoneForm : profileData.phone}
-                      onChange={(event) => setPhoneForm(event.target.value)}
-                      disabled={!isEditingPhone}
-                      className="mt-5 max-w-xl rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-4 text-base text-[#163915] outline-none disabled:opacity-100"
-                    />
+                    <Link
+                      href="/wishlist"
+                      className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
+                    >
+                      <Heart size={18} className="text-[#214f14]" />
+                      <p className="mt-3 text-base font-bold text-[#163915]">
+                        Wishlist
+                      </p>
+                      <p className="mt-1 text-sm text-[#58724f]">
+                        Pick up where you left off with saved items.
+                      </p>
+                    </Link>
 
-                    {isEditingPhone ? (
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          onClick={savePhone}
-                          className="rounded-full bg-[#214f14] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
-                        >
-                          Save Number
-                        </button>
-                      </div>
-                    ) : null}
+                    <Link
+                      href="/profile?section=addresses"
+                      className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
+                    >
+                      <Home size={18} className="text-[#214f14]" />
+                      <p className="mt-3 text-base font-bold text-[#163915]">
+                        Delivery Address
+                      </p>
+                      <p className="mt-1 text-sm text-[#58724f]">
+                        Complete your address before checkout.
+                      </p>
+                    </Link>
                   </div>
 
-                  <div className="py-6">
-                    <h3 className="text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                      Required Shortcuts
-                    </h3>
-
-                    <div className="mt-5 grid gap-4 md:grid-cols-3">
-                      <Link
-                        href="/order"
-                        className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
-                      >
-                        <PackageSearch size={18} className="text-[#214f14]" />
-                        <p className="mt-3 text-base font-bold text-[#163915]">
-                          Track Orders
-                        </p>
-                        <p className="mt-1 text-sm text-[#58724f]">
-                          View delivery and order status.
-                        </p>
-                      </Link>
-
-                      <Link
-                        href="/wishlist"
-                        className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
-                      >
-                        <Heart size={18} className="text-[#214f14]" />
-                        <p className="mt-3 text-base font-bold text-[#163915]">
-                          Wishlist
-                        </p>
-                        <p className="mt-1 text-sm text-[#58724f]">
-                          Open saved favorite products.
-                        </p>
-                      </Link>
-
-                      <Link
-                        href="/profile?section=addresses"
-                        className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
-                      >
-                        <MapPin size={18} className="text-[#214f14]" />
-                        <p className="mt-3 text-base font-bold text-[#163915]">
-                          Manage Addresses
-                        </p>
-                        <p className="mt-1 text-sm text-[#58724f]">
-                          Update saved delivery locations.
-                        </p>
-                      </Link>
-                    </div>
-
-                    <div className="mt-5 rounded-[1.4rem] border border-[#dbe8cd] bg-[#f8fbf3] p-4 text-sm text-[#58724f]">
-                      <div className="flex items-start gap-3">
-                        <Phone size={16} className="mt-0.5 shrink-0 text-[#214f14]" />
-                        <p>
-                          Your saved phone and address are used for delivery updates and
-                          order coordination.
-                        </p>
-                      </div>
+                  <div className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#f8fbf3] p-4 text-sm text-[#58724f]">
+                    <div className="flex items-start gap-3">
+                      <Phone size={16} className="mt-0.5 shrink-0 text-[#214f14]" />
+                      <p>
+                        Your saved phone and delivery address are used for dispatch
+                        coordination, payment follow-up, and on-route updates.
+                      </p>
                     </div>
                   </div>
                 </div>

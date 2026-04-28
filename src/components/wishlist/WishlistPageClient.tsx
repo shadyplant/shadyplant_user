@@ -5,22 +5,66 @@ import Link from "next/link";
 import { ArrowRight, Heart, Trash2 } from "lucide-react";
 import AddToCartButton from "@/components/AddToCartButton";
 import SiteShell from "@/components/SiteShell";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useProductsStore } from "@/components/productsStore";
 import {
-  clearWishlist,
-  removeWishlistItem,
-  useWishlistItems,
+  useWishlistStore,
 } from "@/components/wishlistStore";
-import { getProductById } from "@/content/store";
 import { formatCurrency } from "@/lib/formatCurrency";
 
-type WishlistProduct = NonNullable<ReturnType<typeof getProductById>>;
-
 export default function WishlistPageClient() {
-  const wishlistItems = useWishlistItems();
+  const { isAuthenticated, isReady: isAuthReady } = useAuth();
+  const {
+    items: wishlistItems,
+    clearItems,
+    isLoading,
+    isReady,
+    removeItem,
+  } = useWishlistStore();
+  const {
+    isLoading: isProductsLoading,
+    isReady: areProductsReady,
+    products: allProducts,
+  } = useProductsStore();
   const products = wishlistItems.flatMap((productId) => {
-    const product = getProductById(productId);
+    const product = allProducts.find((entry) => entry.id === productId);
     return product ? [product] : [];
   });
+
+  if (isAuthReady && !isAuthenticated) {
+    return (
+      <SiteShell>
+        <section className="px-4 py-8 md:px-6 md:py-12">
+          <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
+              <Heart size={30} />
+            </div>
+            <h2 className="mt-6 text-3xl font-black tracking-[-0.04em] text-[#163915]">
+              Sign in to view your wishlist
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
+              Your wishlist is now stored on your account, so the same saved picks follow you across devices.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/auth?next=/wishlist"
+                className="theme-button inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
+              >
+                Sign in
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
+              >
+                Browse products
+              </Link>
+            </div>
+          </div>
+        </section>
+      </SiteShell>
+    );
+  }
 
   return (
     <SiteShell>
@@ -30,7 +74,7 @@ export default function WishlistPageClient() {
             {products.length ? (
               <button
                 type="button"
-                onClick={clearWishlist}
+                onClick={() => void clearItems()}
                 className="inline-flex h-fit items-center gap-2 self-start rounded-full border border-[#d6e6bd] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#f3f8ec]"
               >
                 <Trash2 size={16} />
@@ -39,7 +83,16 @@ export default function WishlistPageClient() {
             ) : null}
           </div>
 
-          {!products.length ? (
+          {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
+            <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
+              <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+                Loading your wishlist
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
+                Pulling your saved products from the server.
+              </p>
+            </div>
+          ) : !products.length ? (
             <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
                 <Heart size={30} />
@@ -70,7 +123,7 @@ export default function WishlistPageClient() {
           ) : (
             <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="space-y-4">
-                {products.map((product: WishlistProduct) => (
+                {products.map((product) => (
                   <article
                     key={product.id}
                     className="rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-4 shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-5"
@@ -133,7 +186,7 @@ export default function WishlistPageClient() {
                               />
                               <button
                                 type="button"
-                                onClick={() => removeWishlistItem(product.id)}
+                                onClick={() => void removeItem(product.id)}
                                 className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d6e6bd] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#edf5e1]"
                               >
                                 <Trash2 size={15} />

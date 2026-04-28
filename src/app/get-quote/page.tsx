@@ -1,9 +1,5 @@
-import GrassCalculatorPage from "@/pages/Calculator/Layout";
+import { redirect } from "next/navigation";
 
 export default function Calculator() {
-  return (
-    <>
-      <GrassCalculatorPage />
-    </>
-  );
+  redirect("/checkout");
 }

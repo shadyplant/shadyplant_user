@@ -1,89 +1,254 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { ApiError, type ApiResponse } from "@/lib/api";
 
-const STORAGE_KEY = "ggn-wishlist";
-const WISHLIST_EVENT = "ggn-wishlist-change";
-const EMPTY_SNAPSHOT = "";
+type WishlistStoreState = {
+  items: string[];
+  isLoading: boolean;
+  isReady: boolean;
+  userId: string | null;
+  errorMessage: string | null;
+};
 
-export function parseWishlist(snapshot: string): string[] {
-  if (!snapshot) {
-    return [];
+type WishlistApiResponse = ApiResponse<{
+  wishlist: {
+    items?: Array<{
+      productId?: string;
+      id?: string;
+    }>;
+  };
+}>;
+
+const EMPTY_STATE: WishlistStoreState = {
+  items: [],
+  isLoading: false,
+  isReady: false,
+  userId: null,
+  errorMessage: null,
+};
+
+let wishlistState: WishlistStoreState = EMPTY_STATE;
+let wishlistLoadPromise: Promise<string[]> | null = null;
+
+const listeners = new Set<() => void>();
+
+function emitChange() {
+  for (const listener of listeners) {
+    listener();
   }
-
-  try {
-    const parsedValue = JSON.parse(snapshot);
-    return Array.isArray(parsedValue) ? parsedValue : [];
-  } catch {
-    return [];
-  }
 }
 
-export function readWishlist(): string[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  return parseWishlist(window.localStorage.getItem(STORAGE_KEY) ?? EMPTY_SNAPSHOT);
+function setWishlistState(nextState: WishlistStoreState) {
+  wishlistState = nextState;
+  emitChange();
 }
 
-export function writeWishlist(items: string[]) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  window.dispatchEvent(new Event(WISHLIST_EVENT));
-}
-
-export function clearWishlist() {
-  writeWishlist([]);
-}
-
-export function removeWishlistItem(productId: string) {
-  writeWishlist(readWishlist().filter((item) => item !== productId));
-}
-
-export function addWishlistItem(productId: string) {
-  const items = readWishlist();
-
-  if (items.includes(productId)) {
-    return;
-  }
-
-  writeWishlist([...items, productId]);
-}
-
-function subscribe(callback: () => void) {
-  if (typeof window === "undefined") {
-    return () => undefined;
-  }
-
-  const handleChange = () => callback();
-
-  window.addEventListener("storage", handleChange);
-  window.addEventListener(WISHLIST_EVENT, handleChange);
+function subscribe(listener: () => void) {
+  listeners.add(listener);
 
   return () => {
-    window.removeEventListener("storage", handleChange);
-    window.removeEventListener(WISHLIST_EVENT, handleChange);
+    listeners.delete(listener);
   };
 }
 
-function getWishlistSnapshot() {
-  if (typeof window === "undefined") {
-    return EMPTY_SNAPSHOT;
-  }
-
-  return window.localStorage.getItem(STORAGE_KEY) ?? EMPTY_SNAPSHOT;
+function getSnapshot() {
+  return wishlistState;
 }
 
 function getServerSnapshot() {
-  return EMPTY_SNAPSHOT;
+  return EMPTY_STATE;
+}
+
+function sanitizeWishlistItem(item: {
+  productId?: string;
+  id?: string;
+}) {
+  return String(item.productId || item.id || "").trim();
+}
+
+function normalizeWishlistItems(response: WishlistApiResponse) {
+  return Array.isArray(response.data.wishlist.items)
+    ? response.data.wishlist.items.flatMap((item) => {
+        const productId = sanitizeWishlistItem(item);
+        return productId ? [productId] : [];
+      })
+    : [];
+}
+
+function normalizeApiError(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function resetWishlistState() {
+  wishlistLoadPromise = null;
+  setWishlistState({
+    items: [],
+    isLoading: false,
+    isReady: true,
+    userId: null,
+    errorMessage: null,
+  });
+}
+
+async function fetchWishlist(
+  userId: string,
+  fetchWithAuth: <T>(path: string, init?: RequestInit) => Promise<T>,
+) {
+  if (wishlistLoadPromise && wishlistState.userId === userId) {
+    return wishlistLoadPromise;
+  }
+
+  setWishlistState({
+    ...wishlistState,
+    isLoading: true,
+    isReady: wishlistState.isReady && wishlistState.userId === userId,
+    userId,
+    errorMessage: null,
+  });
+
+  wishlistLoadPromise = fetchWithAuth<WishlistApiResponse>("/wishlist")
+    .then((response) => {
+      const items = normalizeWishlistItems(response);
+      setWishlistState({
+        items,
+        isLoading: false,
+        isReady: true,
+        userId,
+        errorMessage: null,
+      });
+      return items;
+    })
+    .catch((error) => {
+      setWishlistState({
+        items: [],
+        isLoading: false,
+        isReady: true,
+        userId,
+        errorMessage: normalizeApiError(error, "Unable to load wishlist."),
+      });
+      throw error;
+    })
+    .finally(() => {
+      wishlistLoadPromise = null;
+    });
+
+  return wishlistLoadPromise;
+}
+
+function applyWishlistResponse(userId: string, response: WishlistApiResponse) {
+  const items = normalizeWishlistItems(response);
+
+  setWishlistState({
+    items,
+    isLoading: false,
+    isReady: true,
+    userId,
+    errorMessage: null,
+  });
+
+  return items;
+}
+
+export function useWishlistStore() {
+  const { fetchWithAuth, isAuthenticated, isReady, user } = useAuth();
+  const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!isAuthenticated || !user?.id) {
+      resetWishlistState();
+      return;
+    }
+
+    if (state.userId === user.id && state.isReady) {
+      return;
+    }
+
+    void fetchWishlist(user.id, fetchWithAuth).catch((error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        resetWishlistState();
+      }
+    });
+  }, [
+    fetchWithAuth,
+    isAuthenticated,
+    isReady,
+    state.isReady,
+    state.userId,
+    user?.id,
+  ]);
+
+  async function addItem(productId: string) {
+    if (!isAuthenticated || !user?.id) {
+      throw new ApiError(401, "Please sign in to use your wishlist.", null);
+    }
+
+    const response = await fetchWithAuth<WishlistApiResponse>("/wishlist/items", {
+      method: "POST",
+      body: JSON.stringify({ productId }),
+    });
+
+    return applyWishlistResponse(user.id, response);
+  }
+
+  async function removeItem(productId: string) {
+    if (!isAuthenticated || !user?.id) {
+      throw new ApiError(401, "Please sign in to use your wishlist.", null);
+    }
+
+    const response = await fetchWithAuth<WishlistApiResponse>(
+      `/wishlist/items/${productId}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    return applyWishlistResponse(user.id, response);
+  }
+
+  async function clearItems() {
+    if (!isAuthenticated || !user?.id) {
+      throw new ApiError(401, "Please sign in to use your wishlist.", null);
+    }
+
+    const response = await fetchWithAuth<WishlistApiResponse>("/wishlist", {
+      method: "DELETE",
+    });
+
+    return applyWishlistResponse(user.id, response);
+  }
+
+  async function reload() {
+    if (!isAuthenticated || !user?.id) {
+      resetWishlistState();
+      return [];
+    }
+
+    return fetchWishlist(user.id, fetchWithAuth);
+  }
+
+  return {
+    ...state,
+    addItem,
+    removeItem,
+    clearItems,
+    reload,
+  };
 }
 
 export function useWishlistItems() {
-  const wishlistSnapshot = useSyncExternalStore(
-    subscribe,
-    getWishlistSnapshot,
-    getServerSnapshot,
-  );
-
-  return parseWishlist(wishlistSnapshot);
+  return useWishlistStore().items;
 }

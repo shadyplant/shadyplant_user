@@ -1,8 +1,10 @@
 "use client";
 
 import { Heart } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { readWishlist, useWishlistItems, writeWishlist } from "@/components/wishlistStore";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useWishlistStore } from "@/components/wishlistStore";
 
 type WishlistButtonProps = {
   productId: string;
@@ -15,9 +17,12 @@ export default function WishlistButton({
   size = 18,
   className = "",
 }: WishlistButtonProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
   const [isPopping, setIsPopping] = useState(false);
   const popTimeoutRef = useRef<number | null>(null);
-  const wishlistItems = useWishlistItems();
+  const { items: wishlistItems, addItem, removeItem } = useWishlistStore();
   const isWishlisted = wishlistItems.includes(productId);
 
   useEffect(() => {
@@ -28,17 +33,21 @@ export default function WishlistButton({
     };
   }, []);
 
-  function handleToggle(event: MouseEvent<HTMLButtonElement>) {
+  async function handleToggle(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
 
-    const wishlistItems = readWishlist();
-    const nextIsWishlisted = !wishlistItems.includes(productId);
-    const nextWishlistItems = nextIsWishlisted
-      ? [...wishlistItems, productId]
-      : wishlistItems.filter((item) => item !== productId);
+    if (!isAuthenticated) {
+      router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
+      return;
+    }
 
-    writeWishlist(nextWishlistItems);
+    if (isWishlisted) {
+      await removeItem(productId);
+    } else {
+      await addItem(productId);
+    }
+
     if (popTimeoutRef.current) {
       window.clearTimeout(popTimeoutRef.current);
     }

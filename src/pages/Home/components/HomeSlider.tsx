@@ -21,7 +21,7 @@ const slides = [
     description: "Soft Korean grass and durable doob grass delivered for residential projects.",
     image:
       "https://m.media-amazon.com/images/I/71Obx3bzatL._AC_UF1000,1000_QL80_.jpg",
-    href: "/get-quote",
+    href: "/checkout",
     chip: "Lawn care",
   },
   {

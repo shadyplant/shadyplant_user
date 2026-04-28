@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Check, Plus, ShoppingCart } from "lucide-react";
 import {
-  addCartItem,
   getCartQuantity,
-  useCartItems,
+  useCartStore,
 } from "@/components/cartStore";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 type AddToCartButtonProps = {
   productId: string;
@@ -25,14 +26,23 @@ export default function AddToCartButton({
   label = "Add to cart",
   children,
 }: AddToCartButtonProps) {
-  const cartItems = useCartItems();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
+  const { items: cartItems, addItem } = useCartStore();
   const quantityInCart = getCartQuantity(cartItems, productId);
   const [justAdded, setJustAdded] = useState(false);
 
-  function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+  async function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
-    addCartItem(productId, quantity);
+
+    if (!isAuthenticated) {
+      router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
+      return;
+    }
+
+    await addItem(productId, quantity);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1400);
   }

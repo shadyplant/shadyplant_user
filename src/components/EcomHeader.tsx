@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart, Menu, Search, ShoppingCart, UserRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartItems } from "@/components/cartStore";
+import { useProductsStore } from "@/components/productsStore";
 import { useWishlistItems } from "@/components/wishlistStore";
-import { latestProducts } from "@/content/store";
 
 const navLinks = [{ label: "Orders", href: "/order" }];
 
 const stickyHeaderClass =
-  "border-b border-white/20 bg-[rgba(248,251,246,0.34)] [box-shadow:0_6px_16px_-4px_rgba(36,54,27,0.12)] backdrop-blur-2xl backdrop-saturate-150";
+  "border-b border-white/20 bg-[rgba(248,251,246,0.84)] [box-shadow:0_6px_16px_-4px_rgba(36,54,27,0.12)] backdrop-blur-2xl backdrop-saturate-150";
 
 type Suggestion = {
   label: string;
@@ -22,14 +23,18 @@ type Suggestion = {
 export default function EcomHeader() {
   const router = useRouter();
   const pathname = usePathname();
+  const { isAuthenticated, logout, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const cartItems = useCartItems();
   const wishlistItems = useWishlistItems();
+  const { products } = useProductsStore();
   const cartCount = getCartCount(cartItems);
   const wishlistCount = wishlistItems.length;
+  const wishlistHref = isAuthenticated ? "/wishlist" : "/auth?next=/wishlist";
+  const cartHref = isAuthenticated ? "/cart" : "/auth?next=/cart";
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const suggestions = useMemo<Suggestion[]>(() => {
@@ -37,7 +42,7 @@ export default function EcomHeader() {
       return [];
     }
 
-    return latestProducts
+    return products
       .filter((product) =>
         [
           product.name,
@@ -52,7 +57,7 @@ export default function EcomHeader() {
         href: `/products/${product.id}`,
       }))
       .slice(0, 6);
-  }, [normalizedSearch]);
+  }, [normalizedSearch, products]);
 
   const showSuggestions = isSearchFocused && suggestions.length > 0;
 
@@ -60,6 +65,12 @@ export default function EcomHeader() {
     setMenuOpen(false);
     setMobileSearchOpen(false);
     setIsSearchFocused(false);
+  }
+
+  async function handleLogout() {
+    await logout();
+    closeOverlays();
+    router.push("/auth");
   }
 
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
@@ -89,8 +100,8 @@ export default function EcomHeader() {
           onSubmit={submitSearch}
           className={
             mobile
-              ? "flex items-center gap-2 rounded-[1rem] border border-[#d9e4d5] bg-white/65 px-3 py-2.5"
-              : "theme-input flex w-full items-center gap-3 rounded-[1.15rem] border border-[#24361b]/10 bg-white/65 px-4 py-2.5 lg:max-w-[560px] xl:max-w-[680px]"
+              ? "flex items-center gap-2 rounded-xl border border-[#d9e4d5] bg-white/65 px-3 py-2.5"
+              : "theme-input flex w-full items-center gap-3 rounded-xl border border-[#24361b]/10 bg-white/65 px-4 py-2.5 lg:max-w-[560px] xl:max-w-[680px]"
           }
         >
           <Search size={17} className="text-[#69845d]" />
@@ -183,7 +194,9 @@ export default function EcomHeader() {
                   href={link.href}
                   onClick={closeOverlays}
                   className={`rounded-full px-3.5 py-2 text-sm font-semibold ${
-                    pathname === link.href ? "bg-[#24361b] text-white" : "text-[#214f14]"
+                    pathname === link.href
+                      ? "bg-[#24361b] text-white"
+                      : "text-[#214f14]"
                   }`}
                 >
                   {link.label}
@@ -202,7 +215,7 @@ export default function EcomHeader() {
               </button>
 
               <Link
-                href="/wishlist"
+                href={wishlistHref}
                 className="relative hidden p-2 md:inline-flex"
                 aria-label="View wishlist"
               >
@@ -219,19 +232,28 @@ export default function EcomHeader() {
               </Link>
 
               <Link
-                href="/profile"
+                href={isAuthenticated ? "/profile" : "/auth?next=/profile"}
                 className={`rounded-full p-2 transition-colors ${
                   pathname === "/profile"
                     ? "bg-[#edf5e1] text-[#214f14]"
                     : "text-[#214f14] hover:bg-[#edf5e1]"
                 }`}
-                aria-label="View profile"
+                aria-label={isAuthenticated ? "View profile" : "Sign in"}
               >
                 <UserRound size={20} />
               </Link>
 
+              {!isAuthenticated ? (
+                <Link
+                  href="/auth?next=/profile"
+                  className="hidden rounded-full bg-[#214f14] px-4 py-2 text-sm font-semibold text-white md:inline-flex"
+                >
+                  Sign In
+                </Link>
+              ) : null}
+
               <Link
-                href="/cart"
+                href={cartHref}
                 className="relative hidden p-2 md:inline-flex"
                 aria-label="View cart"
               >
@@ -269,6 +291,26 @@ export default function EcomHeader() {
                     {link.label}
                   </Link>
                 ))}
+
+                <Link
+                  href={isAuthenticated ? "/profile" : "/auth?next=/profile"}
+                  onClick={closeOverlays}
+                  className="rounded-2xl px-4 py-2.5 text-sm font-semibold text-[#214f14] hover:bg-[#edf2e7]"
+                >
+                  {isAuthenticated
+                    ? `Account${user?.fullName ? ` - ${user.fullName.split(" ")[0]}` : ""}`
+                    : "Sign In"}
+                </Link>
+
+                {isAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-2xl px-4 py-2.5 text-left text-sm font-semibold text-[#c54b4b] hover:bg-[#fff5f5]"
+                  >
+                    Logout
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}

@@ -47,11 +47,11 @@ export default function Navbar() {
 
         {/* Action Button */}
         <Link
-          href="/get-quote"
+          href="/checkout"
           className="theme-button group relative hidden overflow-hidden rounded-full px-8 py-3 text-lg font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98] md:inline-flex cursor-pointer"
         >
           <span className="absolute inset-y-0 left-[-30%] w-16 -skew-x-12 bg-white/20 opacity-0 transition-all duration-500 group-hover:left-[110%] group-hover:opacity-100" />
-          <span className="relative z-10">Get Quote</span>
+          <span className="relative z-10">Checkout</span>
         </Link>
 
         <button
@@ -81,10 +81,14 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <button className="theme-button group relative mt-2 w-full overflow-hidden rounded-full px-6 py-3 text-base font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98]">
+            <Link
+              href="/checkout"
+              onClick={() => setIsMenuOpen(false)}
+              className="theme-button group relative mt-2 w-full overflow-hidden rounded-full px-6 py-3 text-base font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98]"
+            >
               <span className="absolute inset-y-0 left-[-30%] w-16 -skew-x-12 bg-white/20 opacity-0 transition-all duration-500 group-hover:left-[110%] group-hover:opacity-100" />
-              <span className="relative z-10">Get Quote</span>
-            </button>
+              <span className="relative z-10">Checkout</span>
+            </Link>
           </div>
         </div>
       ) : null}

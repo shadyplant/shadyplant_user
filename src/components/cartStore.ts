@@ -1,113 +1,283 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { ApiError, type ApiResponse } from "@/lib/api";
 import type { CartItem } from "@/content/store";
 
-const STORAGE_KEY = "ggn-cart";
-const CART_EVENT = "ggn-cart-change";
-const EMPTY_SNAPSHOT = "[]";
+type CartStoreState = {
+  items: CartItem[];
+  isLoading: boolean;
+  isReady: boolean;
+  userId: string | null;
+  errorMessage: string | null;
+};
 
-function sanitizeCartItem(item: unknown): CartItem | null {
-  if (!item || typeof item !== "object") {
-    return null;
+type CartApiResponse = ApiResponse<{
+  cart: {
+    items?: Array<{
+      productId?: string;
+      id?: string;
+      quantity?: number;
+    }>;
+  };
+}>;
+
+const EMPTY_STATE: CartStoreState = {
+  items: [],
+  isLoading: false,
+  isReady: false,
+  userId: null,
+  errorMessage: null,
+};
+
+let cartState: CartStoreState = EMPTY_STATE;
+let cartLoadPromise: Promise<CartItem[]> | null = null;
+
+const listeners = new Set<() => void>();
+
+function emitChange() {
+  for (const listener of listeners) {
+    listener();
   }
+}
 
-  const candidate = item as Partial<CartItem>;
-  const quantity = Number(candidate.quantity);
+function setCartState(nextState: CartStoreState) {
+  cartState = nextState;
+  emitChange();
+}
 
-  if (
-    typeof candidate.productId !== "string" ||
-    !candidate.productId ||
-    !Number.isFinite(quantity)
-  ) {
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot() {
+  return cartState;
+}
+
+function getServerSnapshot() {
+  return EMPTY_STATE;
+}
+
+function sanitizeCartItem(item: {
+  productId?: string;
+  id?: string;
+  quantity?: number;
+}): CartItem | null {
+  const productId = String(item.productId || item.id || "").trim();
+  const quantity = Number(item.quantity);
+
+  if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
     return null;
   }
 
   return {
-    productId: candidate.productId,
+    productId,
     quantity: Math.max(1, Math.floor(quantity)),
   };
 }
 
-export function parseCart(snapshot: string): CartItem[] {
-  if (!snapshot) {
-    return [];
+function normalizeCartItems(response: CartApiResponse): CartItem[] {
+  return Array.isArray(response.data.cart.items)
+    ? response.data.cart.items.flatMap((item) => {
+        const sanitizedItem = sanitizeCartItem(item);
+        return sanitizedItem ? [sanitizedItem] : [];
+      })
+    : [];
+}
+
+function normalizeApiError(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    return error.message;
   }
 
-  try {
-    const parsedValue = JSON.parse(snapshot);
+  if (error instanceof Error) {
+    return error.message;
+  }
 
-    if (!Array.isArray(parsedValue)) {
+  return fallback;
+}
+
+function resetCartState() {
+  cartLoadPromise = null;
+  setCartState({
+    items: [],
+    isLoading: false,
+    isReady: true,
+    userId: null,
+    errorMessage: null,
+  });
+}
+
+async function fetchCart(
+  userId: string,
+  fetchWithAuth: <T>(path: string, init?: RequestInit) => Promise<T>,
+) {
+  if (cartLoadPromise && cartState.userId === userId) {
+    return cartLoadPromise;
+  }
+
+  setCartState({
+    ...cartState,
+    isLoading: true,
+    isReady: cartState.isReady && cartState.userId === userId,
+    userId,
+    errorMessage: null,
+  });
+
+  cartLoadPromise = fetchWithAuth<CartApiResponse>("/cart")
+    .then((response) => {
+      const items = normalizeCartItems(response);
+      setCartState({
+        items,
+        isLoading: false,
+        isReady: true,
+        userId,
+        errorMessage: null,
+      });
+      return items;
+    })
+    .catch((error) => {
+      setCartState({
+        items: [],
+        isLoading: false,
+        isReady: true,
+        userId,
+        errorMessage: normalizeApiError(error, "Unable to load cart."),
+      });
+      throw error;
+    })
+    .finally(() => {
+      cartLoadPromise = null;
+    });
+
+  return cartLoadPromise;
+}
+
+function applyCartResponse(userId: string, response: CartApiResponse) {
+  const items = normalizeCartItems(response);
+
+  setCartState({
+    items,
+    isLoading: false,
+    isReady: true,
+    userId,
+    errorMessage: null,
+  });
+
+  return items;
+}
+
+export function useCartStore() {
+  const { fetchWithAuth, isAuthenticated, isReady, user } = useAuth();
+  const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!isAuthenticated || !user?.id) {
+      resetCartState();
+      return;
+    }
+
+    if (state.userId === user.id && state.isReady) {
+      return;
+    }
+
+    void fetchCart(user.id, fetchWithAuth).catch((error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        resetCartState();
+      }
+    });
+  }, [
+    fetchWithAuth,
+    isAuthenticated,
+    isReady,
+    state.isReady,
+    state.userId,
+    user?.id,
+  ]);
+
+  async function addItem(productId: string, quantity = 1) {
+    if (!isAuthenticated || !user?.id) {
+      throw new ApiError(401, "Please sign in to use your cart.", null);
+    }
+
+    const response = await fetchWithAuth<CartApiResponse>("/cart/items", {
+      method: "POST",
+      body: JSON.stringify({
+        productId,
+        quantity,
+      }),
+    });
+
+    return applyCartResponse(user.id, response);
+  }
+
+  async function updateQuantity(productId: string, quantity: number) {
+    if (!isAuthenticated || !user?.id) {
+      throw new ApiError(401, "Please sign in to use your cart.", null);
+    }
+
+    const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${productId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ quantity }),
+    });
+
+    return applyCartResponse(user.id, response);
+  }
+
+  async function removeItem(productId: string) {
+    if (!isAuthenticated || !user?.id) {
+      throw new ApiError(401, "Please sign in to use your cart.", null);
+    }
+
+    const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${productId}`, {
+      method: "DELETE",
+    });
+
+    return applyCartResponse(user.id, response);
+  }
+
+  async function clearItems() {
+    if (!isAuthenticated || !user?.id) {
+      throw new ApiError(401, "Please sign in to use your cart.", null);
+    }
+
+    const response = await fetchWithAuth<CartApiResponse>("/cart", {
+      method: "DELETE",
+    });
+
+    return applyCartResponse(user.id, response);
+  }
+
+  async function reload() {
+    if (!isAuthenticated || !user?.id) {
+      resetCartState();
       return [];
     }
 
-    return parsedValue.flatMap((item) => {
-      const sanitizedItem = sanitizeCartItem(item);
-      return sanitizedItem ? [sanitizedItem] : [];
-    });
-  } catch {
-    return [];
-  }
-}
-
-export function readCart(): CartItem[] {
-  if (typeof window === "undefined") {
-    return [];
+    return fetchCart(user.id, fetchWithAuth);
   }
 
-  return parseCart(window.localStorage.getItem(STORAGE_KEY) ?? EMPTY_SNAPSHOT);
-}
-
-export function writeCart(items: CartItem[]) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const sanitizedItems = items.flatMap((item) => {
-    const sanitizedItem = sanitizeCartItem(item);
-    return sanitizedItem ? [sanitizedItem] : [];
-  });
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizedItems));
-  window.dispatchEvent(new Event(CART_EVENT));
-}
-
-function subscribe(callback: () => void) {
-  if (typeof window === "undefined") {
-    return () => undefined;
-  }
-
-  const handleChange = () => callback();
-
-  window.addEventListener("storage", handleChange);
-  window.addEventListener(CART_EVENT, handleChange);
-
-  return () => {
-    window.removeEventListener("storage", handleChange);
-    window.removeEventListener(CART_EVENT, handleChange);
+  return {
+    ...state,
+    addItem,
+    updateQuantity,
+    removeItem,
+    clearItems,
+    reload,
   };
 }
 
-function getCartSnapshot() {
-  if (typeof window === "undefined") {
-    return EMPTY_SNAPSHOT;
-  }
-
-  return window.localStorage.getItem(STORAGE_KEY) ?? EMPTY_SNAPSHOT;
-}
-
-function getServerSnapshot() {
-  return EMPTY_SNAPSHOT;
-}
-
 export function useCartItems() {
-  const cartSnapshot = useSyncExternalStore(
-    subscribe,
-    getCartSnapshot,
-    getServerSnapshot,
-  );
-
-  return parseCart(cartSnapshot);
+  return useCartStore().items;
 }
 
 export function getCartCount(items: CartItem[]) {
@@ -116,47 +286,4 @@ export function getCartCount(items: CartItem[]) {
 
 export function getCartQuantity(items: CartItem[], productId: string) {
   return items.find((item) => item.productId === productId)?.quantity ?? 0;
-}
-
-export function addCartItem(productId: string, quantity = 1) {
-  const normalizedQuantity = Math.max(1, Math.floor(quantity));
-  const currentItems = readCart();
-  const existingItem = currentItems.find((item) => item.productId === productId);
-
-  if (existingItem) {
-    writeCart(
-      currentItems.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity: item.quantity + normalizedQuantity }
-          : item,
-      ),
-    );
-    return;
-  }
-
-  writeCart([...currentItems, { productId, quantity: normalizedQuantity }]);
-}
-
-export function updateCartQuantity(productId: string, quantity: number) {
-  const normalizedQuantity = Math.max(0, Math.floor(quantity));
-  const currentItems = readCart();
-
-  if (normalizedQuantity === 0) {
-    writeCart(currentItems.filter((item) => item.productId !== productId));
-    return;
-  }
-
-  writeCart(
-    currentItems.map((item) =>
-      item.productId === productId ? { ...item, quantity: normalizedQuantity } : item,
-    ),
-  );
-}
-
-export function removeCartItem(productId: string) {
-  writeCart(readCart().filter((item) => item.productId !== productId));
-}
-
-export function clearCart() {
-  writeCart([]);
 }

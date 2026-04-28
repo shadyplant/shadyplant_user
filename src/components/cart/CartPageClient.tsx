@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useMemo } from "react";
 import {
   ArrowRight,
@@ -15,14 +16,12 @@ import {
 } from "lucide-react";
 import SiteShell from "@/components/SiteShell";
 import {
-  clearCart,
   getCartCount,
-  removeCartItem,
-  updateCartQuantity,
-  useCartItems,
+  useCartStore,
 } from "@/components/cartStore";
-import { getProductById } from "@/content/store";
 import { formatCurrency } from "@/lib/formatCurrency";
+import type { Product } from "@/lib/products";
+import { useProductsStore } from "@/components/productsStore";
 
 const STANDARD_DELIVERY_FEE = 249;
 const FREE_DELIVERY_THRESHOLD = 5000;
@@ -31,16 +30,29 @@ type DetailedCartItem = {
   productId: string;
   quantity: number;
   subtotal: number;
-  product: NonNullable<ReturnType<typeof getProductById>>;
+  product: Product;
 };
 
 export default function CartPageClient() {
-  const cartItems = useCartItems();
+  const { isAuthenticated, isReady: isAuthReady } = useAuth();
+  const {
+    items: cartItems,
+    clearItems,
+    isLoading,
+    isReady,
+    removeItem,
+    updateQuantity,
+  } = useCartStore();
+  const {
+    isLoading: isProductsLoading,
+    isReady: areProductsReady,
+    products,
+  } = useProductsStore();
 
   const items = useMemo<DetailedCartItem[]>(
     () =>
       cartItems.flatMap((item) => {
-        const product = getProductById(item.productId);
+        const product = products.find((entry) => entry.id === item.productId);
 
         if (!product) {
           return [];
@@ -54,7 +66,7 @@ export default function CartPageClient() {
           },
         ];
       }),
-    [cartItems],
+    [cartItems, products],
   );
 
   const itemCount = getCartCount(cartItems);
@@ -69,6 +81,41 @@ export default function CartPageClient() {
     0,
   );
 
+  if (isAuthReady && !isAuthenticated) {
+    return (
+      <SiteShell>
+        <section className="px-4 py-8 md:px-6 md:py-12">
+          <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
+              <ShoppingCart size={30} />
+            </div>
+            <h2 className="mt-6 text-3xl font-black tracking-[-0.04em] text-[#163915]">
+              Sign in to view your cart
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
+              Your cart now lives on your account, so the same saved items appear across devices after login.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/auth?next=/cart"
+                className="theme-button inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
+              >
+                Sign in
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
+              >
+                Continue shopping
+              </Link>
+            </div>
+          </div>
+        </section>
+      </SiteShell>
+    );
+  }
+
   return (
     <SiteShell>
       <section className="px-4 py-8 md:px-6 md:py-12">
@@ -77,7 +124,7 @@ export default function CartPageClient() {
             {items.length ? (
               <button
                 type="button"
-                onClick={clearCart}
+                onClick={() => void clearItems()}
                 className="inline-flex h-fit items-center gap-2 self-start rounded-full border border-[#d6e6bd] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#f3f8ec]"
               >
                 <Trash2 size={16} />
@@ -86,7 +133,16 @@ export default function CartPageClient() {
             ) : null}
           </div>
 
-          {!items.length ? (
+          {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
+            <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
+              <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+                Loading your cart
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
+                Pulling your saved cart from the server.
+              </p>
+            </div>
+          ) : !items.length ? (
             <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
                 <ShoppingCart size={30} />
@@ -186,8 +242,8 @@ export default function CartPageClient() {
                                 <button
                                   type="button"
                                   aria-label={`Decrease quantity for ${item.product.name}`}
-                                  onClick={() =>
-                                    updateCartQuantity(
+                                  onClick={() => void
+                                    updateQuantity(
                                       item.product.id,
                                       item.quantity - 1,
                                     )
@@ -202,8 +258,8 @@ export default function CartPageClient() {
                                 <button
                                   type="button"
                                   aria-label={`Increase quantity for ${item.product.name}`}
-                                  onClick={() =>
-                                    updateCartQuantity(
+                                  onClick={() => void
+                                    updateQuantity(
                                       item.product.id,
                                       item.quantity + 1,
                                     )
@@ -227,7 +283,7 @@ export default function CartPageClient() {
 
                               <button
                                 type="button"
-                                onClick={() => removeCartItem(item.product.id)}
+                                onClick={() => void removeItem(item.product.id)}
                                 className="inline-flex items-center gap-2 rounded-full border border-[#d6e6bd] bg-white px-3 py-2 text-sm font-semibold text-[#47613e] transition-colors hover:bg-[#edf5e1]"
                               >
                                 <Trash2 size={15} />
@@ -300,7 +356,7 @@ export default function CartPageClient() {
 
                 <div className="mt-5 space-y-3">
                   <Link
-                    href="/get-quote"
+                    href="/checkout"
                     className="theme-button flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
                   >
                     Proceed to checkout

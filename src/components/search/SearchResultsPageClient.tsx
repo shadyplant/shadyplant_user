@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, SlidersHorizontal, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import SiteShell from "@/components/SiteShell";
-import { latestProducts, type Product } from "@/content/store";
+import type { Product } from "@/lib/products";
 
 type SortKey = "relevance" | "price-asc" | "price-desc" | "name-asc";
 
@@ -106,85 +105,64 @@ function joinSearchParams(
   return serializedParams ? `/search?${serializedParams}` : "/search";
 }
 
-export default function SearchResultsPageClient() {
+export default function SearchResultsPageClient({
+  products,
+}: {
+  products: Product[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const categoryOptions = Array.from(
+    new Set(products.map((product) => product.category)),
+  );
+  const badgeOptions = Array.from(
+    new Set(products.map((product) => product.badge)),
+  );
 
   const query = searchParams?.get("q") ?? "";
-  const selectedCategories = useMemo(
-    () => searchParams?.getAll("category") ?? [],
-    [searchParams],
-  );
-  const selectedBadges = useMemo(
-    () => searchParams?.getAll("badge") ?? [],
-    [searchParams],
-  );
-  const selectedPriceRanges = useMemo(
-    () => searchParams?.getAll("price") ?? [],
-    [searchParams],
-  );
+  const selectedCategories = searchParams?.getAll("category") ?? [];
+  const selectedBadges = searchParams?.getAll("badge") ?? [];
+  const selectedPriceRanges = searchParams?.getAll("price") ?? [];
   const sort = (searchParams?.get("sort") as SortKey | null) ?? "relevance";
   const normalizedQuery = query.trim().toLowerCase();
-  const [draftQuery, setDraftQuery] = useState(query);
+  const results = products
+    .map((product, index) => ({
+      product,
+      index,
+      relevance: computeRelevanceScore(product, normalizedQuery),
+    }))
+    .filter(({ product, relevance }) => {
+      const matchesQuery = !normalizedQuery || relevance > 0;
+      const matchesCategory =
+        !selectedCategories.length ||
+        selectedCategories.includes(product.category);
+      const matchesBadge =
+        !selectedBadges.length || selectedBadges.includes(product.badge);
+      const matchesPrice =
+        !selectedPriceRanges.length ||
+        selectedPriceRanges.some((rangeId) =>
+          priceRanges.find((range) => range.id === rangeId)?.matches(product.price),
+        );
 
-  const categoryOptions = useMemo(
-    () =>
-      Array.from(new Set(latestProducts.map((product) => product.category))),
-    [],
-  );
-  const badgeOptions = useMemo(
-    () => Array.from(new Set(latestProducts.map((product) => product.badge))),
-    [],
-  );
-
-  const results = useMemo(() => {
-    const filteredProducts = latestProducts
-      .map((product, index) => ({
-        product,
-        index,
-        relevance: computeRelevanceScore(product, normalizedQuery),
-      }))
-      .filter(({ product, relevance }) => {
-        const matchesQuery = !normalizedQuery || relevance > 0;
-        const matchesCategory =
-          !selectedCategories.length ||
-          selectedCategories.includes(product.category);
-        const matchesBadge =
-          !selectedBadges.length || selectedBadges.includes(product.badge);
-        const matchesPrice =
-          !selectedPriceRanges.length ||
-          selectedPriceRanges.some((rangeId) =>
-            priceRanges
-              .find((range) => range.id === rangeId)
-              ?.matches(product.price),
-          );
-
-        return matchesQuery && matchesCategory && matchesBadge && matchesPrice;
-      });
-
-    return filteredProducts.sort((left, right) => {
-      switch (sort) {
-        case "price-asc":
-          return left.product.price - right.product.price;
-        case "price-desc":
-          return right.product.price - left.product.price;
-        case "name-asc":
-          return left.product.name.localeCompare(right.product.name);
-        default:
-          if (normalizedQuery) {
-            return right.relevance - left.relevance || left.index - right.index;
-          }
-
-          return left.index - right.index;
-      }
+      return matchesQuery && matchesCategory && matchesBadge && matchesPrice;
     });
-  }, [
-    normalizedQuery,
-    selectedBadges,
-    selectedCategories,
-    selectedPriceRanges,
-    sort,
-  ]);
+
+  results.sort((left, right) => {
+    switch (sort) {
+      case "price-asc":
+        return left.product.price - right.product.price;
+      case "price-desc":
+        return right.product.price - left.product.price;
+      case "name-asc":
+        return left.product.name.localeCompare(right.product.name);
+      default:
+        if (normalizedQuery) {
+          return right.relevance - left.relevance || left.index - right.index;
+        }
+
+        return left.index - right.index;
+    }
+  });
 
   const resultProducts = results.map((entry) => entry.product);
   const hasActiveFilters =
@@ -193,10 +171,6 @@ export default function SearchResultsPageClient() {
     selectedBadges.length > 0 ||
     selectedPriceRanges.length > 0 ||
     sort !== "relevance";
-
-  useEffect(() => {
-    setDraftQuery(query);
-  }, [query]);
 
   function pushSearchState(next: {
     query?: string;
@@ -222,11 +196,6 @@ export default function SearchResultsPageClient() {
       : [...currentValues, value];
   }
 
-  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    pushSearchState({ query: draftQuery.trim() });
-  }
-
   return (
     <SiteShell>
       <section className="px-4 py-8 md:px-6 md:py-12">
@@ -246,7 +215,6 @@ export default function SearchResultsPageClient() {
                   <button
                     type="button"
                     onClick={() => {
-                      setDraftQuery("");
                       router.push("/search");
                     }}
                     className="text-sm font-semibold text-[#214f14]"
@@ -410,7 +378,6 @@ export default function SearchResultsPageClient() {
                     <button
                       type="button"
                       onClick={() => {
-                        setDraftQuery("");
                         pushSearchState({ query: "" });
                       }}
                       className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
@@ -505,7 +472,6 @@ export default function SearchResultsPageClient() {
                     <button
                       type="button"
                       onClick={() => {
-                        setDraftQuery("");
                         router.push("/search");
                       }}
                       className="theme-button inline-flex items-center justify-center rounded-full px-6 py-4 text-sm font-semibold"

@@ -1,42 +1,14 @@
 import CategorySection from "@/components/CategorySection";
 import ProductCard from "@/components/ProductCard";
-import { latestProducts } from "@/content/store";
+import type { Product } from "@/lib/products";
 import HomeSlider from "@/pages/Home/components/HomeSlider";
 
 type ProductSection = {
-  eyebrow: string;
   title: string;
-  products: typeof latestProducts;
+  products: Product[];
 };
 
-const productSections: ProductSection[] = [
-  {
-    eyebrow: "Recommended for your storefront",
-    title: "Latest product showcase",
-    products: latestProducts,
-  },
-  {
-    eyebrow: "Easy-care picks for homes",
-    title: "Indoor plant favorites",
-    products: latestProducts.filter(
-      (product) => product.category === "Indoor Plants",
-    ),
-  },
-  {
-    eyebrow: "Fresh greens for open spaces",
-    title: "Lawn and outdoor essentials",
-    products: latestProducts.filter((product) =>
-      ["Outdoor Plants", "Lawn Grass"].includes(product.category),
-    ),
-  },
-  {
-    eyebrow: "Soft texture for shaded corners",
-    title: "Fern collection spotlight",
-    products: latestProducts.filter((product) => product.category === "Ferns"),
-  },
-];
-
-function ProductGridSection({ eyebrow, title, products }: ProductSection) {
+function ProductGridSection({ title, products }: ProductSection) {
   if (!products.length) {
     return null;
   }
@@ -46,10 +18,7 @@ function ProductGridSection({ eyebrow, title, products }: ProductSection) {
       <div className="mx-auto max-w-7xl p-0 md:p-2">
         <div className="mb-2 flex items-end justify-between gap-4">
           <div>
-            {/* <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6b8b58] md:text-xs">
-              {eyebrow}
-            </p> */}
-            <span className="theme-section-title  text-xl font-black tracking-[-0.05em] md:mt-3 md:text-3xl">
+            <span className="theme-section-title text-lg font-bold tracking-tight text-[#163915] md:mt-2 md:text-2xl">
               {title}
             </span>
           </div>
@@ -65,7 +34,30 @@ function ProductGridSection({ eyebrow, title, products }: ProductSection) {
   );
 }
 
-export default function HomePage() {
+export default function HomePage({ products }: { products: Product[] }) {
+  const productSections: ProductSection[] = [
+    {
+      title: "Latest product showcase",
+      products,
+    },
+    {
+      title: "Indoor plant favorites",
+      products: products.filter(
+        (product) => product.category === "Indoor Plants",
+      ),
+    },
+    {
+      title: "Lawn and outdoor essentials",
+      products: products.filter((product) =>
+        ["Outdoor Plants", "Lawn Grass"].includes(product.category),
+      ),
+    },
+    {
+      title: "Fern collection spotlight",
+      products: products.filter((product) => product.category === "Ferns"),
+    },
+  ];
+
   return (
     <div className="space-y-4 pb-24 pt-0 md:pb-12 md:pt-0">
       <CategorySection />
@@ -74,7 +66,6 @@ export default function HomePage() {
       {productSections.map((section) => (
         <ProductGridSection
           key={section.title}
-          eyebrow={section.eyebrow}
           title={section.title}
           products={section.products}
         />

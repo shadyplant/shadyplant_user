@@ -1,10 +1,10 @@
-import { Suspense } from "react";
 import SearchResultsPageClient from "@/components/search/SearchResultsPageClient";
+import { fetchProducts } from "@/lib/products";
 
-export default function SearchPage() {
-  return (
-    <Suspense fallback={null}>
-      <SearchResultsPageClient />
-    </Suspense>
-  );
+export const dynamic = "force-dynamic";
+
+export default async function SearchPage() {
+  const products = await fetchProducts();
+
+  return <SearchResultsPageClient products={products} />;
 }

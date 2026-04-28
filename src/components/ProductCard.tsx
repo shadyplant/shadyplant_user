@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
-import type { Product } from "@/content/store";
 import { formatCurrency } from "@/lib/formatCurrency";
+import type { Product } from "@/lib/products";
 
 type ProductCardProps = {
   product: Product;

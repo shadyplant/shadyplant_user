@@ -487,7 +487,7 @@ export default function AuthPageClient() {
       <section className="px-4 py-8 md:px-6 md:py-12">
         <div className="border border-[#dbe8cd] rounded-[1rem] overflow-hidden mx-auto grid max-w-6xl gap-0 lg:grid-cols-[0.95fr_1.05fr]">
           <div
-            className=" flex justify-center items-center"
+            className="hidden justify-center items-center lg:flex"
             style={{
               background:
                 "linear-gradient(160deg, #fcfff7 0%, #fdfff8 40%, #fafdf4 100%)",

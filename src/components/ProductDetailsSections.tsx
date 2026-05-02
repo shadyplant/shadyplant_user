@@ -9,6 +9,7 @@ import {
   ThumbsUp,
   Truck,
 } from "lucide-react";
+import ReviewBottomSheet from "@/components/ReviewBottomSheet";
 import type { Product } from "@/lib/products";
 
 type ProductHighlight = {
@@ -456,10 +457,9 @@ export default function ProductDetailsSections({ product }: { product: Product }
           </div>
 
           <div className="grid gap-4">
-            {experience.accordions.map((item, index) => (
+            {experience.accordions.map((item) => (
               <details
                 key={item.title}
-                open={index === 0}
                 className="group rounded-[1.6rem] border border-[#d8e6cb] bg-[#f9fcf5] p-5"
               >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
@@ -530,12 +530,7 @@ export default function ProductDetailsSections({ product }: { product: Product }
             <div className="mt-4">
               <RatingStars rating={experience.rating} />
             </div>
-            <button
-              type="button"
-              className="mt-6 rounded-full border border-[#cfe0b5] px-5 py-3 text-sm font-bold text-[#214f14] transition hover:bg-[#f2f8ea]"
-            >
-              Rate this plant
-            </button>
+            <ReviewBottomSheet productName={product.name} triggerLabel="Rate this plant" />
           </div>
 
           <div className="rounded-[1.8rem] bg-white p-6">

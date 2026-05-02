@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, Home, PackageSearch, ShoppingCart } from "lucide-react";
+import { Home, PackageSearch, ShoppingCart, UserRound } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartItems } from "@/components/cartStore";
 
@@ -10,7 +10,7 @@ const items = [
   { label: "Home", href: "/", icon: Home },
   { label: "Orders", href: "/order", icon: PackageSearch },
   { label: "Cart", href: "/cart", icon: ShoppingCart },
-  { label: "Wishlist", href: "/wishlist", icon: Heart },
+  { label: "Profile", href: "/profile", icon: UserRound },
 ];
 
 export default function MobileBottomNav() {
@@ -26,7 +26,7 @@ export default function MobileBottomNav() {
           const resolvedHref =
             href === "/order" && !isAuthenticated
               ? "/auth?next=/order"
-              : (href === "/cart" || href === "/wishlist") && !isAuthenticated
+              : (href === "/cart" || href === "/profile") && !isAuthenticated
                 ? `/auth?next=${href}`
                 : href;
           const active = pathname === href;

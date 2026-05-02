@@ -3,13 +3,29 @@ import EcomHeader from "@/components/EcomHeader";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import SiteFooter from "@/components/SiteFooter";
 
-export default function SiteShell({ children }: { children: ReactNode }) {
+type SiteShellProps = {
+  children: ReactNode;
+  hideMobileHeader?: boolean;
+  hideMobileBottomNav?: boolean;
+  showFooter?: boolean;
+};
+
+export default function SiteShell({
+  children,
+  hideMobileHeader = false,
+  hideMobileBottomNav = false,
+  showFooter = false,
+}: SiteShellProps) {
   return (
     <div className="theme-shell min-h-screen">
-      <EcomHeader />
+      <div className={hideMobileHeader ? "hidden md:block" : ""}>
+        <EcomHeader />
+      </div>
       <main>{children}</main>
-      <SiteFooter />
-      <MobileBottomNav />
+      {showFooter ? <SiteFooter /> : null}
+      <div className={hideMobileBottomNav ? "hidden md:block" : ""}>
+        <MobileBottomNav />
+      </div>
     </div>
   );
 }

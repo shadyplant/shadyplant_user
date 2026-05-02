@@ -52,15 +52,15 @@ export default function SiteFooter() {
           <div className="mt-4 space-y-3 text-sm text-[#d4e8c6]">
             <p className="flex items-start gap-3">
               <MapPin size={16} className="mt-0.5 shrink-0" />
-              Hajo Road nursery lane, Guwahati, Assam
+             Shariatpur, near TND Bazar, Assam-781319
             </p>
             <p className="flex items-center gap-3">
               <Phone size={16} className="shrink-0" />
-              +91 98765 43210
+              +91 60015 18547
             </p>
             <p className="flex items-center gap-3">
               <Mail size={16} className="shrink-0" />
-              hello@grassgreennursery.in
+              nurserygrassgreen@gmail.com
             </p>
           </div>
         </div>

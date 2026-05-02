@@ -81,21 +81,19 @@ export default function SeeInActionCarousel() {
   };
 
   return (
-    <section className="w-full py-16 overflow-hidden flex flex-col items-center">
+    <section className="w-full overflow-hidden py-6 md:py-16">
       {/* Section Header */}
-      <div className="mb-12 flex flex-col items-center relative">
-        <h2 className="text-3xl font-bold text-[#163915] mb-2 tracking-tight">
-          See it in action
+      <div className="mx-auto mb-4 w-full max-w-5xl px-1 text-left md:mb-8 md:px-4">
+        <h2 className="text-[14px] font-black leading-4 text-[#111111] md:text-xl md:leading-6">
+          Real life view
         </h2>
-        {/* Custom Underline styling */}
-        <div className="relative w-full h-[3px] flex gap-1">
-          <div className="h-full bg-[#e88144] rounded-full flex-grow"></div>
-          <div className="h-full bg-[#c8463a] rounded-full w-8"></div>
-        </div>
+        <p className="mt-0.5 text-[11px] leading-4 text-[#555555] md:text-sm">
+          Experience the view of greenery after the installation
+        </p>
       </div>
 
       {/* Wrapper for Carousel and Desktop Arrows */}
-      <div className="relative w-full max-w-5xl flex items-center justify-center px-4">
+      <div className="relative mx-auto flex w-full max-w-5xl items-center justify-center px-4">
         {/* Desktop Left Arrow */}
         <button
           onClick={handlePrev}

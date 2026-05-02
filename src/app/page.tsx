@@ -8,7 +8,7 @@ export default async function Home() {
   const products = await fetchProducts();
 
   return (
-    <SiteShell>
+    <SiteShell showFooter>
       <HomePage products={products} />
     </SiteShell>
   );

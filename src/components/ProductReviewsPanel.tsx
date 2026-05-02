@@ -6,10 +6,12 @@ import {
   Truck,
   Undo2,
 } from "lucide-react";
+import ReviewBottomSheet from "@/components/ReviewBottomSheet";
 import type { ProductExperience } from "@/components/ProductDetailsSections";
 
 type ProductReviewsPanelProps = {
   experience: ProductExperience;
+  productName?: string;
 };
 
 function RatingStars({
@@ -58,6 +60,7 @@ const trustHighlights = [
 
 export default function ProductReviewsPanel({
   experience,
+  productName,
 }: ProductReviewsPanelProps) {
   const highestBreakdownCount = Math.max(
     ...experience.ratingBreakdown.map((item) => item.count),
@@ -124,12 +127,11 @@ export default function ProductReviewsPanel({
           <div className="mt-3">
             <RatingStars rating={experience.rating} size={18} />
           </div>
-          <button
-            type="button"
-            className="mt-6 rounded border border-gray-300 bg-white px-6 py-2 text-xs font-semibold tracking-wide text-blue-600 transition hover:bg-gray-50 md:px-8 md:py-2.5 md:text-sm"
-          >
-            RATE
-          </button>
+          <ReviewBottomSheet
+            productName={productName}
+            triggerLabel="RATE"
+            triggerClassName="mt-6 rounded border border-gray-300 bg-white px-6 py-2 text-xs font-semibold tracking-wide text-blue-600 transition hover:bg-gray-50 md:px-8 md:py-2.5 md:text-sm"
+          />
         </div>
 
         <div className="rounded-[1.8rem] py-6 md:py-8">

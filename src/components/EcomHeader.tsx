@@ -208,39 +208,40 @@ export default function EcomHeader() {
               <button
                 type="button"
                 onClick={() => setMobileSearchOpen((open) => !open)}
-                className="p-2 md:hidden"
+                className="flex h-10 w-10 items-center justify-center md:hidden"
                 aria-label={mobileSearchOpen ? "Close search" : "Open search"}
               >
                 {mobileSearchOpen ? <X size={20} /> : <Search size={20} />}
               </button>
 
               <Link
-                href={wishlistHref}
+                href={isAuthenticated ? "/profile" : "/auth?next=/profile"}
                 className="relative hidden p-2 md:inline-flex"
-                aria-label="View wishlist"
+                aria-label={isAuthenticated ? "View profile" : "Sign in"}
               >
-                <Heart
-                  size={20}
-                  fill={wishlistCount > 0 ? "#008000" : "none"}
-                  className="text-[#008000]"
-                />
-                {wishlistCount > 0 ? (
-                  <span className="absolute right-0 top-0 h-4 w-4 rounded-full bg-[#008000] text-center text-[10px] text-white">
-                    {wishlistCount}
-                  </span>
-                ) : null}
+                <UserRound size={20} className="text-[#214f14]" />
               </Link>
 
               <Link
-                href={isAuthenticated ? "/profile" : "/auth?next=/profile"}
-                className={`rounded-full p-2 transition-colors ${
-                  pathname === "/profile"
+                href={wishlistHref}
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                  pathname === "/wishlist"
                     ? "bg-[#edf5e1] text-[#214f14]"
                     : "text-[#214f14] hover:bg-[#edf5e1]"
                 }`}
-                aria-label={isAuthenticated ? "View profile" : "Sign in"}
+                aria-label="View wishlist"
               >
-                <UserRound size={20} />
+                <span className="relative inline-flex">
+                  <Heart
+                    size={20}
+                    fill={wishlistCount > 0 ? "currentColor" : "none"}
+                  />
+                  {wishlistCount > 0 ? (
+                    <span className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-[#008000] text-center text-[10px] leading-4 text-white">
+                      {wishlistCount}
+                    </span>
+                  ) : null}
+                </span>
               </Link>
 
               {!isAuthenticated ? (
@@ -268,7 +269,7 @@ export default function EcomHeader() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
-                className="p-2 md:hidden"
+                className="flex h-10 w-10 items-center justify-center md:hidden"
                 aria-label={menuOpen ? "Close menu" : "Open menu"}
               >
                 {menuOpen ? <X size={24} /> : <Menu size={24} />}

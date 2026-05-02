@@ -1,5 +1,5 @@
-import CheckoutPageClient from "@/components/checkout/CheckoutPageClient";
+import BillingDetailsClient from "@/components/checkout/BillingDetailsClient";
 
 export default function CheckoutPage() {
-  return <CheckoutPageClient />;
+  return <BillingDetailsClient />;
 }

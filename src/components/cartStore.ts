@@ -90,6 +90,31 @@ function normalizeCartItems(response: CartApiResponse): CartItem[] {
     : [];
 }
 
+function preserveCartItemOrder(
+  previousItems: CartItem[],
+  nextItems: CartItem[],
+) {
+  if (!previousItems.length || !nextItems.length) {
+    return nextItems;
+  }
+
+  const nextItemsByProductId = new Map(
+    nextItems.map((item) => [item.productId, item]),
+  );
+  const previousProductIds = new Set(
+    previousItems.map((item) => item.productId),
+  );
+  const orderedExistingItems = previousItems.flatMap((item) => {
+    const nextItem = nextItemsByProductId.get(item.productId);
+    return nextItem ? [nextItem] : [];
+  });
+  const newItems = nextItems.filter(
+    (item) => !previousProductIds.has(item.productId),
+  );
+
+  return [...orderedExistingItems, ...newItems];
+}
+
 function normalizeApiError(error: unknown, fallback: string) {
   if (error instanceof ApiError) {
     return error.message;
@@ -159,7 +184,10 @@ async function fetchCart(
 }
 
 function applyCartResponse(userId: string, response: CartApiResponse) {
-  const items = normalizeCartItems(response);
+  const items = preserveCartItemOrder(
+    cartState.items,
+    normalizeCartItems(response),
+  );
 
   setCartState({
     items,

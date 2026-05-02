@@ -4,7 +4,7 @@ Next.js storefront for Grass Green Nursery. This app expects the backend API fro
 
 ## Getting Started
 
-1. Copy `.env.example` to `.env`.
+1. Create `.env.local` in the `grass_green_nursery` folder, or use the repo-root `.env`.
 2. Set `NEXT_PUBLIC_API_BASE_URL` to your backend API, for local setup:
 
 ```bash

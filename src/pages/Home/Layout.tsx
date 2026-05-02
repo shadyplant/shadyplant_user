@@ -1,4 +1,6 @@
+import Link from "next/link";
 import CategorySection from "@/components/CategorySection";
+import HomeLocationStrip from "@/components/HomeLocationStrip";
 import ProductCard from "@/components/ProductCard";
 import type { Product } from "@/lib/products";
 import HomeSlider from "@/pages/Home/components/HomeSlider";
@@ -22,6 +24,12 @@ function ProductGridSection({ title, products }: ProductSection) {
               {title}
             </span>
           </div>
+          <Link
+            href="/search"
+            className="shrink-0 text-[11px] font-bold uppercase tracking-[0.12em] text-[#214f14] transition hover:text-[#163915] md:text-xs"
+          >
+            View all
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 gap-1 md:grid-cols-2 md:gap-5 xl:grid-cols-4">
@@ -60,6 +68,7 @@ export default function HomePage({ products }: { products: Product[] }) {
 
   return (
     <div className="space-y-4 pb-24 pt-0 md:pb-12 md:pt-0">
+      <HomeLocationStrip />
       <CategorySection />
       <HomeSlider />
 

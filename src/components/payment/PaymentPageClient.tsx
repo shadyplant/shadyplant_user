@@ -17,19 +17,70 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartStore } from "@/components/cartStore";
 import SiteShell from "@/components/SiteShell";
 import { useProductsStore } from "@/components/productsStore";
+import type { ApiResponse } from "@/lib/api";
+import {
+  normalizeBillingDetailsDraft,
+  readBillingDetailsDraft,
+  readCheckoutDraft,
+  type CheckoutPosition,
+} from "@/lib/checkoutSession";
 import { formatCurrency } from "@/lib/formatCurrency";
 
 type Step = 1 | 2 | 3;
 type PaymentMethod = "online" | "cod";
 
-type CheckoutSummarySnapshot = {
-  deliveryFee?: number;
-  itemsSubtotal?: number;
-  itemCount?: number;
-  total?: number;
+type CheckoutPreview = {
+  pricing: {
+    itemsSubtotal: number;
+    deliveryCharge: number;
+    total: number;
+    currency: string;
+    distanceKm: number;
+    deliveryRate: number;
+    totalWeightKg: number;
+  };
+  summary: {
+    itemCount: number;
+    totalQuantity: number;
+    totalWeightKg: number;
+    itemsSubtotal: number;
+    currency: string;
+  };
+  deliveryChargeDetails: {
+    message: string;
+    rate: number;
+    units: number | null;
+  };
+  suggestedDeliveryDate: string;
 };
 
-const CHECKOUT_SUMMARY_STORAGE_KEY = "ggnCheckoutSummary";
+type RazorpayCheckout = {
+  paymentAttemptId: string;
+  keyId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  businessName: string;
+  description: string;
+  prefill: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  shouldSimulateWebhook: boolean;
+};
+
+type PaymentAttemptStatus = {
+  id: string;
+  status: string;
+  statusLabel: string;
+  orderId: string | null;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const steps: { id: Step; label: string }[] = [
   { id: 1, label: "Billing Details" },
@@ -37,30 +88,44 @@ const steps: { id: Step; label: string }[] = [
   { id: 3, label: "Payment" },
 ];
 
-function readCheckoutSummary() {
-  if (typeof window === "undefined") {
-    return null;
-  }
+function hasPosition(position: CheckoutPosition | null | undefined): position is CheckoutPosition {
+  return Boolean(
+    position &&
+      Number.isFinite(Number(position.lat)) &&
+      Number.isFinite(Number(position.lng)),
+  );
+}
 
-  const rawSummary = window.sessionStorage.getItem(CHECKOUT_SUMMARY_STORAGE_KEY);
-  if (!rawSummary) {
-    return null;
-  }
+function sleep(durationMs: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
+}
 
-  try {
-    return JSON.parse(rawSummary) as CheckoutSummarySnapshot;
-  } catch {
-    return null;
-  }
+function loadRazorpay() {
+  return new Promise<boolean>((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 export default function PaymentPageClient() {
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("online");
+  const [preview, setPreview] = useState<CheckoutPreview | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const [checkoutSummary] =
-    useState<CheckoutSummarySnapshot | null>(readCheckoutSummary);
-  const { isAuthenticated, isReady: isAuthReady } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutDraft] = useState(() => readCheckoutDraft());
+  const [billingDetailsDraft] = useState(() => readBillingDetailsDraft());
+  const { fetchWithAuth, isAuthenticated, isReady: isAuthReady, user } = useAuth();
   const {
     items: cartItems,
     isLoading: isCartLoading,
@@ -71,6 +136,14 @@ export default function PaymentPageClient() {
     isReady: areProductsReady,
     products,
   } = useProductsStore();
+
+  const deliveryAddress = checkoutDraft?.deliveryAddress?.trim() || "";
+  const deliveryPosition = checkoutDraft?.deliveryPosition || null;
+  const billingDetails = normalizeBillingDetailsDraft(
+    Object.values(billingDetailsDraft).some(Boolean)
+      ? billingDetailsDraft
+      : user?.billingDetails,
+  );
 
   const items = useMemo(
     () =>
@@ -93,17 +166,6 @@ export default function PaymentPageClient() {
     !areProductsReady ||
     isProductsLoading;
   const itemCount = getCartCount(cartItems);
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  const storedDeliveryFee = Number(checkoutSummary?.deliveryFee);
-  const hasStoredDeliveryFee =
-    Number.isFinite(storedDeliveryFee) && storedDeliveryFee >= 0;
-  const snapshotMatchesCart =
-    checkoutSummary &&
-    Math.round(Number(checkoutSummary.itemsSubtotal)) === Math.round(subtotal) &&
-    Number(checkoutSummary.itemCount) === itemCount;
-  const deliveryCharge =
-    hasStoredDeliveryFee && snapshotMatchesCart ? Math.round(storedDeliveryFee) : null;
-  const total = deliveryCharge === null ? null : subtotal + deliveryCharge;
 
   useEffect(() => {
     if (isAuthReady && !isAuthenticated) {
@@ -111,17 +173,174 @@ export default function PaymentPageClient() {
     }
   }, [isAuthReady, isAuthenticated, router]);
 
-  function handlePaymentAction() {
-    if (deliveryCharge === null || total === null) {
+  useEffect(() => {
+    if (!isAuthenticated || !hasPosition(deliveryPosition) || !deliveryAddress || !items.length) {
+      setPreview(null);
+      return;
+    }
+
+    let isActive = true;
+    setStatusMessage("");
+
+    void fetchWithAuth<ApiResponse<{ preview: CheckoutPreview }>>("/checkout/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        deliveryAddress: {
+          formattedAddress: deliveryAddress,
+          ...(user?.deliveryAddress || {}),
+        },
+        deliveryLocation: deliveryPosition,
+      }),
+    })
+      .then((response) => {
+        if (isActive) {
+          setPreview(response.data.preview);
+        }
+      })
+      .catch((error) => {
+        if (isActive) {
+          setPreview(null);
+          setStatusMessage(
+            error instanceof Error
+              ? error.message
+              : "Unable to load the latest payable summary.",
+          );
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    deliveryAddress,
+    deliveryPosition,
+    fetchWithAuth,
+    isAuthenticated,
+    items.length,
+    user?.deliveryAddress,
+  ]);
+
+  async function pollPaymentAttempt(paymentAttemptId: string) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await fetchWithAuth<ApiResponse<{ paymentAttempt: PaymentAttemptStatus }>>(
+        `/payments/razorpay/attempts/${paymentAttemptId}`,
+      );
+      const paymentAttempt = response.data.paymentAttempt;
+
+      if (paymentAttempt.status === "completed" && paymentAttempt.orderId) {
+        router.push("/order");
+        return true;
+      }
+
+      if (paymentAttempt.status === "failed") {
+        setStatusMessage("Payment failed before order confirmation. Please try again.");
+        return false;
+      }
+
+      await sleep(1200);
+    }
+
+    setStatusMessage(
+      "Payment was submitted. We are waiting for secure verification from the server webhook.",
+    );
+    return false;
+  }
+
+  async function handlePaymentAction() {
+    if (!preview || !hasPosition(deliveryPosition) || !deliveryAddress) {
       router.push("/cart");
       return;
     }
 
-    setStatusMessage(
-      paymentMethod === "online"
-        ? "Online payment is ready for the gateway handoff once the cart payment API is connected."
-        : "Cash on delivery is selected. Connect the cart order API to confirm this order.",
-    );
+    setIsSubmitting(true);
+    setStatusMessage("");
+
+    const payload = {
+      deliveryAddress: {
+        formattedAddress: deliveryAddress,
+        ...(user?.deliveryAddress || {}),
+      },
+      deliveryLocation: deliveryPosition,
+      billingDetails,
+      deliveryDate: preview.suggestedDeliveryDate,
+    };
+
+    try {
+      if (paymentMethod === "cod") {
+        await fetchWithAuth("/checkout/cod", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        router.push("/order");
+        return;
+      }
+
+      const scriptLoaded = await loadRazorpay();
+      if (!scriptLoaded || !window.Razorpay) {
+        throw new Error("Razorpay failed to load.");
+      }
+
+      const response = await fetchWithAuth<ApiResponse<{ checkout: RazorpayCheckout }>>(
+        "/checkout/online",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const checkout = response.data.checkout;
+
+      const razorpay = new window.Razorpay({
+        key: checkout.keyId,
+        amount: checkout.amount,
+        currency: checkout.currency,
+        name: checkout.businessName,
+        description: checkout.description,
+        order_id: checkout.orderId,
+        prefill: {
+          contact: checkout.prefill.contact,
+          email: checkout.prefill.email,
+          name: checkout.prefill.name,
+        },
+        handler: () => {
+          void (async () => {
+            try {
+              if (checkout.shouldSimulateWebhook) {
+                await fetchWithAuth(
+                  `/payments/razorpay/test-webhook/${checkout.paymentAttemptId}`,
+                  {
+                    method: "POST",
+                  },
+                );
+              }
+
+              await pollPaymentAttempt(checkout.paymentAttemptId);
+            } catch (error) {
+              setStatusMessage(
+                error instanceof Error
+                  ? error.message
+                  : "Payment was captured, but order confirmation is still pending.",
+              );
+            } finally {
+              setIsSubmitting(false);
+            }
+          })();
+        },
+        theme: {
+          color: "#214f14",
+        },
+      });
+
+      razorpay.open();
+      setIsSubmitting(false);
+      return;
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Unable to continue with checkout.",
+      );
+    }
+
+    setIsSubmitting(false);
   }
 
   if (isAuthReady && !isAuthenticated) {
@@ -224,7 +443,7 @@ export default function PaymentPageClient() {
                           Pay online
                         </span>
                         <span className="mt-1 block text-sm leading-6 text-[#5c7752]">
-                          Continue with a secure online payment gateway when backend payment setup is available.
+                          Server-generated Razorpay order, verified through backend webhook before order finalization.
                         </span>
                       </span>
                     </button>
@@ -246,7 +465,7 @@ export default function PaymentPageClient() {
                           Cash on delivery
                         </span>
                         <span className="mt-1 block text-sm leading-6 text-[#5c7752]">
-                          Keep the order ready for assisted confirmation and doorstep collection.
+                          The backend creates the order directly using current cart items and server-calculated delivery.
                         </span>
                       </span>
                     </button>
@@ -257,7 +476,9 @@ export default function PaymentPageClient() {
                         Delivery support included
                       </div>
                       <p className="mt-2 leading-6">
-                        Final order capture should be connected to the live payment/order API before collecting money from customers.
+                        {preview
+                          ? `Distance ${preview.pricing.distanceKm.toFixed(2)} km and chargeable weight ${preview.summary.totalWeightKg} kg are recalculated on the server at checkout time.`
+                          : "Distance, item pricing, and order totals are recalculated on the server at checkout time."}
                       </p>
                     </div>
                   </div>
@@ -297,34 +518,40 @@ export default function PaymentPageClient() {
                     <div className="mt-5 space-y-3 border-t border-[#D8DDD0] pt-4">
                       <div className="flex justify-between text-sm font-bold">
                         <span>Items ({itemCount})</span>
-                        <span>{formatCurrency(subtotal)}</span>
+                        <span>
+                          {preview ? formatCurrency(preview.pricing.itemsSubtotal) : "---"}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm font-bold">
                         <span>Delivery Charge</span>
                         <span>
-                          {deliveryCharge === null
-                            ? "Required"
-                            : deliveryCharge
-                              ? formatCurrency(deliveryCharge)
-                              : "Free"}
+                          {preview ? formatCurrency(preview.pricing.deliveryCharge) : "Required"}
                         </span>
                       </div>
+                      {preview ? (
+                        <div className="flex justify-between text-sm font-bold">
+                          <span>Chargeable Weight</span>
+                          <span>{preview.summary.totalWeightKg} kg</span>
+                        </div>
+                      ) : null}
                       <div className="flex justify-between text-base font-black text-[#163915]">
                         <span>Total</span>
-                        <span>{total === null ? "---" : formatCurrency(total)}</span>
+                        <span>{preview ? formatCurrency(preview.pricing.total) : "---"}</span>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={handlePaymentAction}
-                      disabled={deliveryCharge === null}
+                      onClick={() => void handlePaymentAction()}
+                      disabled={!preview || !hasPosition(deliveryPosition) || isSubmitting}
                       className="theme-button mt-5 flex h-12 w-full items-center justify-center rounded-full text-sm font-extrabold disabled:cursor-not-allowed disabled:opacity-75"
                     >
-                      {deliveryCharge === null
-                        ? "Calculate delivery first"
-                        : paymentMethod === "online"
-                          ? "Pay now"
-                          : "Confirm COD"}
+                      {!preview
+                        ? "Load preview first"
+                        : isSubmitting
+                          ? "Processing..."
+                          : paymentMethod === "online"
+                            ? "Pay now"
+                            : "Confirm COD"}
                     </button>
                     {statusMessage ? (
                       <p className="mt-3 rounded-xl bg-[#f4fbf2] px-3 py-2 text-center text-xs font-semibold leading-5 text-[#214f14]">

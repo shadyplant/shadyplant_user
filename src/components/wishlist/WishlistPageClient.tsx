@@ -11,6 +11,7 @@ import {
   useWishlistStore,
 } from "@/components/wishlistStore";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { getProductHref } from "@/lib/productUrls";
 
 export default function WishlistPageClient() {
   const { isAuthenticated, isReady: isAuthReady } = useAuth();
@@ -123,14 +124,17 @@ export default function WishlistPageClient() {
           ) : (
             <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="space-y-4">
-                {products.map((product) => (
+                {products.map((product) => {
+                  const productHref = getProductHref(product);
+
+                  return (
                   <article
                     key={product.id}
                     className="rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-4 shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-5"
                   >
                     <div className="flex flex-col gap-5 md:flex-row">
                       <Link
-                        href={`/products/${product.id}`}
+                        href={productHref}
                         className="relative block aspect-square w-full overflow-hidden rounded-[1.5rem] bg-[#f4f8ef] md:w-[180px]"
                       >
                         <Image
@@ -154,7 +158,7 @@ export default function WishlistPageClient() {
                           </div>
 
                           <Link
-                            href={`/products/${product.id}`}
+                            href={productHref}
                             className="mt-3 block text-2xl font-black tracking-[-0.04em] text-[#163915] transition-colors hover:text-[#214f14]"
                           >
                             {product.name}
@@ -198,7 +202,8 @@ export default function WishlistPageClient() {
                       </div>
                     </div>
                   </article>
-                ))}
+                  );
+                })}
               </div>
 
               <aside className="h-fit rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-6 shadow-[0_22px_60px_rgba(33,79,20,0.08)] lg:sticky lg:top-24">

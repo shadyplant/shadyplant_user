@@ -93,6 +93,62 @@ body::selection {
   animation: flash-sale-shimmer 2.8s linear infinite;
 }
 
+@keyframes flash-sale-marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.flash-sale-marquee {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  animation: flash-sale-marquee 24s linear infinite;
+  will-change: transform;
+}
+
+.flash-sale-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.flash-sale-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding-left: 1.25rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: #fff9f2;
+  text-transform: none;
+}
+
+.flash-sale-marquee-separator {
+  margin-left: 1.25rem;
+  color: #fff1a8;
+  font-size: 0.75rem;
+}
+
+.flash-sale-marquee:hover {
+  animation-play-state: paused;
+}
+
+@media (min-width: 768px) {
+  .flash-sale-marquee-item {
+    font-size: 0.9rem;
+  }
+
+  .flash-sale-marquee-separator {
+    font-size: 0.85rem;
+  }
+}
+
 .theme-shell {
   position: relative;
 }

@@ -1,4 +1,5 @@
 export type DeliveryAddress = {
+  formattedAddress: string;
   line1: string;
   line2: string;
   city: string;
@@ -14,6 +15,7 @@ export type ValidationResult<T> = {
 };
 
 export const EMPTY_DELIVERY_ADDRESS: DeliveryAddress = {
+  formattedAddress: "",
   line1: "",
   line2: "",
   city: "",
@@ -56,6 +58,9 @@ export function normalizeDeliveryAddress(
   deliveryAddress: Partial<DeliveryAddress> | null | undefined,
 ): DeliveryAddress {
   return {
+    formattedAddress: String(
+      deliveryAddress?.formattedAddress || deliveryAddress?.line1 || "",
+    ).trim(),
     line1: String(deliveryAddress?.line1 || "").trim(),
     line2: String(deliveryAddress?.line2 || "").trim(),
     city: String(deliveryAddress?.city || "").trim(),
@@ -68,11 +73,12 @@ export function normalizeDeliveryAddress(
 
 export function hasCompleteDeliveryAddress(deliveryAddress: DeliveryAddress) {
   return Boolean(
-    deliveryAddress.line1 &&
-      deliveryAddress.city &&
-      deliveryAddress.state &&
-      deliveryAddress.postalCode &&
-      isValidPostalCode(deliveryAddress.postalCode),
+    deliveryAddress.formattedAddress ||
+      (deliveryAddress.line1 &&
+        deliveryAddress.city &&
+        deliveryAddress.state &&
+        deliveryAddress.postalCode &&
+        isValidPostalCode(deliveryAddress.postalCode)),
   );
 }
 

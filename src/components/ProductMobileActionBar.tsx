@@ -1,20 +1,18 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
 import { Minus, Plus, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { getCartQuantity, useCartStore } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
+import ProductBuyNowButton from "@/components/ProductBuyNowButton";
 
 type ProductMobileActionBarProps = {
   productId: string;
-  checkoutHref: string;
 };
 
 export default function ProductMobileActionBar({
   productId,
-  checkoutHref,
 }: ProductMobileActionBarProps) {
   const [isQuantityPopupOpen, setIsQuantityPopupOpen] = useState(false);
   const [quantityInput, setQuantityInput] = useState("1");
@@ -104,7 +102,7 @@ export default function ProductMobileActionBar({
               Add to Cart
             </button>
           ) : (
-            <div className="grid h-12 grid-cols-3 overflow-hidden rounded-xl border border-[#55ad35] bg-white text-[#2f8f20]">
+            <div className="grid h-12 grid-cols-3 overflow-hidden rounded-[0.5rem] border border-[#55ad35] bg-white text-[#2f8f20]">
               <button
                 type="button"
                 onClick={() => void handleDecrease()}
@@ -134,12 +132,12 @@ export default function ProductMobileActionBar({
             </div>
           )}
 
-          <Link
-            href={checkoutHref}
-            className="flex h-12 items-center justify-center rounded-xl bg-[#55ad35] px-4 text-sm font-black text-white transition hover:bg-[#469829]"
+          <ProductBuyNowButton
+            productId={productId}
+            className="flex h-12 items-center justify-center rounded-[0.5rem] bg-[#55ad35] px-4 text-sm font-black text-white transition hover:bg-[#469829]"
           >
             Buy Now
-          </Link>
+          </ProductBuyNowButton>
         </div>
       </div>
 
@@ -157,7 +155,10 @@ export default function ProductMobileActionBar({
             className="relative w-full max-w-sm rounded-2xl bg-white p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)]"
           >
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor="mobile-product-quantity" className="text-sm font-bold text-[#163915]">
+              <label
+                htmlFor="mobile-product-quantity"
+                className="text-sm font-bold text-[#163915]"
+              >
                 Enter quantity
               </label>
               <button

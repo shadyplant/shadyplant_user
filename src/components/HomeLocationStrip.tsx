@@ -4,13 +4,16 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import ProductDeliveryAddressPicker from "@/components/ProductDeliveryAddressPicker";
 
 function formatDeliveryAddress(deliveryAddress: {
+  formattedAddress?: string;
   line1: string;
   line2: string;
   city: string;
   state: string;
   postalCode: string;
 }) {
-  return [
+  return (
+    deliveryAddress.formattedAddress ||
+    [
     deliveryAddress.line1,
     deliveryAddress.line2,
     deliveryAddress.city,
@@ -18,7 +21,8 @@ function formatDeliveryAddress(deliveryAddress: {
     deliveryAddress.postalCode,
   ]
     .filter(Boolean)
-    .join(", ");
+    .join(", ")
+  );
 }
 
 export default function HomeLocationStrip() {

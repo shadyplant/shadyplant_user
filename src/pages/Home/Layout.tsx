@@ -26,7 +26,7 @@ function ProductGridSection({ title, products }: ProductSection) {
           </div>
           <Link
             href="/search"
-            className="shrink-0 text-[11px] font-bold uppercase tracking-[0.12em] text-[#214f14] transition hover:text-[#163915] md:text-xs"
+            className="shrink-0 text-[11px] font-bold uppercase tracking-[0.12em] text-[#214f14] transition-all px-3 py-2 border border-transparent hover:border-[#f2f2f2] hover:bg-[#f2f2f2]/10 rounded-[0.5rem] md:text-xs"
           >
             View all
           </Link>
@@ -42,7 +42,7 @@ function ProductGridSection({ title, products }: ProductSection) {
   );
 }
 
-export default function HomePage({ products }: { products: Product[] }) {
+export default function HomePage({ products = [] }: { products?: Product[] }) {
   const productSections: ProductSection[] = [
     {
       title: "Latest product showcase",
@@ -67,9 +67,11 @@ export default function HomePage({ products }: { products: Product[] }) {
   ];
 
   return (
-    <div className="space-y-4 pb-24 pt-0 md:pb-12 md:pt-0">
-      <HomeLocationStrip />
-      <CategorySection />
+    <div className="bg-white space-y-4 pb-24 pt-0 md:pb-12 md:pt-0">
+      <div className="md:hidden">
+        <HomeLocationStrip />
+      </div>
+      <CategorySection products={products} />
       <HomeSlider />
 
       {productSections.map((section) => (

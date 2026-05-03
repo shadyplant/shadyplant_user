@@ -2,15 +2,22 @@ import { getApiBaseUrl } from "@/lib/api";
 
 export type Product = {
   id: string;
+  productId: string;
   name: string;
   category: string;
   price: number;
+  weight: number;
+  offer: string;
+  minOrderQuantity: number;
+  isOnTrend: boolean;
+  isFeaturedLatest: boolean;
   packLabel: string;
   unit: string;
   badge: string;
   description: string;
   image: string;
   images: string[];
+  tags: string[];
 };
 
 type ProductApi = Omit<Product, "image" | "images"> & {
@@ -38,11 +45,22 @@ function normalizeProduct(product: ProductApi): Product {
       .map((image) => String(image || "").trim())
       .filter(Boolean),
   )];
+  const tags = Array.isArray(product.tags)
+    ? [...new Set(product.tags.map((tag) => String(tag || "").trim()).filter(Boolean))]
+    : [];
 
   return {
     ...product,
+    productId: String(product.productId || product.id || "").trim(),
+    weight: Number(product.weight) > 0 ? Number(product.weight) : 0,
+    offer: String(product.offer || "").trim(),
+    minOrderQuantity:
+      Number(product.minOrderQuantity) > 0 ? Number(product.minOrderQuantity) : 1,
+    isOnTrend: Boolean(product.isOnTrend),
+    isFeaturedLatest: Boolean(product.isFeaturedLatest),
     image: images[0] || "",
     images,
+    tags,
   };
 }
 

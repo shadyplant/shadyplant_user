@@ -85,6 +85,15 @@ export default function ProductCardCartControl({
   const displayQuantity = Math.max(1, quantity);
   const inputValue = draftQuantity ?? String(displayQuantity);
 
+  function swallowCardNavigation(
+    event:
+      | React.MouseEvent<HTMLElement>
+      | React.TouchEvent<HTMLElement>
+      | React.FocusEvent<HTMLElement>,
+  ) {
+    event.stopPropagation();
+  }
+
   function redirectToAuth() {
     router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
   }
@@ -158,8 +167,10 @@ export default function ProductCardCartControl({
     return (
       <button
         type="button"
+        onMouseDown={swallowCardNavigation}
+        onTouchStart={swallowCardNavigation}
         onClick={() => void addFirstItem()}
-        className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-[0.85rem] bg-[#55ad35] px-3 text-base font-bold tracking-normal text-white transition hover:bg-[#469829] sm:h-12 sm:text-lg"
+        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#55ad35] px-3 text-base font-bold tracking-normal text-white transition hover:bg-[#469829] sm:h-12 sm:text-lg"
       >
         <span>Add to cart</span>
         <AddCartIcon />
@@ -168,11 +179,13 @@ export default function ProductCardCartControl({
   }
 
   return (
-    <div className="mt-4 grid h-11 w-full grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] overflow-hidden rounded-[0.85rem] bg-[#55ad35] text-white transition sm:h-12 sm:grid-cols-[3rem_minmax(0,1fr)_3rem]">
+    <div className="relative z-30 mt-4 grid h-11 w-full grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] overflow-hidden rounded-[0.5rem] bg-[#55ad35] text-white transition sm:h-12 sm:grid-cols-[3rem_minmax(0,1fr)_3rem]">
       <button
         type="button"
+        onMouseDown={swallowCardNavigation}
+        onTouchStart={swallowCardNavigation}
         onClick={() => void decreaseQuantity()}
-        className="flex items-center justify-center transition hover:bg-[#469829]"
+        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829]"
         aria-label="Decrease cart quantity"
       >
         <Minus size={19} strokeWidth={2.7} />
@@ -183,7 +196,12 @@ export default function ProductCardCartControl({
         min={1}
         inputMode="numeric"
         value={inputValue}
-        onFocus={() => setDraftQuantity(String(displayQuantity))}
+        onMouseDown={swallowCardNavigation}
+        onTouchStart={swallowCardNavigation}
+        onFocus={(event) => {
+          swallowCardNavigation(event);
+          setDraftQuantity(String(displayQuantity));
+        }}
         onChange={(event) => setDraftQuantity(event.target.value)}
         onBlur={(event) => void commitQuantity(event.target.value)}
         onKeyDown={handleQuantityKeyDown}
@@ -193,8 +211,10 @@ export default function ProductCardCartControl({
 
       <button
         type="button"
+        onMouseDown={swallowCardNavigation}
+        onTouchStart={swallowCardNavigation}
         onClick={() => void increaseQuantity()}
-        className="flex items-center justify-center transition hover:bg-[#469829]"
+        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829]"
         aria-label="Increase cart quantity"
       >
         <Plus size={21} strokeWidth={2.7} />

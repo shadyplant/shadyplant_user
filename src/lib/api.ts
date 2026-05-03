@@ -1,5 +1,24 @@
 const DEFAULT_API_BASE_URL = "http://localhost:8080/api/v1";
 
+function isLocalHostname(hostname: string) {
+  const normalizedHostname = String(hostname || "").trim().toLowerCase();
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "127.0.0.1" ||
+    normalizedHostname === "::1"
+  );
+}
+
+function buildBrowserApiBaseUrl() {
+  if (typeof window === "undefined") {
+    return DEFAULT_API_BASE_URL;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  const hostname = window.location.hostname || "localhost";
+  return `${protocol}//${hostname}:8080/api/v1`;
+}
+
 export type ApiResponse<T> = {
   message: string;
   data: T;
@@ -18,10 +37,35 @@ export class ApiError extends Error {
 }
 
 export function getApiBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
-    DEFAULT_API_BASE_URL
-  );
+  const configuredBaseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+
+  if (!configuredBaseUrl) {
+    return typeof window === "undefined"
+      ? DEFAULT_API_BASE_URL
+      : buildBrowserApiBaseUrl();
+  }
+
+  if (typeof window === "undefined") {
+    return configuredBaseUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(configuredBaseUrl);
+
+    if (!isLocalHostname(parsedUrl.hostname) || isLocalHostname(window.location.hostname)) {
+      return configuredBaseUrl;
+    }
+
+    parsedUrl.hostname = window.location.hostname;
+    if (!parsedUrl.port) {
+      parsedUrl.port = "8080";
+    }
+
+    return parsedUrl.toString().replace(/\/+$/, "");
+  } catch {
+    return buildBrowserApiBaseUrl();
+  }
 }
 
 function buildHeaders(

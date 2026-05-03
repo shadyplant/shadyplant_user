@@ -39,7 +39,9 @@ export default function MobileSearchHeader({
 
     const trimmedSearch = searchInput.trim();
     router.push(
-      trimmedSearch ? `/search?q=${encodeURIComponent(trimmedSearch)}` : "/search",
+      trimmedSearch
+        ? `/search?q=${encodeURIComponent(trimmedSearch)}`
+        : "/search",
     );
   }
 
@@ -61,9 +63,13 @@ export default function MobileSearchHeader({
 
         <form
           onSubmit={submitSearch}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-[17px] border border-[#a9a9a9] bg-white px-4 py-2.5"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-[0.5rem] border border-[#a9a9a9] bg-white px-4 py-1.5"
         >
-          <Search size={28} strokeWidth={1.7} className="shrink-0 text-[#111111]" />
+          <Search
+            size={24}
+            strokeWidth={1.7}
+            className="shrink-0 text-[#111111]"
+          />
           <input
             type="search"
             value={searchInput}
@@ -78,7 +84,7 @@ export default function MobileSearchHeader({
           className="relative flex h-10 w-10 shrink-0 items-center justify-center text-[#111111]"
           aria-label="View cart"
         >
-          <ShoppingCart size={29} strokeWidth={1.8} />
+          <ShoppingCart size={24} strokeWidth={1.8} />
           {cartCount > 0 ? (
             <span className="absolute right-0 top-0 h-4 min-w-4 rounded-full bg-[#111111] px-1 text-center text-[10px] leading-4 text-white">
               {cartCount}

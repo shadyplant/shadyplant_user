@@ -1,12 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Autocomplete,
   GoogleMap,
   Marker,
   useJsApiLoader,
 } from "@react-google-maps/api";
+import { useAuth } from "@/components/auth/AuthProvider";
+import type { DeliveryAddress } from "@/lib/validation";
 import {
   ChevronDown,
   ChevronRight,
@@ -26,6 +28,67 @@ type Position = {
   lat: number;
   lng: number;
 };
+
+function formatSavedDeliveryAddress(
+  deliveryAddress: DeliveryAddress | null | undefined,
+) {
+  if (!deliveryAddress) {
+    return "";
+  }
+
+  return (
+    deliveryAddress.formattedAddress ||
+    [
+      deliveryAddress.line1,
+      deliveryAddress.line2,
+      deliveryAddress.city,
+      deliveryAddress.state,
+      deliveryAddress.postalCode,
+    ]
+      .filter(Boolean)
+      .join(", ")
+  );
+}
+
+function getAddressPart(
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+  type: string,
+) {
+  return (
+    components?.find((component) => component.types.includes(type))
+      ?.long_name || ""
+  );
+}
+
+function buildDeliveryAddress(
+  formattedAddress: string,
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+): DeliveryAddress {
+  const streetNumber = getAddressPart(components, "street_number");
+  const route = getAddressPart(components, "route");
+  const locality =
+    getAddressPart(components, "locality") ||
+    getAddressPart(components, "postal_town") ||
+    getAddressPart(components, "administrative_area_level_2");
+  const postalCode = getAddressPart(components, "postal_code");
+  const state = getAddressPart(components, "administrative_area_level_1");
+  const sublocality =
+    getAddressPart(components, "sublocality_level_1") ||
+    getAddressPart(components, "sublocality") ||
+    getAddressPart(components, "neighborhood");
+  const line1 = [streetNumber, route].filter(Boolean).join(" ").trim();
+
+  return {
+    formattedAddress: formattedAddress.trim(),
+    line1: line1 || formattedAddress.trim(),
+    line2: sublocality,
+    city: locality,
+    state,
+    postalCode,
+    landmark: "",
+    notes: "",
+  };
+}
 
 function HomeLocationIcon() {
   return (
@@ -50,11 +113,24 @@ function HomeLocationIcon() {
 }
 
 type ProductDeliveryAddressPickerProps = {
-  variant?: "field" | "home-strip" | "cart-select" | "checkout-card";
+  variant?:
+    | "field"
+    | "home-strip"
+    | "cart-select"
+    | "checkout-card"
+    | "header-inline";
   initialAddress?: string;
   emptyLabel?: string;
-  onAddressChange?: (address: string, position?: Position) => void;
-  onDone?: (address: string, position: Position) => void;
+  onAddressChange?: (
+    address: string,
+    position?: Position,
+    deliveryAddress?: DeliveryAddress,
+  ) => void;
+  onDone?: (
+    address: string,
+    position: Position,
+    deliveryAddress: DeliveryAddress,
+  ) => void;
 };
 
 export default function ProductDeliveryAddressPicker({
@@ -64,28 +140,50 @@ export default function ProductDeliveryAddressPicker({
   onAddressChange,
   onDone,
 }: ProductDeliveryAddressPickerProps) {
+  const { user } = useAuth();
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey,
     libraries: LIBRARIES,
   });
+  const effectiveInitialAddress =
+    initialAddress !== undefined
+      ? initialAddress
+      : formatSavedDeliveryAddress(user?.deliveryAddress);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [address, setAddress] = useState(
-    initialAddress || (variant === "field" ? "williamnagar,791086" : ""),
-  );
+  const [address, setAddress] = useState(effectiveInitialAddress);
   const [markerPos, setMarkerPos] = useState<Position>(DEFAULT_LOCATION);
   const [statusMessage, setStatusMessage] = useState("");
   const [isLocating, setIsLocating] = useState(false);
+  const [resolvedDeliveryAddress, setResolvedDeliveryAddress] =
+    useState<DeliveryAddress>(() =>
+      buildDeliveryAddress(effectiveInitialAddress, undefined),
+    );
   const mapRef = useRef<google.maps.Map | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const hasAddress = address.trim().length > 0;
 
-  function applyLocation(nextPosition: Position, nextAddress: string) {
+  useEffect(() => {
+    const nextAddress = effectiveInitialAddress;
+    queueMicrotask(() => {
+      setAddress(nextAddress);
+      setResolvedDeliveryAddress(buildDeliveryAddress(nextAddress, undefined));
+    });
+  }, [effectiveInitialAddress]);
+
+  function applyLocation(
+    nextPosition: Position,
+    nextAddress: string,
+    nextDeliveryAddress?: DeliveryAddress,
+  ) {
+    const normalizedDeliveryAddress =
+      nextDeliveryAddress || buildDeliveryAddress(nextAddress, undefined);
     setMarkerPos(nextPosition);
     setAddress(nextAddress);
-    onAddressChange?.(nextAddress, nextPosition);
+    setResolvedDeliveryAddress(normalizedDeliveryAddress);
+    onAddressChange?.(nextAddress, nextPosition, normalizedDeliveryAddress);
     mapRef.current?.panTo(nextPosition);
     setStatusMessage("Delivery point selected.");
   }
@@ -98,12 +196,16 @@ export default function ProductDeliveryAddressPicker({
 
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ location: nextPosition }, (results, status) => {
-      applyLocation(
-        nextPosition,
+      const resolvedAddress =
         status === "OK" && results?.[0]?.formatted_address
           ? results[0].formatted_address
-          : fallbackAddress || address,
+          : fallbackAddress || address;
+      const nextDeliveryAddress = buildDeliveryAddress(
+        resolvedAddress,
+        results?.[0]?.address_components,
       );
+
+      applyLocation(nextPosition, resolvedAddress, nextDeliveryAddress);
     });
   }
 
@@ -131,6 +233,10 @@ export default function ProductDeliveryAddressPicker({
         lng: place.geometry.location.lng(),
       },
       place.formatted_address || place.name || address,
+      buildDeliveryAddress(
+        place.formatted_address || place.name || address,
+        place.address_components,
+      ),
     );
   }
 
@@ -161,7 +267,9 @@ export default function ProductDeliveryAddressPicker({
 
   function clearAddress() {
     setAddress("");
-    onAddressChange?.("");
+    const clearedDeliveryAddress = buildDeliveryAddress("", undefined);
+    setResolvedDeliveryAddress(clearedDeliveryAddress);
+    onAddressChange?.("", undefined, clearedDeliveryAddress);
     setStatusMessage("");
     addressInputRef.current?.focus();
   }
@@ -174,10 +282,17 @@ export default function ProductDeliveryAddressPicker({
         className="flex h-[38px] w-full items-center gap-2 rounded-md border border-[#d9dde4] bg-white px-3 text-left text-sm text-[#111827]"
       >
         <MapPin size={16} className="shrink-0 text-[#1b3151]" />
-        <span className="min-w-0 flex-1 truncate">
-          {address || emptyLabel}
-        </span>
+        <span className="min-w-0 flex-1 truncate">{address || emptyLabel}</span>
         <ChevronDown size={16} className="shrink-0 text-[#111827]" />
+      </button>
+    ) : variant === "header-inline" ? (
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-[#233d1d] transition border border-[#d6d6d6] hover:bg-[#edf5e1] lg:inline-flex"
+      >
+        <MapPin size={16} className="shrink-0 text-[#214f14]" />
+        <span className="max-w-[170px] truncate">{address || emptyLabel}</span>
       </button>
     ) : variant === "home-strip" ? (
       <button
@@ -192,7 +307,9 @@ export default function ProductDeliveryAddressPicker({
             <span className="min-w-0 flex-1 truncate">{address}</span>
           </>
         ) : (
-          <span className="min-w-0 flex-1 truncate font-semibold">{emptyLabel}</span>
+          <span className="min-w-0 flex-1 truncate font-semibold">
+            {emptyLabel}
+          </span>
         )}
         <ChevronRight size={16} className="shrink-0" />
       </button>
@@ -200,9 +317,7 @@ export default function ProductDeliveryAddressPicker({
       <div className="flex items-start gap-3 rounded-[18px] border border-[#C5D6B5] bg-[#E8F0E0] p-4">
         <MapPin size={20} className="mt-1 shrink-0 text-[#173d12]" />
         <div className="min-w-0 flex-1">
-          <p className="mb-1 text-sm font-extrabold text-black">
-            Delivery To:
-          </p>
+          <p className="mb-1 text-sm font-extrabold text-black">Delivery To:</p>
           <button
             type="button"
             onClick={() => setIsOpen(true)}
@@ -221,14 +336,16 @@ export default function ProductDeliveryAddressPicker({
       </div>
     ) : (
       <section className="mt-5">
-        <h2 className="text-[14px] font-black text-[#111111]">Delivery Address</h2>
+        <h2 className="text-[14px] font-black text-[#111111]">
+          Delivery Address
+        </h2>
         <div className="mt-2 flex h-12 items-center gap-2 rounded-md border border-[#8a8a8a] bg-white px-3">
           <button
             type="button"
             onClick={() => setIsOpen(true)}
             className="min-w-0 flex-1 truncate text-left text-[12px] font-medium text-[#171410]"
           >
-            {address}
+            {address || emptyLabel}
           </button>
           <button
             type="button"
@@ -236,13 +353,13 @@ export default function ProductDeliveryAddressPicker({
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#171410]"
             aria-label="Choose delivery location"
           >
-            <MapPin size={20} fill="currentColor" />
+            <LocateFixed size={20} />
           </button>
         </div>
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="mt-1 block w-full pr-2 text-right text-[8px] font-medium text-[#135dff]"
+          className="mt-1 block w-full pr-2 text-right text-xs font-medium text-[#135dff]"
         >
           Change Address
         </button>
@@ -303,7 +420,16 @@ export default function ProductDeliveryAddressPicker({
                         onChange={(event) => {
                           const nextAddress = event.target.value;
                           setAddress(nextAddress);
-                          onAddressChange?.(nextAddress);
+                          const nextDeliveryAddress = buildDeliveryAddress(
+                            nextAddress,
+                            undefined,
+                          );
+                          setResolvedDeliveryAddress(nextDeliveryAddress);
+                          onAddressChange?.(
+                            nextAddress,
+                            undefined,
+                            nextDeliveryAddress,
+                          );
                           setStatusMessage("");
                         }}
                         placeholder="Type address, locality, or landmark"
@@ -328,12 +454,17 @@ export default function ProductDeliveryAddressPicker({
                     className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#edf5e1] text-sm font-semibold text-[#214f14]"
                   >
                     <LocateFixed size={17} />
-                    {isLocating ? "Fetching location..." : "Use current location"}
+                    {isLocating
+                      ? "Fetching location..."
+                      : "Use current location"}
                   </button>
 
                   <div className="mt-4 overflow-hidden rounded-2xl border border-[#dce8ce]">
                     <GoogleMap
-                      mapContainerStyle={{ width: "100%", height: "min(52vh, 420px)" }}
+                      mapContainerStyle={{
+                        width: "100%",
+                        height: "min(52vh, 420px)",
+                      }}
                       center={markerPos}
                       zoom={13}
                       onClick={onMapClick}
@@ -353,8 +484,9 @@ export default function ProductDeliveryAddressPicker({
                 </>
               ) : (
                 <div className="rounded-2xl border border-[#f0ddb0] bg-[#fffaf0] p-4 text-sm leading-6 text-[#7a5a11]">
-                  Map search is not connected yet. Add a Google Maps browser key to enable
-                  suggestions, map pinning, and current-location selection.
+                  Map search is not connected yet. Add a Google Maps browser key
+                  to enable suggestions, map pinning, and current-location
+                  selection.
                 </div>
               )}
 
@@ -380,8 +512,12 @@ export default function ProductDeliveryAddressPicker({
                     return;
                   }
 
-                  onAddressChange?.(address, markerPos);
-                  onDone?.(address, markerPos);
+                  onAddressChange?.(
+                    address,
+                    markerPos,
+                    resolvedDeliveryAddress,
+                  );
+                  onDone?.(address, markerPos, resolvedDeliveryAddress);
                   setIsOpen(false);
                 }}
                 disabled={!hasAddress}

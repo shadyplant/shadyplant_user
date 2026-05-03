@@ -53,7 +53,7 @@ const trustHighlights = [
     icon: CreditCard,
   },
   {
-    title: "Easy Returns & Instant Refunds",
+    title: "Transparent Pricing ",
     icon: Undo2,
   },
 ] as const;
@@ -75,7 +75,7 @@ export default function ProductReviewsPanel({
   ];
 
   return (
-    <section className="rounded-[2.2rem] border border-[#d6e6bd] bg-white p-6 shadow-[0_24px_56px_rgba(33,79,20,0.06)] md:p-8 lg:p-10">
+    <section className=" p-6 md:p-8 lg:p-10">
       <div className="grid gap-8 border-b border-[#edf1e7] pb-8 md:grid-cols-3 md:pb-10">
         {trustHighlights.map(({ title, icon: Icon }) => (
           <div key={title} className="flex flex-col items-center text-center">
@@ -87,23 +87,6 @@ export default function ProductReviewsPanel({
             </p>
           </div>
         ))}
-      </div>
-
-      <div className="mt-8 rounded-xl bg-[#f4f4f8] p-1.5 md:mt-10">
-        <div className="grid gap-1.5 md:grid-cols-2">
-          <button
-            type="button"
-            className="rounded-lg border border-[#e1e4ed] bg-white px-4 py-3 text-sm font-semibold text-[#163915] shadow-sm md:text-base"
-          >
-            Product Reviews
-          </button>
-          <button
-            type="button"
-            className="rounded-lg px-4 py-3 text-sm font-medium text-[#98a0b7] md:text-base"
-          >
-            Brand Reviews
-          </button>
-        </div>
       </div>
 
       <div className="mt-6 inline-flex max-w-xl flex-wrap items-center gap-2 text-xs text-[#163915] md:mt-8 md:text-sm">

@@ -13,6 +13,11 @@ import {
 } from "react";
 import { ApiError, requestJson, type ApiResponse } from "@/lib/api";
 import {
+  EMPTY_BILLING_DETAILS,
+  normalizeBillingDetailsDraft,
+  type BillingDetailsDraft,
+} from "@/lib/checkoutSession";
+import {
   EMPTY_DELIVERY_ADDRESS,
   normalizeDeliveryAddress,
   type DeliveryAddress,
@@ -37,6 +42,7 @@ export type AuthUser = {
   profileImage: string | null;
   isVerified: boolean;
   deliveryAddress: DeliveryAddress;
+  billingDetails: BillingDetailsDraft;
   createdAt: string;
   updatedAt: string;
 };
@@ -92,6 +98,7 @@ type AuthContextValue = {
     fullName: string;
     phoneNumber: string;
     deliveryAddress: DeliveryAddress;
+    billingDetails?: BillingDetailsDraft;
   }) => Promise<AuthUser>;
   fetchWithAuth: <T>(path: string, init?: RequestInit) => Promise<T>;
   refreshSession: () => Promise<AuthUser | null>;
@@ -117,6 +124,9 @@ function normalizeUser(user: Partial<AuthUser>) {
       typeof user.profileImage === "string" ? user.profileImage : null,
     isVerified: Boolean(user.isVerified),
     deliveryAddress: normalizeDeliveryAddress(user.deliveryAddress),
+    billingDetails: normalizeBillingDetailsDraft(
+      user.billingDetails || EMPTY_BILLING_DETAILS,
+    ),
     createdAt: String(user.createdAt || ""),
     updatedAt: String(user.updatedAt || ""),
   } satisfies AuthUser;
@@ -337,6 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fullName: input.fullName,
               phoneNumber: input.phoneNumber,
               deliveryAddress: input.deliveryAddress,
+              billingDetails: input.billingDetails,
             }),
           },
         );

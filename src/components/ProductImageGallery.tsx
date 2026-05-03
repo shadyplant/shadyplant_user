@@ -90,6 +90,9 @@ export default function ProductImageGallery({
 
       <div className="order-1 rounded-[2rem] p-0 sm:p-0 lg:order-2">
         <div className="relative overflow-hidden rounded-[1.6rem]">
+          <span className="absolute right-4 top-4 z-10 rounded-full bg-white/92 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#214f14] shadow-sm backdrop-blur">
+            Real Image
+          </span>
           <div className="relative aspect-[4/5] min-h-[320px] sm:aspect-[5/6] lg:min-h-[640px] xl:min-h-[720px]">
             <Image
               src={activeImage}

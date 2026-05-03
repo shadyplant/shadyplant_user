@@ -6,13 +6,20 @@ import { Heart, Menu, Search, ShoppingCart, UserRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartItems } from "@/components/cartStore";
+import ProductDeliveryAddressPicker from "@/components/ProductDeliveryAddressPicker";
 import { useProductsStore } from "@/components/productsStore";
 import { useWishlistItems } from "@/components/wishlistStore";
+import { getProductHref } from "@/lib/productUrls";
 
 const navLinks = [{ label: "Orders", href: "/order" }];
+const flashSaleMessages = [
+  "Off on ₹700+",
+  "Up to 50% Off + Surprise Gifts",
+  "First Order: Get Extra 10% Off on ₹700+",
+  "Fresh nursery picks at flash-sale pricing",
+] as const;
 
-const stickyHeaderClass =
-  "border-b border-white/20 bg-[rgba(248,251,246,0.84)] [box-shadow:0_6px_16px_-4px_rgba(36,54,27,0.12)] backdrop-blur-2xl backdrop-saturate-150";
+const stickyHeaderClass = "border-b border-[#e5ece0] bg-white";
 
 type Suggestion = {
   label: string;
@@ -54,7 +61,7 @@ export default function EcomHeader() {
       .map((product) => ({
         label: product.name,
         meta: `${product.category} - ${product.price}`,
-        href: `/products/${product.id}`,
+        href: getProductHref(product),
       }))
       .slice(0, 6);
   }, [normalizedSearch, products]);
@@ -91,20 +98,17 @@ export default function EcomHeader() {
     return (
       <div
         className={`relative ${
-          mobile
-            ? "mt-3 md:hidden"
-            : "hidden flex-1 md:flex md:min-w-[340px] lg:min-w-[460px] xl:min-w-[560px]"
+          mobile ? "mt-3 md:hidden" : "hidden w-full md:flex md:justify-center"
         }`}
       >
         <form
           onSubmit={submitSearch}
           className={
             mobile
-              ? "flex items-center gap-2 rounded-xl border border-[#d9e4d5] bg-white/65 px-3 py-2.5"
-              : "theme-input flex w-full items-center gap-3 rounded-xl border border-[#24361b]/10 bg-white/65 px-4 py-2.5 lg:max-w-[560px] xl:max-w-[680px]"
+              ? "flex items-center gap-2 rounded-[0.5rem] bg-[#f2f2f2] px-3 py-1.5"
+              : "flex w-full max-w-[420px] items-center gap-2 rounded-[0.5rem] bg-[#f2f2f2] px-4 py-1.5 xl:max-w-[520px]"
           }
         >
-          <Search size={17} className="text-[#69845d]" />
           <input
             type="search"
             value={searchTerm}
@@ -114,13 +118,14 @@ export default function EcomHeader() {
               window.setTimeout(() => setIsSearchFocused(false), 150);
             }}
             placeholder={placeholder}
-            className="w-full bg-transparent text-sm text-[#163318] outline-none placeholder:text-[#6f8167]"
+            className="w-full bg-transparent text-sm text-[#221f1d] outline-none placeholder:text-[#5f5a57]"
           />
           <button
             type="submit"
-            className="rounded-full bg-[#214f14] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#163915]"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-emerald-700 transition-colors hover:bg-[#00402b20] hover:text-emerald-900"
+            aria-label="Search products"
           >
-            Go
+            <Search size={18} />
           </button>
         </form>
 
@@ -170,41 +175,64 @@ export default function EcomHeader() {
 
   return (
     <div className="sticky top-0 z-50">
-      <div className="flex items-center justify-center bg-[#1f1d1b] px-4 py-2.5 text-white md:hidden">
-        <p className="flash-sale-text text-[9px] font-bold uppercase tracking-[0.24em]">
-          <span className="text-[#ff7e47]">50%</span> OFF Flash sale!
-        </p>
+      <div className="overflow-hidden bg-[linear-gradient(90deg,#ff5a3d_0%,#ff7a22_52%,#ff9f1c_100%)] py-2.5 shadow-[0_8px_20px_rgba(255,106,43,0.28)]">
+        <div className="flash-sale-marquee">
+          {[0, 1].map((groupIndex) => (
+            <div
+              key={groupIndex}
+              className="flash-sale-marquee-group"
+              aria-hidden={groupIndex === 1}
+            >
+              {flashSaleMessages.map((message) => (
+                <span
+                  key={`${groupIndex}-${message}`}
+                  className="flash-sale-marquee-item"
+                >
+                  {message}
+                  <span className="flash-sale-marquee-separator">✦</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
       <header className={stickyHeaderClass}>
-        <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-3">
-          <div className="flex items-center justify-between gap-3">
+        <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-5">
+          <div className="flex items-center justify-between gap-3 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-6">
             <Link href="/" className="flex shrink-0 items-center gap-2">
               <span className="text-base font-black uppercase tracking-[0.2em] text-[#1f1d1b] md:block">
                 Grass
               </span>
             </Link>
 
-            {renderSearchBox("Search for plants...")}
+            <div className="min-w-0 md:flex md:justify-center">
+              {renderSearchBox("Search for plants...")}
+            </div>
 
-            <nav className="hidden items-center gap-2 lg:flex">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={closeOverlays}
-                  className={`rounded-full px-3.5 py-2 text-sm font-semibold ${
-                    pathname === link.href
-                      ? "bg-[#24361b] text-white"
-                      : "text-[#214f14]"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
+            <div className="flex items-center justify-self-end gap-1 md:gap-2">
+              <nav className="hidden items-center gap-2 lg:flex">
+                <ProductDeliveryAddressPicker
+                  variant="header-inline"
+                  initialAddress=""
+                  emptyLabel="Set your Location"
+                />
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={closeOverlays}
+                    className={`rounded-full px-3.5 py-2 text-sm font-semibold ${
+                      pathname === link.href
+                        ? "bg-[#24361b] text-white"
+                        : "text-[#214f14]"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
 
-            <div className="flex items-center gap-1 md:gap-2">
               <button
                 type="button"
                 onClick={() => setMobileSearchOpen((open) => !open)}

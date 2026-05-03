@@ -106,7 +106,7 @@ export default function SeeInActionCarousel() {
 
         {/* 3D Carousel Container */}
         <div
-          className="relative w-full max-w-4xl h-[520px] flex justify-center items-center [perspective:1200px]"
+          className="relative flex h-[360px] w-full max-w-4xl items-center justify-center [perspective:1200px] md:h-[520px]"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -145,7 +145,7 @@ export default function SeeInActionCarousel() {
               <div
                 key={item.id}
                 onClick={() => setActiveIndex(index)}
-                className="absolute w-[300px] h-[500px] rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-out shadow-xl select-none"
+                className="absolute h-[320px] w-[210px] select-none overflow-hidden rounded-2xl shadow-xl transition-all duration-500 ease-out md:h-[500px] md:w-[300px]"
                 style={{
                   transform: transformStyle,
                   zIndex,

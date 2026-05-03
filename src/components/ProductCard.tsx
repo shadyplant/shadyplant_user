@@ -5,39 +5,49 @@ import ProductCardCartControl from "@/components/ProductCardCartControl";
 import WishlistButton from "@/components/WishlistButton";
 import { formatCurrency } from "@/lib/formatCurrency";
 import type { Product } from "@/lib/products";
+import { getProductHref } from "@/lib/productUrls";
 
 type ProductCardProps = {
   product: Product;
 };
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const originalPrice = product.price + Math.max(35, Math.round(product.price * 0.35));
+  const originalPrice =
+    product.price + Math.max(35, Math.round(product.price * 0.35));
+  const productHref = getProductHref(product);
 
   return (
-    <article className="group overflow-hidden rounded-[1.25rem] border border-[#d0d0d0] bg-white p-2.5 transition-all duration-300 hover:border-[#b8cdb0] hover:shadow-[0_14px_34px_rgba(23,20,16,0.08)] sm:p-3">
+    <article className="group isolate overflow-hidden rounded-[0.5rem] bg-[#ffffff] p-2.5 transition-all duration-300 hover:border-[#b8cdb0] hover:shadow-[0_14px_34px_rgba(23,20,16,0.08)] sm:p-3">
       <div className="relative">
         <Link
-          href={`/products/${product.id}`}
-          className="relative block aspect-[1.18] overflow-hidden rounded-[0.95rem] bg-stone-50"
+          href={productHref}
+          className="group/image relative block aspect-[1.18] overflow-hidden rounded-[0.5rem] bg-stone-50"
         >
           <Image
             src={product.image}
             alt={product.name}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition duration-500 group-hover:scale-105"
+            className="object-cover transition duration-500 group-hover/image:scale-105"
           />
-          <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-[#111111] shadow-[0_6px_18px_rgba(0,0,0,0.12)]">
-            <Star size={15} fill="currentColor" className="text-[#ffba08]" />
-            <span className="text-sm font-black">
+          <span className="pointer-events-none absolute right-1 top-1 bg-white/92 px-[0.1rem] py-[0.1rem] text-[5px] font-black uppercase tracking-[0.16em] text-[#214f14] opacity-0 backdrop-blur transition-opacity duration-200 group-hover/image:opacity-100 group-focus-within/image:opacity-100 group-active/image:opacity-100">
+            Real Image
+          </span>
+          <div className="absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-md bg-white/50 px-1 py-0.5 text-[#111111] shadow-[0_6px_18px_rgba(0,0,0,0.12)] backdrop-blur-md md:bottom-2 md:left-2 md:gap-1.5 md:rounded-lg md:px-2 md:py-1">
+            <Star
+              size={10}
+              fill="currentColor"
+              className="h-2.5 w-2.5 text-[#ffba08] md:h-4 md:w-4"
+            />
+            <span className="text-[0.4rem] font-black md:text-[0.75rem]">
               4.{(product.price % 10) + 1}
             </span>
           </div>
         </Link>
       </div>
 
-      <div className="relative pt-3">
-        <Link href={`/products/${product.id}`} className="block min-w-0">
+      <div className="relative z-10 pt-3">
+        <Link href={productHref} className="block min-w-0">
           <p className="line-clamp-1 pr-9 text-[11px] font-medium leading-4 text-[#8d8d8d] sm:pr-11 sm:text-xs">
             {product.category}
           </p>
@@ -51,7 +61,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         <WishlistButton
           productId={product.id}
-          size={30}
+          size={26}
           className="absolute right-0 top-[1.85rem] z-20 shrink-0 p-1 text-[#57ad38] transition-colors hover:text-red-500 sm:right-1 sm:top-[2.35rem]"
         />
 

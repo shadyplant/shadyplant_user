@@ -56,13 +56,21 @@ export default function WishlistButton({
     popTimeoutRef.current = window.setTimeout(() => setIsPopping(false), 220);
   }
 
+  function stopCardNavigation(
+    event: MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>,
+  ) {
+    event.stopPropagation();
+  }
+
   return (
     <button
       type="button"
+      onMouseDown={stopCardNavigation}
+      onTouchStart={stopCardNavigation}
       onClick={handleToggle}
       aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
       aria-pressed={isWishlisted}
-      className={`${className} inline-flex touch-manipulation items-center justify-center rounded-full transition duration-200 ease-out ${
+      className={`${className} z-30 inline-flex touch-manipulation items-center justify-center rounded-full transition duration-200 ease-out ${
         isPopping ? "scale-125" : "scale-100"
       } ${isWishlisted ? "text-[#2f8f49]" : "text-[#6b8b58]"}`}
     >

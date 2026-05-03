@@ -3,96 +3,51 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Check,
-  Loader2,
-  ShoppingCart,
-} from "lucide-react";
+import { ArrowLeft, Check, Loader2, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { getCartCount, useCartStore } from "@/components/cartStore";
+import { useCartStore } from "@/components/cartStore";
 import SiteShell from "@/components/SiteShell";
 import { useProductsStore } from "@/components/productsStore";
-import type { DeliveryAddress } from "@/lib/validation";
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => {
-      open: () => void;
-    };
-  }
-}
+import type { ApiResponse } from "@/lib/api";
+import {
+  normalizeBillingDetailsDraft,
+  readBillingDetailsDraft,
+  readCheckoutDraft,
+  type CheckoutPosition,
+} from "@/lib/checkoutSession";
 
 type Step = 1 | 2 | 3;
 
-type RazorpaySuccessResponse = {
-  razorpay_payment_id: string;
-  razorpay_order_id?: string;
-  razorpay_signature?: string;
-};
-
-type RazorpayOptions = {
-  key: string | undefined;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  handler: (response: RazorpaySuccessResponse) => void;
-  prefill: {
-    contact?: string;
-    email?: string;
-    name?: string;
+type CheckoutPreview = {
+  pricing: {
+    itemsSubtotal: number;
+    deliveryCharge: number;
+    total: number;
+    currency: string;
+    distanceKm: number;
+    deliveryRate: number;
+    totalWeightKg: number;
   };
-  notes?: Record<string, string>;
-  theme: {
-    color: string;
+  summary: {
+    itemCount: number;
+    totalQuantity: number;
+    totalWeightKg: number;
+    itemsSubtotal: number;
+    currency: string;
   };
+  deliveryChargeDetails: {
+    message: string;
+    rate: number;
+    units: number | null;
+  };
+  suggestedDeliveryDate: string;
 };
-
-type CheckoutSummarySnapshot = {
-  deliveryAddress?: string;
-  deliveryFee?: number;
-  itemsSubtotal?: number;
-  itemCount?: number;
-  total?: number;
-  createdAt?: string;
-};
-
-type BillingDetailsSnapshot = {
-  name?: string;
-  contact?: string;
-  gstin?: string;
-  state?: string;
-  city?: string;
-  address?: string;
-  createdAt?: string;
-};
-
-const CHECKOUT_SUMMARY_STORAGE_KEY = "ggnCheckoutSummary";
-const BILLING_DETAILS_STORAGE_KEY = "ggnBillingDetails";
 
 const steps: { id: Step; label: string }[] = [
   { id: 1, label: "Billing details" },
   { id: 2, label: "Order summary" },
   { id: 3, label: "Payment" },
 ];
-
-function formatAddress(deliveryAddress?: DeliveryAddress) {
-  if (!deliveryAddress) {
-    return "";
-  }
-
-  return [
-    deliveryAddress.line1,
-    deliveryAddress.line2,
-    deliveryAddress.landmark,
-    deliveryAddress.city,
-    deliveryAddress.state,
-    deliveryAddress.postalCode,
-  ]
-    .filter(Boolean)
-    .join(", ");
-}
 
 function formatInvoiceAmount(amount: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -101,69 +56,22 @@ function formatInvoiceAmount(amount: number) {
   }).format(amount);
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function loadRazorpay() {
-  return new Promise<boolean>((resolve) => {
-    if (window.Razorpay) {
-      resolve(true);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-}
-
-function readCheckoutSummary() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const rawSummary = window.sessionStorage.getItem(CHECKOUT_SUMMARY_STORAGE_KEY);
-  if (!rawSummary) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawSummary) as CheckoutSummarySnapshot;
-  } catch {
-    return null;
-  }
-}
-
-function readBillingDetails() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const rawDetails = window.sessionStorage.getItem(BILLING_DETAILS_STORAGE_KEY);
-  if (!rawDetails) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawDetails) as BillingDetailsSnapshot;
-  } catch {
-    return null;
-  }
+function hasPosition(position: CheckoutPosition | null | undefined): position is CheckoutPosition {
+  return Boolean(
+    position &&
+      Number.isFinite(Number(position.lat)) &&
+      Number.isFinite(Number(position.lng)),
+  );
 }
 
 export default function OrderSummaryClient() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState<Step>(2);
-  const [isContinuing, setIsContinuing] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [checkoutSummary] =
-    useState<CheckoutSummarySnapshot | null>(readCheckoutSummary);
-  const [billingDetails] =
-    useState<BillingDetailsSnapshot | null>(readBillingDetails);
-  const { isAuthenticated, isReady: isAuthReady, user } = useAuth();
+  const [currentStep] = useState<Step>(2);
+  const [preview, setPreview] = useState<CheckoutPreview | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [checkoutDraft] = useState(() => readCheckoutDraft());
+  const [billingDetailsDraft] = useState(() => readBillingDetailsDraft());
+  const { fetchWithAuth, isAuthenticated, isReady: isAuthReady, user } = useAuth();
   const {
     items: cartItems,
     isLoading: isCartLoading,
@@ -174,6 +82,9 @@ export default function OrderSummaryClient() {
     isReady: areProductsReady,
     products,
   } = useProductsStore();
+
+  const deliveryAddress = checkoutDraft?.deliveryAddress?.trim() || "";
+  const deliveryPosition = checkoutDraft?.deliveryPosition || null;
 
   const items = useMemo(
     () =>
@@ -201,28 +112,16 @@ export default function OrderSummaryClient() {
     isCartLoading ||
     !areProductsReady ||
     isProductsLoading;
-  const itemCount = getCartCount(cartItems);
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  const storedDeliveryFee = Number(checkoutSummary?.deliveryFee);
-  const hasStoredDeliveryFee =
-    Number.isFinite(storedDeliveryFee) && storedDeliveryFee >= 0;
-  const snapshotMatchesCart =
-    checkoutSummary &&
-    Math.round(Number(checkoutSummary.itemsSubtotal)) === Math.round(subtotal) &&
-    Number(checkoutSummary.itemCount) === itemCount;
-  const deliveryCharge =
-    hasStoredDeliveryFee && snapshotMatchesCart ? Math.round(storedDeliveryFee) : null;
-  const total = deliveryCharge === null ? null : subtotal + deliveryCharge;
-  const profileDeliveryAddress = formatAddress(user?.deliveryAddress);
-  const shippingAddress =
-    checkoutSummary?.deliveryAddress?.trim() || profileDeliveryAddress;
-  const billingName =
-    billingDetails?.name?.trim() || user?.fullName || "Customer";
-  const billingAddress = billingDetails?.address?.trim() || "";
-  const billingContact =
-    billingDetails?.contact?.trim() || user?.phoneNumber || "";
-  const billingLocation = [billingDetails?.city, billingDetails?.state]
-    .map((entry) => entry?.trim())
+  const billingDetails = normalizeBillingDetailsDraft(
+    Object.values(billingDetailsDraft).some(Boolean)
+      ? billingDetailsDraft
+      : user?.billingDetails,
+  );
+  const billingName = billingDetails.name.trim() || user?.fullName || "Customer";
+  const billingAddress = billingDetails.address.trim();
+  const billingContact = billingDetails.contact.trim() || user?.phoneNumber || "";
+  const billingLocation = [billingDetails.city, billingDetails.state]
+    .map((entry) => entry.trim())
     .filter(Boolean)
     .join(", ");
 
@@ -232,62 +131,56 @@ export default function OrderSummaryClient() {
     }
   }, [isAuthReady, isAuthenticated, router]);
 
-  async function handleContinueToPayment() {
-    if (deliveryCharge === null || total === null) {
-      router.push("/cart");
+  const canRequestPreview =
+    isAuthenticated && hasPosition(deliveryPosition) && Boolean(deliveryAddress) && items.length > 0;
+
+  useEffect(() => {
+    if (!canRequestPreview) {
       return;
     }
 
-    setCurrentStep(3);
-    setIsContinuing(true);
-    setStatusMessage("");
+    let isActive = true;
 
-    try {
-      const scriptLoaded = await loadRazorpay();
-      if (!scriptLoaded || !window.Razorpay) {
-        throw new Error("Razorpay failed to load.");
-      }
-
-      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
-      if (!razorpayKey) {
-        throw new Error("Razorpay key is not configured.");
-      }
-
-      const razorpay = new window.Razorpay({
-        key: razorpayKey,
-        amount: Math.round(total * 100),
-        currency: "INR",
-        name: "Grass Green Nursery",
-        description: `Order payment for ${itemCount} item${itemCount === 1 ? "" : "s"}`,
-        prefill: {
-          contact: billingContact || user?.phoneNumber,
-          email: user?.email,
-          name: billingName,
+    void fetchWithAuth<ApiResponse<{ preview: CheckoutPreview }>>("/checkout/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        deliveryAddress: {
+          formattedAddress: deliveryAddress,
+          ...(user?.deliveryAddress || {}),
         },
-        notes: {
-          deliveryAddress: shippingAddress || "Not provided",
-          billingAddress: [billingAddress, billingLocation]
-            .filter(Boolean)
-            .join(", "),
-        },
-        handler: (response) => {
-          setStatusMessage(`Payment started successfully: ${response.razorpay_payment_id}`);
-          router.push("/order");
-        },
-        theme: {
-          color: "#397519",
-        },
+        deliveryLocation: deliveryPosition,
+      }),
+    })
+      .then((response) => {
+        if (isActive) {
+          setPreview(response.data.preview);
+        }
+      })
+      .catch((error) => {
+        if (isActive) {
+          setPreview(null);
+          setPreviewError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load the latest checkout summary.",
+          );
+        }
       });
 
-      razorpay.open();
-    } catch (error) {
-      setStatusMessage(getErrorMessage(error, "Unable to start Razorpay payment."));
-      setCurrentStep(2);
-    } finally {
-      setIsContinuing(false);
-    }
-  }
+    return () => {
+      isActive = false;
+    };
+  }, [
+    canRequestPreview,
+    deliveryAddress,
+    deliveryPosition,
+    fetchWithAuth,
+    isAuthenticated,
+    items.length,
+    user?.deliveryAddress,
+  ]);
+
+  const effectivePreview = canRequestPreview ? preview : null;
 
   if (isAuthReady && !isAuthenticated) {
     return null;
@@ -342,167 +235,166 @@ export default function OrderSummaryClient() {
             })}
           </div>
 
-          <div>
-              {isLoading ? (
-                <div className="flex min-h-[320px] flex-col items-center justify-center border border-[#dddddd] bg-white text-center">
-                  <Loader2 className="animate-spin text-[#214f14]" size={30} />
-                  <p className="mt-4 text-sm font-bold text-[#163915]">
-                    Preparing your order summary
-                  </p>
-                </div>
-              ) : !items.length ? (
-                <div className="border border-[#dddddd] bg-white p-8 text-center">
-                  <ShoppingCart className="mx-auto text-[#214f14]" size={32} />
-                  <h2 className="mt-4 text-xl font-black text-[#163915]">
-                    Your cart is empty
+          {isLoading ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center border border-[#dddddd] bg-white text-center">
+              <Loader2 className="animate-spin text-[#214f14]" size={30} />
+              <p className="mt-4 text-sm font-bold text-[#163915]">
+                Preparing your order summary
+              </p>
+            </div>
+          ) : !items.length ? (
+            <div className="border border-[#dddddd] bg-white p-8 text-center">
+              <ShoppingCart className="mx-auto text-[#214f14]" size={32} />
+              <h2 className="mt-4 text-xl font-black text-[#163915]">
+                Your cart is empty
+              </h2>
+              <Link
+                href="/cart"
+                className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[#214f14] px-6 text-sm font-bold text-white"
+              >
+                Return to cart
+              </Link>
+            </div>
+          ) : (
+            <>
+              <section className="overflow-hidden rounded-t-lg border border-[#e3e3e3] bg-white">
+                <div className="bg-[#f0f0f0] px-3 py-2">
+                  <h2 className="text-[18px] font-black leading-5 text-black">
+                    Bill to :
                   </h2>
+                </div>
+                <div className="px-3 py-3 text-[12px] leading-[1.25] text-black">
+                  <p>{billingName}</p>
+                  {billingAddress ? <p>{billingAddress}</p> : null}
+                  {billingLocation ? <p>{billingLocation}</p> : null}
+                  {billingContact ? <p>contact - {billingContact}</p> : null}
+                  {billingDetails.gstin.trim() ? (
+                    <p>GSTIN - {billingDetails.gstin.trim()}</p>
+                  ) : null}
+                  {user?.email ? <p>Email - {user.email}</p> : null}
+                </div>
+
+                <div className="bg-[#f0f0f0] px-3 py-2">
+                  <h2 className="text-[18px] font-black leading-5 text-black">
+                    Ship to :
+                  </h2>
+                </div>
+                <div className="min-h-[70px] px-3 py-3 text-[12px] leading-[1.25] text-black">
+                  {deliveryAddress || "Delivery address not available."}
+                </div>
+              </section>
+
+              <section className="mt-4 overflow-hidden rounded-b-lg border border-[#e3e3e3] bg-white">
+                <div className="grid grid-cols-[minmax(0,1fr)_88px_96px] bg-[#f0f0f0] px-3 py-2 text-[14px] font-black text-black">
+                  <span>Items</span>
+                  <span className="text-center">Quantity</span>
+                  <span className="text-right">Amount</span>
+                </div>
+
+                <div className="px-3">
+                  {items.map((item) => (
+                    <article
+                      key={item.product.id}
+                      className="grid min-h-[62px] grid-cols-[minmax(0,1fr)_88px_96px] items-center border-b border-[#bfbfbf] py-3 text-[12px] last:border-b-0"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="line-clamp-2 font-medium leading-tight text-black">
+                          {item.product.name}
+                        </p>
+                        <p className="mt-1 text-[11px] leading-tight text-black">
+                          Rs. {formatInvoiceAmount(item.product.price)}
+                        </p>
+                      </div>
+                      <div className="text-center text-[16px] font-normal text-black">
+                        {item.quantity} {item.product.unit || "pcs."}
+                      </div>
+                      <div className="text-right text-[16px] font-normal text-black">
+                        {formatInvoiceAmount(item.amount)}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="bg-[#fafafa] px-3 pt-8">
+                  <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                    <span className="font-black">Sub total</span>
+                    <span>{formatInvoiceAmount(effectivePreview?.pricing.itemsSubtotal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                    <span className="font-black">Tax</span>
+                    <span>{formatInvoiceAmount(0)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                    <span className="font-black">Delivery charge</span>
+                    <span>
+                      {effectivePreview
+                        ? formatInvoiceAmount(effectivePreview.pricing.deliveryCharge)
+                        : "Required"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between gap-4 bg-[#e8e8e8] px-3 py-4 text-[14px] font-black text-black">
+                  <span>Payable amount</span>
+                  <span>
+                    {effectivePreview
+                      ? formatInvoiceAmount(effectivePreview.pricing.total)
+                      : "---"}
+                  </span>
+                </div>
+              </section>
+
+              {!hasPosition(deliveryPosition) ? (
+                <div className="px-2 py-4 text-center">
                   <Link
                     href="/cart"
-                    className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[#214f14] px-6 text-sm font-bold text-white"
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#d6e6bd] bg-white px-5 text-xs font-black text-[#214f14]"
                   >
-                    Return to cart
+                    Select delivery location in cart
                   </Link>
                 </div>
-              ) : (
-                <>
-                  <section className="overflow-hidden rounded-t-lg border border-[#e3e3e3] bg-white">
-                    <div className="bg-[#f0f0f0] px-3 py-2">
-                      <h2 className="text-[18px] font-black leading-5 text-black">
-                        Bill to :
-                      </h2>
-                    </div>
-                    <div className="px-3 py-3 text-[12px] leading-[1.25] text-black">
-                      <p>{billingName}</p>
-                      {billingAddress ? <p>{billingAddress}</p> : null}
-                      {billingLocation ? <p>{billingLocation}</p> : null}
-                      {billingContact ? <p>contact - {billingContact}</p> : null}
-                      {billingDetails?.gstin?.trim() ? (
-                        <p>GSTIN - {billingDetails.gstin.trim()}</p>
-                      ) : null}
-                      {user?.email ? <p>Email - {user.email}</p> : null}
-                      {!billingAddress && !billingLocation && !billingContact && !user?.email ? (
-                        <p>Billing address not available.</p>
-                      ) : null}
-                    </div>
+              ) : null}
 
-                    <div className="bg-[#f0f0f0] px-3 py-2">
-                      <h2 className="text-[18px] font-black leading-5 text-black">
-                        Ship to :
-                      </h2>
-                    </div>
-                    <div className="min-h-[70px] px-3 py-3 text-[12px] leading-[1.25] text-black">
-                      {shippingAddress || "Delivery address not available."}
-                    </div>
-                  </section>
+              {previewError ? (
+                <p className="mx-auto mt-3 max-w-[360px] rounded-lg bg-[#fff6f5] px-3 py-2 text-center text-xs font-semibold leading-5 text-[#b42318]">
+                  {previewError}
+                </p>
+              ) : null}
 
-                  <section className="mt-4 overflow-hidden rounded-b-lg border border-[#e3e3e3] bg-white">
-                    <div className="grid grid-cols-[minmax(0,1fr)_88px_96px] bg-[#f0f0f0] px-3 py-2 text-[14px] font-black text-black">
-                      <span>Items</span>
-                      <span className="text-center">Quantity</span>
-                      <span className="text-right">Amount</span>
-                    </div>
+              {effectivePreview ? (
+                <p className="mx-auto mt-4 max-w-[360px] text-center text-[11px] leading-5 text-[#666666]">
+                  Delivery distance {effectivePreview.pricing.distanceKm.toFixed(2)} km.
+                  {` `}
+                  Chargeable weight {effectivePreview.summary.totalWeightKg} kg.
+                  {` `}
+                  Server pricing is recalculated at payment time, so the frontend cannot override totals.
+                </p>
+              ) : null}
 
-                    <div className="px-3">
-                      {items.map((item) => (
-                        <article
-                          key={item.product.id}
-                          className="grid min-h-[62px] grid-cols-[minmax(0,1fr)_88px_96px] items-center border-b border-[#bfbfbf] py-3 text-[12px] last:border-b-0"
-                        >
-                          <div className="min-w-0 pr-2">
-                            <p className="line-clamp-2 font-medium leading-tight text-black">
-                              {item.product.name}
-                            </p>
-                            <p className="mt-1 text-[11px] leading-tight text-black">
-                              Rs. {formatInvoiceAmount(item.product.price)}
-                            </p>
-                          </div>
-                          <div className="text-center text-[16px] font-normal text-black">
-                            {item.quantity} {item.product.unit || "pcs."}
-                          </div>
-                          <div className="text-right text-[16px] font-normal text-black">
-                            {formatInvoiceAmount(item.amount)}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-
-                    <div className="bg-[#fafafa] px-3 pt-8">
-                      <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
-                        <span className="font-black">Sub total</span>
-                        <span>{formatInvoiceAmount(subtotal)}</span>
-                      </div>
-                      <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
-                        <span className="font-black">Tax</span>
-                        <span>{formatInvoiceAmount(0)}</span>
-                      </div>
-                      <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
-                        <span className="font-black">Delivery charge</span>
-                        <span>
-                          {deliveryCharge === null
-                            ? "Required"
-                            : formatInvoiceAmount(deliveryCharge)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between gap-4 bg-[#e8e8e8] px-3 py-4 text-[14px] font-black text-black">
-                      <span>Payable amount</span>
-                      <span>{total === null ? "---" : formatInvoiceAmount(total)}</span>
-                    </div>
-                  </section>
-
-                  {deliveryCharge === null ? (
-                    <div className="px-2 py-4 text-center">
-                      <Link
-                        href="/cart"
-                        className="inline-flex h-10 items-center justify-center rounded-md border border-[#d6e6bd] bg-white px-5 text-xs font-black text-[#214f14]"
-                      >
-                        Calculate delivery charge
-                      </Link>
-                    </div>
-                  ) : null}
-
-                  <p className="mx-auto mt-4 max-w-[300px] text-center text-[9px] leading-[1.25] text-[#777777]">
-                    By continuing with the order, you confirm that you are above
-                    18 years of age, and you agree to the Grass Green Nursery{" "}
-                    <Link href="/blogs" className="text-[#1d5eff]">
-                      Terms and Policy.
-                    </Link>
-                  </p>
-
-                  {statusMessage ? (
-                    <p className="mx-auto mt-3 max-w-[360px] rounded-lg bg-[#f4fbf2] px-3 py-2 text-center text-xs font-semibold leading-5 text-[#214f14]">
-                      {statusMessage}
-                    </p>
-                  ) : null}
-
-                  <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e3e3] bg-white px-3 py-2 shadow-[0_-10px_28px_rgba(36,54,27,0.12)] sm:static sm:mt-5 sm:border-t-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-                    <div className="mx-auto grid w-full max-w-[520px] grid-cols-[minmax(0,1fr)_140px] gap-3">
-                      <div className="min-w-0 py-1">
-                        <span className="block text-[11px] font-normal text-[#8a8a8a]">
-                          Total payable
-                        </span>
-                        <span className="block break-all text-[25px] font-black leading-tight text-[#263a22]">
-                          {total === null ? "---" : formatInvoiceAmount(total)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleContinueToPayment}
-                        disabled={isContinuing || deliveryCharge === null}
-                        className="flex h-[54px] items-center justify-center rounded-lg bg-[#397519] px-3 text-[20px] font-black text-white transition hover:bg-[#2d5f12] disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {deliveryCharge === null
-                          ? "Calculate first"
-                          : isContinuing
-                            ? "Opening..."
-                            : "Checkout"}
-                      </button>
-                    </div>
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e3e3] bg-white px-3 py-2 shadow-[0_-10px_28px_rgba(36,54,27,0.12)] sm:static sm:mt-5 sm:border-t-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+                <div className="mx-auto grid w-full max-w-[520px] grid-cols-[minmax(0,1fr)_140px] gap-3">
+                  <div className="min-w-0 py-1">
+                    <span className="block text-[11px] font-normal text-[#8a8a8a]">
+                      Total payable
+                    </span>
+                    <span className="block break-all text-[25px] font-black leading-tight text-[#263a22]">
+                      {effectivePreview
+                        ? formatInvoiceAmount(effectivePreview.pricing.total)
+                        : "---"}
+                    </span>
                   </div>
-                </>
-              )}
-          </div>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/payment")}
+                    disabled={!effectivePreview}
+                    className="flex h-[54px] items-center justify-center rounded-lg bg-[#397519] px-3 text-[20px] font-black text-white transition hover:bg-[#2d5f12] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </section>
     </SiteShell>

@@ -158,6 +158,14 @@ export default function AddToCartButton({
   const quantityInCart = getCartQuantity(cartItems, productId);
   const [justAdded, setJustAdded] = useState(false);
 
+  function stopNestedNavigation(
+    event:
+      | React.MouseEvent<HTMLButtonElement>
+      | React.TouchEvent<HTMLButtonElement>,
+  ) {
+    event.stopPropagation();
+  }
+
   async function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
@@ -176,9 +184,11 @@ export default function AddToCartButton({
     return (
       <button
         type="button"
+        onMouseDown={stopNestedNavigation}
+        onTouchStart={stopNestedNavigation}
         onClick={handleClick}
         aria-label={quantityInCart ? `Add one more, ${quantityInCart} already in cart` : label}
-        className={`touch-manipulation ${className}`.trim()}
+        className={`z-30 touch-manipulation ${className}`.trim()}
       >
         <div className="relative inline-flex items-center justify-center">
           {justAdded ? (
@@ -200,8 +210,10 @@ export default function AddToCartButton({
   return (
     <button
       type="button"
+      onMouseDown={stopNestedNavigation}
+      onTouchStart={stopNestedNavigation}
       onClick={handleClick}
-      className={`touch-manipulation ${className}`.trim()}
+      className={`z-30 touch-manipulation ${className}`.trim()}
       aria-label={label}
     >
       <span className="inline-flex items-center gap-2">

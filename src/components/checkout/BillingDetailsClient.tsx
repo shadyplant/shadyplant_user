@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -9,8 +9,23 @@ import {
   CheckCircle2,
   ChevronRight,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import ProductDeliveryAddressPicker from "@/components/ProductDeliveryAddressPicker";
 import SiteShell from "@/components/SiteShell";
+import {
+  EMPTY_BILLING_DETAILS,
+  normalizeBillingDetailsDraft,
+  readBillingDetailsDraft,
+  readCheckoutDraft,
+  writeBillingDetailsDraft,
+  writeCheckoutDraft,
+  type BillingDetailsDraft,
+  type CheckoutPosition,
+} from "@/lib/checkoutSession";
+import {
+  normalizeDeliveryAddress,
+  type DeliveryAddress,
+} from "@/lib/validation";
 
 type Step = 1 | 2 | 3;
 
@@ -24,15 +39,6 @@ type BillingForm = {
 };
 
 type BillingErrors = Partial<Record<keyof BillingForm, string>>;
-
-type CheckoutSummarySnapshot = {
-  deliveryAddress?: string;
-  deliveryFee?: number;
-  itemsSubtotal?: number;
-  itemCount?: number;
-  total?: number;
-  createdAt?: string;
-};
 
 const steps: { id: Step; label: string }[] = [
   { id: 1, label: "Billing Details" },
@@ -89,56 +95,6 @@ const indianStates = [
   "Puducherry",
 ] as const;
 
-const BILLING_DETAILS_STORAGE_KEY = "ggnBillingDetails";
-const CHECKOUT_SUMMARY_STORAGE_KEY = "ggnCheckoutSummary";
-const DEFAULT_DELIVERY_ADDRESS =
-  "near TND Bazar, Shariatpur, Chikni, Langla, Assam 781319";
-
-function readBillingDetails() {
-  if (typeof window === "undefined") return emptyForm;
-
-  const rawDetails = window.sessionStorage.getItem(BILLING_DETAILS_STORAGE_KEY);
-  if (!rawDetails) return emptyForm;
-
-  try {
-    const details = JSON.parse(rawDetails) as Partial<BillingForm>;
-    return {
-      name: String(details.name || ""),
-      contact: String(details.contact || ""),
-      gstin: String(details.gstin || ""),
-      state: String(details.state || ""),
-      city: String(details.city || ""),
-      address: String(details.address || ""),
-    };
-  } catch {
-    return emptyForm;
-  }
-}
-
-function readCheckoutSummary() {
-  if (typeof window === "undefined") return null;
-  const rawSummary = window.sessionStorage.getItem(CHECKOUT_SUMMARY_STORAGE_KEY);
-  if (!rawSummary) return null;
-  try {
-    return JSON.parse(rawSummary) as CheckoutSummarySnapshot;
-  } catch {
-    return null;
-  }
-}
-
-function writeCheckoutDeliveryAddress(address: string) {
-  if (typeof window === "undefined") return;
-  const currentSummary = readCheckoutSummary();
-  window.sessionStorage.setItem(
-    CHECKOUT_SUMMARY_STORAGE_KEY,
-    JSON.stringify({
-      ...(currentSummary || {}),
-      deliveryAddress: address,
-      createdAt: currentSummary?.createdAt || new Date().toISOString(),
-    })
-  );
-}
-
 function normalizeIndianMobileNumber(phoneNumber: string) {
   return phoneNumber.replace(/\D/g, "").replace(/^91(?=[6-9]\d{9}$)/, "");
 }
@@ -148,16 +104,75 @@ function isValidIndianMobileNumber(phoneNumber: string) {
   return /^[6-9]\d{9}$/.test(normalized) && !/^(\d)\1{5}/.test(normalized);
 }
 
+function hasSavedBillingDetails(details: BillingDetailsDraft) {
+  return Object.values(details).some((value) => String(value || "").trim());
+}
+
+function formatDeliveryAddress(deliveryAddress: Partial<DeliveryAddress> | null | undefined) {
+  const normalizedAddress = normalizeDeliveryAddress(deliveryAddress);
+
+  return (
+    normalizedAddress.formattedAddress ||
+    [
+      normalizedAddress.line1,
+      normalizedAddress.line2,
+      normalizedAddress.city,
+      normalizedAddress.state,
+      normalizedAddress.postalCode,
+    ]
+      .filter(Boolean)
+      .join(", ")
+  );
+}
+
+function createFallbackDeliveryAddress(address: string) {
+  return normalizeDeliveryAddress({
+    formattedAddress: address,
+    line1: address,
+  });
+}
+
 export default function BillingDetailsClient() {
   const router = useRouter();
+  const { updateProfile, user } = useAuth();
   const [currentStep] = useState<Step>(1);
-  const [form, setForm] = useState<BillingForm>(readBillingDetails);
-  const [deliveryAddress, setDeliveryAddress] = useState(
-    () => readCheckoutSummary()?.deliveryAddress?.trim() || DEFAULT_DELIVERY_ADDRESS
+  const [form, setForm] = useState<BillingForm>(
+    () => readBillingDetailsDraft() || emptyForm,
   );
+  const [deliveryPosition, setDeliveryPosition] = useState<CheckoutPosition | null>(
+    () => readCheckoutDraft()?.deliveryPosition || null,
+  );
+  const [deliveryAddress, setDeliveryAddress] = useState(
+    () => readCheckoutDraft()?.deliveryAddress?.trim() || "",
+  );
+  const [deliveryAddressDetails, setDeliveryAddressDetails] =
+    useState<DeliveryAddress>(() =>
+      normalizeDeliveryAddress(null),
+    );
   const [errors, setErrors] = useState<BillingErrors>({});
   const [submitMessage, setSubmitMessage] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const savedBillingDraft = readBillingDetailsDraft();
+    if (!hasSavedBillingDetails(savedBillingDraft)) {
+      queueMicrotask(() => {
+        setForm(normalizeBillingDetailsDraft(user.billingDetails));
+      });
+    }
+
+    const savedCheckoutDraft = readCheckoutDraft();
+    if (!savedCheckoutDraft?.deliveryAddress?.trim()) {
+      queueMicrotask(() => {
+        setDeliveryAddress(formatDeliveryAddress(user.deliveryAddress));
+        setDeliveryAddressDetails(normalizeDeliveryAddress(user.deliveryAddress));
+      });
+    }
+  }, [user]);
 
   function handleChange(
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -168,12 +183,26 @@ export default function BillingDetailsClient() {
     setSubmitMessage("");
   }
 
-  function handleDeliveryAddressChange(address: string) {
+  function handleDeliveryAddressChange(
+    address: string,
+    position?: CheckoutPosition,
+    nextDeliveryAddress?: DeliveryAddress,
+  ) {
     setDeliveryAddress(address);
-    if (address.trim()) writeCheckoutDeliveryAddress(address.trim());
+    if (nextDeliveryAddress) {
+      setDeliveryAddressDetails(nextDeliveryAddress);
+    }
+    if (position) {
+      setDeliveryPosition(position);
+    }
+
+    writeCheckoutDraft({
+      deliveryAddress: address.trim(),
+      deliveryPosition: position || deliveryPosition,
+    });
   }
 
-  function handlePlaceOrder() {
+  async function handlePlaceOrder() {
     const nextErrors: BillingErrors = {};
 
     if (!form.name.trim()) nextErrors.name = "Enter person or business name.";
@@ -197,12 +226,56 @@ export default function BillingDetailsClient() {
       return;
     }
 
-    window.sessionStorage.setItem(
-      BILLING_DETAILS_STORAGE_KEY,
-      JSON.stringify({ ...form, createdAt: new Date().toISOString() })
-    );
+    const normalizedBillingDetails = normalizeBillingDetailsDraft(form);
+    writeBillingDetailsDraft(normalizedBillingDetails);
+
+    if (user) {
+      try {
+        await updateProfile({
+          fullName: user.fullName || normalizedBillingDetails.name,
+          phoneNumber: user.phoneNumber || normalizedBillingDetails.contact,
+          deliveryAddress:
+            deliveryAddressDetails.formattedAddress || deliveryAddress.trim()
+              ? deliveryAddressDetails.formattedAddress
+                ? deliveryAddressDetails
+                : createFallbackDeliveryAddress(deliveryAddress.trim())
+              : normalizeDeliveryAddress(user.deliveryAddress),
+          billingDetails: normalizedBillingDetails,
+        });
+      } catch (error) {
+        setSubmitMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to save your billing details right now.",
+        );
+        return;
+      }
+    }
 
     router.push("/order-summary");
+  }
+
+  async function handleDeliveryAddressDone(
+    address: string,
+    position: CheckoutPosition,
+    nextDeliveryAddress: DeliveryAddress,
+  ) {
+    handleDeliveryAddressChange(address, position, nextDeliveryAddress);
+
+    if (!user) {
+      return;
+    }
+
+    try {
+      await updateProfile({
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        deliveryAddress: nextDeliveryAddress,
+        billingDetails: user.billingDetails || EMPTY_BILLING_DETAILS,
+      });
+    } catch {
+      return;
+    }
   }
 
   return (
@@ -250,7 +323,7 @@ export default function BillingDetailsClient() {
                 initialAddress={deliveryAddress}
                 emptyLabel="Select delivery address"
                 onAddressChange={handleDeliveryAddressChange}
-                onDone={handleDeliveryAddressChange}
+                onDone={handleDeliveryAddressDone}
               />
 
               <div className="flex items-start gap-2 px-1">
@@ -346,7 +419,7 @@ export default function BillingDetailsClient() {
                 <div className="mx-auto w-full max-w-[560px]">
                   <button
                     type="button"
-                    onClick={handlePlaceOrder}
+                    onClick={() => void handlePlaceOrder()}
                     className="group flex h-[58px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#356b27] text-base font-extrabold text-white transition hover:-translate-y-0.5 active:translate-y-0.5"
                   >
                     Continue

@@ -31,14 +31,6 @@ import {
   validateCheckoutForm,
 } from "@/lib/validation";
 
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => {
-      open: () => void;
-    };
-  }
-}
-
 const LIBRARIES: "places"[] = ["places"];
 const WAREHOUSE_LOCATION = {
   lat: 26.2457163,

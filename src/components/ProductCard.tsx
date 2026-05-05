@@ -54,15 +54,22 @@ export default function ProductCard({ product }: ProductCardProps) {
           <h3 className="mt-1 line-clamp-1 pr-9 text-base font-bold leading-tight tracking-normal text-[#050505] sm:pr-11 sm:text-lg">
             {product.name}
           </h3>
-          <p className="mt-0.5 line-clamp-1 pr-9 text-xs font-medium leading-4 text-[#707070] sm:pr-11 sm:text-sm">
-            {product.packLabel}
-          </p>
+
+          {product.stock <= 0 ? (
+            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#b23b2b]">
+              Out of stock
+            </p>
+          ) : (
+            <p className="mt-0.5 line-clamp-1 pr-9 text-xs font-medium leading-4 text-[#707070] sm:pr-11 sm:text-sm">
+              {product.packLabel}
+            </p>
+          )}
         </Link>
 
         <WishlistButton
           productId={product.id}
           size={26}
-          className="absolute right-0 top-[1.85rem] z-20 shrink-0 p-1 text-[#57ad38] transition-colors hover:text-red-500 sm:right-1 sm:top-[2.35rem]"
+          className="absolute right-0 top-[1.85rem] z-20 shrink-0 p-1 text-[#57ad38] transition-colors sm:right-1 sm:top-[2.35rem]"
         />
 
         <div className="mt-3.5 sm:mt-4">
@@ -74,7 +81,10 @@ export default function ProductCard({ product }: ProductCardProps) {
               {formatCurrency(originalPrice)}
             </span>
           </div>
-          <ProductCardCartControl productId={product.id} />
+          <ProductCardCartControl
+            productId={product.id}
+            stock={product.stock}
+          />
         </div>
       </div>
     </article>

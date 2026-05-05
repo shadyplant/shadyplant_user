@@ -1,13 +1,15 @@
 "use client";
 
 import { KeyboardEvent, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { BellRing, Minus, Plus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { getCartQuantity, useCartStore } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useProductStockAlertStore } from "@/components/productStockAlertStore";
 
 type ProductCardCartControlProps = {
   productId: string;
+  stock: number;
 };
 
 function AddCartIcon() {
@@ -75,15 +77,21 @@ function AddCartIcon() {
 
 export default function ProductCardCartControl({
   productId,
+  stock,
 }: ProductCardCartControlProps) {
   const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
+  const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const { items: requestedAlertItems, requestAlert } = useProductStockAlertStore();
+  const hasRequestedNotify = requestedAlertItems.includes(productId);
   const quantity = getCartQuantity(items, productId);
+  const defaultLineId = `${productId}::default`;
   const displayQuantity = Math.max(1, quantity);
   const inputValue = draftQuantity ?? String(displayQuantity);
+  const availableStock = Math.max(0, Math.floor(Number(stock || 0)));
 
   function swallowCardNavigation(
     event:
@@ -98,7 +106,30 @@ export default function ProductCardCartControl({
     router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
   }
 
+  async function requestProductNotify() {
+    if (!isAuthenticated) {
+      redirectToAuth();
+      return;
+    }
+
+    if (hasRequestedNotify || isSubmittingNotify) {
+      return;
+    }
+
+    setIsSubmittingNotify(true);
+
+    try {
+      await requestAlert(productId);
+    } finally {
+      setIsSubmittingNotify(false);
+    }
+  }
+
   async function addFirstItem() {
+    if (availableStock <= 0) {
+      return;
+    }
+
     if (!isAuthenticated) {
       redirectToAuth();
       return;
@@ -114,22 +145,26 @@ export default function ProductCardCartControl({
     }
 
     if (quantity <= 1) {
-      await removeItem(productId);
+      await removeItem(defaultLineId);
       setDraftQuantity(null);
       return;
     }
 
-    await updateQuantity(productId, quantity - 1);
+    await updateQuantity(defaultLineId, quantity - 1);
     setDraftQuantity(null);
   }
 
   async function increaseQuantity() {
+    if (availableStock <= 0 || quantity >= availableStock) {
+      return;
+    }
+
     if (!isAuthenticated) {
       redirectToAuth();
       return;
     }
 
-    await updateQuantity(productId, quantity + 1);
+    await updateQuantity(defaultLineId, quantity + 1);
     setDraftQuantity(null);
   }
 
@@ -146,12 +181,15 @@ export default function ProductCardCartControl({
       return;
     }
 
-    const nextQuantity = Math.max(1, Math.floor(numericValue));
+    const nextQuantity = Math.max(
+      1,
+      Math.min(availableStock || 1, Math.floor(numericValue)),
+    );
 
     if (quantity <= 0) {
       await addItem(productId, nextQuantity);
     } else {
-      await updateQuantity(productId, nextQuantity);
+      await updateQuantity(defaultLineId, nextQuantity);
     }
 
     setDraftQuantity(null);
@@ -161,6 +199,33 @@ export default function ProductCardCartControl({
     if (event.key === "Enter") {
       event.currentTarget.blur();
     }
+  }
+
+  if (availableStock <= 0) {
+    return (
+      <button
+        type="button"
+        onMouseDown={swallowCardNavigation}
+        onTouchStart={swallowCardNavigation}
+        onClick={() => void requestProductNotify()}
+        disabled={hasRequestedNotify || isSubmittingNotify}
+        aria-label={
+          hasRequestedNotify
+            ? "Stock notification already requested"
+            : "Get stock notification"
+        }
+        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#55ad35] bg-transparent px-3 text-base font-bold tracking-normal text-[#2f6d1d] transition hover:bg-[#f4fbf1] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg"
+      >
+        <span>
+          {hasRequestedNotify
+            ? "Requested"
+            : isSubmittingNotify
+              ? "Saving..."
+              : "Get Notify"}
+        </span>
+        <BellRing size={18} strokeWidth={2.2} />
+      </button>
+    );
   }
 
   if (quantity <= 0) {
@@ -194,6 +259,7 @@ export default function ProductCardCartControl({
       <input
         type="number"
         min={1}
+        max={availableStock}
         inputMode="numeric"
         value={inputValue}
         onMouseDown={swallowCardNavigation}
@@ -214,7 +280,8 @@ export default function ProductCardCartControl({
         onMouseDown={swallowCardNavigation}
         onTouchStart={swallowCardNavigation}
         onClick={() => void increaseQuantity()}
-        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829]"
+        disabled={quantity >= availableStock}
+        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Increase cart quantity"
       >
         <Plus size={21} strokeWidth={2.7} />

@@ -1,113 +1,170 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  Clock,
-  HelpCircle,
-  MapPin,
-  PackageSearch,
-  Truck,
-} from "lucide-react";
+import { ChevronRight, PackageSearch } from "lucide-react";
 import SiteShell from "@/components/SiteShell";
 import { type ApiResponse } from "@/lib/api";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useProductsStore } from "@/components/productsStore";
+import {
+  filterOptions,
+  formatAddress,
+  formatDateTime,
+  formatOrderStatus,
+  getCurrentTrackingStep,
+  getOrderHref,
+  isDelivered,
+  type FilterKey,
+  type Order,
+} from "@/components/orders/orderUtils";
+import type { Product } from "@/lib/products";
 
-type TrackingStep = {
-  key: string;
-  title: string;
-  description: string;
-  state: "complete" | "current" | "upcoming";
-};
+function getPreviewProduct(order: Order, products: Product[]) {
+  const previewItem = order.items?.[0] || order.orderItems?.[0];
 
-type Order = {
-  id: string;
-  orderNumber: string;
-  trackingCode: string;
-  fullName: string;
-  email: string;
-  phoneNumber: string;
-  deliveryAddress: {
-    line1: string;
-    line2: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    landmark: string;
-    notes: string;
-  };
-  deliveryDate: string;
-  quantitySqft: number;
-  distanceKm: number;
-  vehicle: {
-    name: string;
-    rate: number;
-    description: string;
-  };
-  paymentMethodLabel: string;
-  paymentStatusLabel: string;
-  currentStatus: string;
-  trackingTimeline: TrackingStep[];
-  pricing: {
-    total: number;
-    materialSubtotal: number;
-    shippingSubtotal: number;
-    recommendedSubtotal: number;
-  };
-  createdAt: string;
-};
-
-type FilterKey = "All" | "Active" | "Delivered";
-
-const filterOptions: FilterKey[] = ["All", "Active", "Delivered"];
-
-function isDelivered(order: Order) {
-  return order.currentStatus === "delivered";
-}
-
-function formatDateTime(value: string) {
-  if (!value) {
-    return "Pending";
+  if (!previewItem) {
+    return null;
   }
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  return (
+    products.find(
+      (product) =>
+        product.id === previewItem.productId ||
+        product.productId === previewItem.productId,
+    ) || null
+  );
 }
 
-function formatAddress(order: Order) {
-  return [
-    order.deliveryAddress.line1,
-    order.deliveryAddress.line2,
-    order.deliveryAddress.city,
-    order.deliveryAddress.state,
-    order.deliveryAddress.postalCode,
+function OrderPreviewCard({
+  order,
+  previewProduct,
+}: {
+  order: Order;
+  previewProduct: Product | null;
+}) {
+  const currentStep = getCurrentTrackingStep(order);
+  const orderHref = getOrderHref(order.id);
+  const previewImage = previewProduct?.image || order.orderItems?.[0]?.image || null;
+  const previewTitle =
+    previewProduct?.name ||
+    order.orderItems?.[0]?.name ||
+    (order.items?.length
+      ? `${order.items.length} item${order.items.length > 1 ? "s" : ""} in this order`
+      : order.orderItems?.length
+        ? `${order.orderItems.length} item${order.orderItems.length > 1 ? "s" : ""} in this order`
+      : `Order #${order.orderNumber}`);
+  const mobileMeta = [
+    `#${order.orderNumber}`,
+    formatOrderStatus(order.currentStatus),
   ]
     .filter(Boolean)
-    .join(", ");
+    .join(" • ");
+
+  return (
+    <Link
+      href={orderHref}
+      className="group block rounded-[1.6rem] bg-white p-3 shadow-[0_16px_36px_rgba(33,79,20,0.05)] transition hover:border-[#c4d9b3] hover:shadow-[0_20px_40px_rgba(33,79,20,0.08)] md:p-5"
+    >
+      <div className="flex items-start gap-3 md:gap-4">
+        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-[#eef5e3] text-[#214f14] md:h-24 md:w-24 md:rounded-[1.4rem]">
+          {previewImage ? (
+            <Image
+              src={previewImage}
+              alt={previewProduct?.name || previewTitle}
+              fill
+              sizes="96px"
+              className="object-cover"
+            />
+          ) : (
+            <PackageSearch size={30} className="md:h-9 md:w-9" />
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3 md:hidden">
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-1 text-sm font-black text-[#163915]">
+                {previewTitle}
+              </p>
+              <p className="mt-1 line-clamp-1 text-xs font-medium text-[#6d8464]">
+                {mobileMeta}
+              </p>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <p className="text-sm font-black text-[#2f65d9]">
+                {formatCurrency(order.pricing.total)}
+              </p>
+              <div className="mt-1 flex items-center justify-end text-[#5d7b56] transition group-hover:text-[#214f14]">
+                <ChevronRight size={16} />
+              </div>
+            </div>
+          </div>
+
+          <div className="hidden items-start justify-between gap-3 md:flex">
+            <div className="min-w-0">
+              <p className="line-clamp-1 text-sm font-black text-[#163915] md:text-base">
+                {previewTitle}
+              </p>
+              <p className="mt-1 text-xs font-medium text-[#6d8464]">
+                Order #{order.orderNumber}
+              </p>
+              <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-[#6b8b58]">
+                {formatOrderStatus(order.currentStatus)}
+              </p>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <p className="text-sm font-black text-[#2f65d9] md:text-base">
+                {formatCurrency(order.pricing.total)}
+              </p>
+              <div className="mt-2 inline-flex items-center gap-1 text-[#5d7b56] transition group-hover:text-[#214f14]">
+                <span className="text-xs font-semibold md:text-sm">
+                  View details
+                </span>
+                <ChevronRight size={18} />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 hidden space-y-2 text-sm text-[#58724f] md:block">
+            <p className="line-clamp-2">
+              {formatAddress(order) || "Address unavailable"}
+            </p>
+            <p>
+              Delivery target:{" "}
+              <span className="font-semibold text-[#355f2a]">
+                {formatDateTime(order.deliveryDate)}
+              </span>
+            </p>
+            <p>
+              {order.quantitySqft} sqft • {order.vehicle.name} •{" "}
+              {order.paymentStatusLabel}
+            </p>
+            {currentStep ? (
+              <p className="text-xs text-[#708669] md:text-sm">
+                Tracking: {currentStep.title}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
 }
 
 export default function OrderTrackingPageClient() {
   const { fetchWithAuth, isAuthenticated, isReady } = useAuth();
+  const { products } = useProductsStore();
   const [filter, setFilter] = useState<FilterKey>("All");
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
+    if (!isReady || !isAuthenticated) {
       return;
     }
 
@@ -126,7 +183,11 @@ export default function OrderTrackingPageClient() {
           return;
         }
 
-        setError(nextError instanceof Error ? nextError.message : "Unable to load orders.");
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to load orders.",
+        );
       });
 
     return () => {
@@ -150,226 +211,103 @@ export default function OrderTrackingPageClient() {
 
   return (
     <SiteShell>
-      <section className="min-h-screen px-4 py-8 md:px-8 md:py-12">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Your Orders</h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Live order history from your Grass Green Nursery account.
-            </p>
-          </div>
-
-          {!isReady || (isAuthenticated && orders === null && !error) ? (
-            <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-6 text-sm text-[#58724f]">
-              Loading your orders...
-            </div>
-          ) : !isAuthenticated ? (
-            <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
-              <PackageSearch size={28} className="mx-auto text-[#214f14]" />
-              <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                Sign in to view your orders
-              </h2>
-              <p className="mt-3 text-sm text-[#58724f]">
-                Your order timeline and delivery history are available after login.
+      <div className="min-h-screen bg-white">
+        <section className="min-h-screen bg-white px-4 py-8 md:px-8 md:py-12">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Your Orders</h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Review every order in a compact card view and open any order for
+                full tracking details.
               </p>
-              <Link
-                href="/auth?next=/order"
-                className="mt-6 inline-flex rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white"
-              >
-                Continue to sign in
-              </Link>
             </div>
-          ) : error ? (
-            <div className="rounded-[1.6rem] border border-[#f2d2d2] bg-[#fff7f7] p-6 text-sm text-[#9c3131]">
-              {error}
-            </div>
-          ) : (
-            <>
-              <div className="mb-6 border-b border-gray-200">
-                <nav className="-mb-px flex space-x-8">
-                  {filterOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setFilter(option)}
-                      className={`whitespace-nowrap border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
-                        filter === option
-                          ? "border-black text-black"
-                          : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                      }`}
-                    >
-                      {option} Orders
-                    </button>
-                  ))}
-                </nav>
+
+            {!isReady || (isAuthenticated && orders === null && !error) ? (
+              <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-6 text-sm text-[#58724f]">
+                Loading your orders...
               </div>
-
-              {!filteredOrders.length ? (
-                <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
-                  <PackageSearch size={28} className="mx-auto text-[#214f14]" />
-                  <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                    No orders in this view
-                  </h2>
-                  <p className="mt-3 text-sm text-[#58724f]">
-                    Place your first order from the delivery calculator or switch filters.
-                  </p>
-                  <Link
-                    href="/checkout"
-                    className="mt-6 inline-flex rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white"
-                  >
-                    Start a new order
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {filteredOrders.map((order) => {
-                    const formattedAddress = formatAddress(order);
-
-                    return (
-                      <article
-                        key={order.id}
-                        className="overflow-hidden rounded-lg border border-gray-200 bg-white"
+            ) : !isAuthenticated ? (
+              <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
+                <PackageSearch size={28} className="mx-auto text-[#214f14]" />
+                <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
+                  Sign in to view your orders
+                </h2>
+                <p className="mt-3 text-sm text-[#58724f]">
+                  Your order timeline and delivery history are available after
+                  login.
+                </p>
+                <Link
+                  href="/auth?next=/order"
+                  className="mt-6 inline-flex rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Continue to sign in
+                </Link>
+              </div>
+            ) : error ? (
+              <div className="rounded-[1.6rem] border border-[#f2d2d2] bg-[#fff7f7] p-6 text-sm text-[#9c3131]">
+                {error}
+              </div>
+            ) : (
+              <>
+                <div className="mb-6 border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-8">
+                    {filterOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setFilter(option)}
+                        className={`whitespace-nowrap border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
+                          filter === option
+                            ? "border-black text-black"
+                            : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                        }`}
                       >
-                        <div className="flex flex-col gap-4 border-b border-gray-200 bg-[#f6faef] px-6 py-4 text-sm md:flex-row md:items-center md:justify-between">
-                          <div className="flex flex-wrap gap-6 md:gap-12">
-                            <div>
-                              <p className="mb-1 text-xs font-medium uppercase text-gray-500">
-                                Order Placed
-                              </p>
-                              <p className="text-gray-900">{formatDateTime(order.createdAt)}</p>
-                            </div>
-                            <div>
-                              <p className="mb-1 text-xs font-medium uppercase text-gray-500">
-                                Total
-                              </p>
-                              <p className="text-gray-900">{formatCurrency(order.pricing.total)}</p>
-                            </div>
-                            <div>
-                              <p className="mb-1 text-xs font-medium uppercase text-gray-500">
-                                Ship To
-                              </p>
-                              <p className="max-w-[220px] text-gray-800">
-                                {formattedAddress || "Address unavailable"}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="md:text-right">
-                            <p className="mb-1 text-xs font-medium uppercase text-gray-500">
-                              Order # {order.orderNumber}
-                            </p>
-                            <p className="text-sm text-gray-700">
-                              Tracking code: {order.trackingCode}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="p-6">
-                          <div className="mb-6">
-                            <h2 className="text-xl font-bold text-gray-900">
-                              Delivery target: {formatDateTime(order.deliveryDate)}
-                            </h2>
-                            <p className="mt-1 text-sm font-medium capitalize text-gray-700">
-                              {order.currentStatus.replace(/_/g, " ")}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-col gap-8 lg:flex-row">
-                            <div className="flex-1 space-y-4">
-                              <div className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4">
-                                <p className="text-sm font-semibold text-[#163915]">
-                                  Order summary
-                                </p>
-                                <div className="mt-4 grid gap-3 text-sm text-[#58724f] md:grid-cols-2">
-                                  <p>Quantity: {order.quantitySqft} sqft</p>
-                                  <p>Distance: {order.distanceKm} km</p>
-                                  <p>Vehicle: {order.vehicle.name}</p>
-                                  <p>Payment: {order.paymentStatusLabel}</p>
-                                  <p>Method: {order.paymentMethodLabel}</p>
-                                  <p>Shipping: {formatCurrency(order.pricing.shippingSubtotal)}</p>
-                                </div>
-                              </div>
-
-                              <div className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4">
-                                <h3 className="flex items-center gap-2 text-sm font-semibold text-[#163915]">
-                                  <MapPin size={16} className="text-[#214f14]" />
-                                  Delivery Address
-                                </h3>
-                                <p className="mt-3 text-sm leading-6 text-[#58724f]">
-                                  {formattedAddress || "Address unavailable"}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="w-full space-y-6 lg:w-72 lg:border-l lg:border-gray-200 lg:pl-8">
-                              <div className="space-y-3">
-                                <Link
-                                  href="/checkout"
-                                  className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                                >
-                                  <HelpCircle size={16} />
-                                  Start another order
-                                </Link>
-                              </div>
-
-                              <div>
-                                <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
-                                  <Truck size={16} className="text-gray-500" />
-                                  Tracking History
-                                </h3>
-                                <div className="space-y-4">
-                                  {order.trackingTimeline.map((step, index) => (
-                                    <div
-                                      key={`${order.id}-${step.key}`}
-                                      className="relative flex gap-3"
-                                    >
-                                      {index !== order.trackingTimeline.length - 1 ? (
-                                        <div className="absolute bottom-[-16px] left-[11px] top-6 w-[2px] bg-gray-200" />
-                                      ) : null}
-                                      <div className="relative z-10 mt-0.5 shrink-0">
-                                        {step.state === "complete" ? (
-                                          <CheckCircle2
-                                            size={24}
-                                            className="bg-white text-green-600"
-                                          />
-                                        ) : (
-                                          <Clock
-                                            size={24}
-                                            className={
-                                              step.state === "current"
-                                                ? "bg-white text-amber-500"
-                                                : "bg-white text-gray-300"
-                                            }
-                                          />
-                                        )}
-                                      </div>
-                                      <div className="pb-2">
-                                        <p
-                                          className={`text-sm font-medium ${
-                                            step.state === "upcoming"
-                                              ? "text-gray-500"
-                                              : "text-gray-900"
-                                          }`}
-                                        >
-                                          {step.title}
-                                        </p>
-                                        <p className="text-xs text-gray-500">{step.description}</p>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
+                        {option} Orders
+                      </button>
+                    ))}
+                  </nav>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
+
+                {!filteredOrders.length ? (
+                  <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
+                    <PackageSearch
+                      size={28}
+                      className="mx-auto text-[#214f14]"
+                    />
+                    <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
+                      No orders in this view
+                    </h2>
+                    <p className="mt-3 text-sm text-[#58724f]">
+                      Place your first order from the delivery calculator or
+                      switch filters.
+                    </p>
+                    <Link
+                      href="/checkout"
+                      className="mt-6 inline-flex rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white"
+                    >
+                      Start a new order
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredOrders.map((order) => {
+                      const previewProduct = getPreviewProduct(order, products);
+
+                      return (
+                        <OrderPreviewCard
+                          key={order.id}
+                          order={order}
+                          previewProduct={previewProduct}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      </div>
     </SiteShell>
   );
 }

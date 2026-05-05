@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart, Menu, Search, ShoppingCart, UserRound, X } from "lucide-react";
@@ -9,6 +10,7 @@ import { getCartCount, useCartItems } from "@/components/cartStore";
 import ProductDeliveryAddressPicker from "@/components/ProductDeliveryAddressPicker";
 import { useProductsStore } from "@/components/productsStore";
 import { useWishlistItems } from "@/components/wishlistStore";
+import { formatDeliveryAddress } from "@/lib/deliveryAddress";
 import { getProductHref } from "@/lib/productUrls";
 
 const navLinks = [{ label: "Orders", href: "/order" }];
@@ -27,7 +29,11 @@ type Suggestion = {
   href: string;
 };
 
-export default function EcomHeader() {
+export default function EcomHeader({
+  initialDeliveryAddress = "",
+}: {
+  initialDeliveryAddress?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, logout, user } = useAuth();
@@ -42,6 +48,8 @@ export default function EcomHeader() {
   const wishlistCount = wishlistItems.length;
   const wishlistHref = isAuthenticated ? "/wishlist" : "/auth?next=/wishlist";
   const cartHref = isAuthenticated ? "/cart" : "/auth?next=/cart";
+  const savedDeliveryAddress =
+    formatDeliveryAddress(user?.deliveryAddress) || initialDeliveryAddress;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const suggestions = useMemo<Suggestion[]>(() => {
@@ -97,78 +105,84 @@ export default function EcomHeader() {
   function renderSearchBox(placeholder: string, mobile = false) {
     return (
       <div
-        className={`relative ${
+        className={`${
           mobile ? "mt-3 md:hidden" : "hidden w-full md:flex md:justify-center"
         }`}
       >
-        <form
-          onSubmit={submitSearch}
-          className={
-            mobile
-              ? "flex items-center gap-2 rounded-[0.5rem] bg-[#f2f2f2] px-3 py-1.5"
-              : "flex w-full max-w-[420px] items-center gap-2 rounded-[0.5rem] bg-[#f2f2f2] px-4 py-1.5 xl:max-w-[520px]"
-          }
+        <div
+          className={`relative ${
+            mobile ? "w-full" : "w-full max-w-[420px] xl:max-w-[520px]"
+          }`}
         >
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => {
-              window.setTimeout(() => setIsSearchFocused(false), 150);
-            }}
-            placeholder={placeholder}
-            className="w-full bg-transparent text-sm text-[#221f1d] outline-none placeholder:text-[#5f5a57]"
-          />
-          <button
-            type="submit"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-emerald-700 transition-colors hover:bg-[#00402b20] hover:text-emerald-900"
-            aria-label="Search products"
+          <form
+            onSubmit={submitSearch}
+            className={
+              mobile
+                ? "flex items-center gap-2 rounded-[0.5rem] bg-[#f2f2f2] px-3 py-1.5"
+                : "flex w-full items-center gap-2 rounded-[0.5rem] bg-[#f2f2f2] px-4 py-1.5"
+            }
           >
-            <Search size={18} />
-          </button>
-        </form>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => {
+                window.setTimeout(() => setIsSearchFocused(false), 150);
+              }}
+              placeholder={placeholder}
+              className="w-full bg-transparent text-sm text-[#221f1d] outline-none placeholder:text-[#5f5a57]"
+            />
+            <button
+              type="submit"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-emerald-700 transition-colors hover:bg-[#00402b20] hover:text-emerald-900"
+              aria-label="Search products"
+            >
+              <Search size={18} />
+            </button>
+          </form>
 
-        {showSuggestions ? (
-          <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-[#d7dfd2] bg-white shadow-xl">
-            <div className="p-2">
-              <Link
-                href={
-                  normalizedSearch
-                    ? `/search?q=${encodeURIComponent(searchTerm.trim())}`
-                    : "/search"
-                }
-                onClick={closeOverlays}
-                className="mb-2 flex items-center justify-between rounded-2xl bg-[#f4f8ef] px-3 py-3 transition-colors hover:bg-[#ebf3e2]"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-[#173d12]">
-                    View all search results
-                  </p>
-                  <p className="text-xs text-[#6b8b58]">
-                    Open filtered results for &quot;{searchTerm.trim()}&quot;
-                  </p>
-                </div>
-              </Link>
-
-              {suggestions.map((suggestion) => (
+          {showSuggestions ? (
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-[#d7dfd2] bg-white shadow-xl">
+              <div className="p-2">
                 <Link
-                  key={`${suggestion.meta}-${suggestion.label}`}
-                  href={suggestion.href}
+                  href={
+                    normalizedSearch
+                      ? `/search?q=${encodeURIComponent(searchTerm.trim())}`
+                      : "/search"
+                  }
                   onClick={closeOverlays}
-                  className="flex items-center justify-between rounded-2xl px-3 py-3 transition-colors hover:bg-[#f4f8ef]"
+                  className="mb-2 flex items-center justify-between rounded-2xl bg-[#f4f8ef] px-3 py-3 transition-colors hover:bg-[#ebf3e2]"
                 >
                   <div>
                     <p className="text-sm font-semibold text-[#173d12]">
-                      {suggestion.label}
+                      View all search results
                     </p>
-                    <p className="text-xs text-[#6b8b58]">{suggestion.meta}</p>
+                    <p className="text-xs text-[#6b8b58]">
+                      Open filtered results for &quot;{searchTerm.trim()}&quot;
+                    </p>
                   </div>
                 </Link>
-              ))}
+
+                {suggestions.map((suggestion) => (
+                  <Link
+                    key={`${suggestion.meta}-${suggestion.label}`}
+                    href={suggestion.href}
+                    onClick={closeOverlays}
+                    className="flex items-center justify-between rounded-2xl px-3 py-3 transition-colors hover:bg-[#f4f8ef]"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-[#173d12]">
+                        {suggestion.label}
+                      </p>
+                      <p className="text-xs text-[#6b8b58]">{suggestion.meta}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -198,12 +212,18 @@ export default function EcomHeader() {
       </div>
 
       <header className={stickyHeaderClass}>
-        <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-5">
+        <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-4">
           <div className="flex items-center justify-between gap-3 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-6">
             <Link href="/" className="flex shrink-0 items-center gap-2">
-              <span className="text-base font-black uppercase tracking-[0.2em] text-[#1f1d1b] md:block">
-                Grass
-              </span>
+              <Image
+                src="/ggn-logo2.svg"
+                alt="Grass Green Nursery"
+                width={188}
+                height={54}
+                priority
+                className="h-10 w-auto md:h-13"
+              />
+              <span className="sr-only">Grass Green Nursery</span>
             </Link>
 
             <div className="min-w-0 md:flex md:justify-center">
@@ -214,7 +234,7 @@ export default function EcomHeader() {
               <nav className="hidden items-center gap-2 lg:flex">
                 <ProductDeliveryAddressPicker
                   variant="header-inline"
-                  initialAddress=""
+                  initialAddress={savedDeliveryAddress}
                   emptyLabel="Set your Location"
                 />
                 {navLinks.map((link) => (

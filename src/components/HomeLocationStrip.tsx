@@ -2,32 +2,15 @@
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import ProductDeliveryAddressPicker from "@/components/ProductDeliveryAddressPicker";
+import { formatDeliveryAddress } from "@/lib/deliveryAddress";
 
-function formatDeliveryAddress(deliveryAddress: {
-  formattedAddress?: string;
-  line1: string;
-  line2: string;
-  city: string;
-  state: string;
-  postalCode: string;
+export default function HomeLocationStrip({
+  initialAddress = "",
+}: {
+  initialAddress?: string;
 }) {
-  return (
-    deliveryAddress.formattedAddress ||
-    [
-    deliveryAddress.line1,
-    deliveryAddress.line2,
-    deliveryAddress.city,
-    deliveryAddress.state,
-    deliveryAddress.postalCode,
-  ]
-    .filter(Boolean)
-    .join(", ")
-  );
-}
-
-export default function HomeLocationStrip() {
   const { user } = useAuth();
-  const savedAddress = user ? formatDeliveryAddress(user.deliveryAddress) : "";
+  const savedAddress = formatDeliveryAddress(user?.deliveryAddress) || initialAddress;
 
   return (
     <ProductDeliveryAddressPicker

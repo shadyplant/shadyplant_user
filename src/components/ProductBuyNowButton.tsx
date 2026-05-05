@@ -4,15 +4,18 @@ import { type ReactNode, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCartStore } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
 
 type ProductBuyNowButtonProps = {
   productId: string;
+  availableStock?: number;
   className?: string;
   children: ReactNode;
 };
 
 export default function ProductBuyNowButton({
   productId,
+  availableStock,
   className,
   children,
 }: ProductBuyNowButtonProps) {
@@ -20,10 +23,20 @@ export default function ProductBuyNowButton({
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
-  const { items, addItem } = useCartStore();
+  const { items, addItem, updateQuantity } = useCartStore();
+  const selectedOptionContext = useOptionalProductOptionSelection();
+  const activeProductId = selectedOptionContext?.product.id || productId;
+  const effectiveAvailableStock =
+    selectedOptionContext?.resolved.stock ?? availableStock;
+  const stockAvailable = Math.max(
+    0,
+    Math.floor(Number(effectiveAvailableStock ?? 0)),
+  );
+  const isOutOfStock =
+    effectiveAvailableStock !== undefined && stockAvailable <= 0;
 
   async function handleClick() {
-    if (isSubmitting) {
+    if (isSubmitting || isOutOfStock) {
       return;
     }
 
@@ -35,10 +48,22 @@ export default function ProductBuyNowButton({
     setIsSubmitting(true);
 
     try {
-      const existingItem = items.find((item) => item.productId === productId);
+      const existingItem = selectedOptionContext
+        ? items.find((item) => item.id === selectedOptionContext.resolved.lineId)
+        : items.find((item) => item.productId === productId && !item.variantId);
 
       if (!existingItem || existingItem.quantity <= 0) {
-        await addItem(productId, 1);
+        await addItem(activeProductId, 1, selectedOptionContext
+          ? {
+              variantId: selectedOptionContext.resolved.variantId,
+              optionSelections: selectedOptionContext.resolved.optionSelections,
+            }
+          : undefined);
+      } else if (
+        effectiveAvailableStock !== undefined &&
+        existingItem.quantity > stockAvailable
+      ) {
+        await updateQuantity(existingItem.id, stockAvailable);
       }
 
       router.push("/checkout");
@@ -51,10 +76,10 @@ export default function ProductBuyNowButton({
     <button
       type="button"
       onClick={() => void handleClick()}
-      disabled={isSubmitting}
-      className={className}
+      disabled={isSubmitting || isOutOfStock}
+      className={`${className || ""} disabled:cursor-not-allowed disabled:opacity-60`.trim()}
     >
-      {isSubmitting ? "Preparing..." : children}
+      {isOutOfStock ? "Out of stock" : isSubmitting ? "Preparing..." : children}
     </button>
   );
 }

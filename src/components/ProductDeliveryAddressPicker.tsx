@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Autocomplete,
   GoogleMap,
@@ -17,6 +17,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { formatDeliveryAddress } from "@/lib/deliveryAddress";
 
 const LIBRARIES: "places"[] = ["places"];
 const DEFAULT_LOCATION = {
@@ -28,27 +29,6 @@ type Position = {
   lat: number;
   lng: number;
 };
-
-function formatSavedDeliveryAddress(
-  deliveryAddress: DeliveryAddress | null | undefined,
-) {
-  if (!deliveryAddress) {
-    return "";
-  }
-
-  return (
-    deliveryAddress.formattedAddress ||
-    [
-      deliveryAddress.line1,
-      deliveryAddress.line2,
-      deliveryAddress.city,
-      deliveryAddress.state,
-      deliveryAddress.postalCode,
-    ]
-      .filter(Boolean)
-      .join(", ")
-  );
-}
 
 function getAddressPart(
   components: google.maps.GeocoderAddressComponent[] | undefined,
@@ -120,6 +100,8 @@ type ProductDeliveryAddressPickerProps = {
     | "checkout-card"
     | "header-inline";
   initialAddress?: string;
+  initialPosition?: Position | null;
+  autoResolveInitialAddress?: boolean;
   emptyLabel?: string;
   onAddressChange?: (
     address: string,
@@ -136,6 +118,8 @@ type ProductDeliveryAddressPickerProps = {
 export default function ProductDeliveryAddressPicker({
   variant = "field",
   initialAddress,
+  initialPosition = null,
+  autoResolveInitialAddress = false,
   emptyLabel = "Enter your location",
   onAddressChange,
   onDone,
@@ -149,11 +133,16 @@ export default function ProductDeliveryAddressPicker({
   const effectiveInitialAddress =
     initialAddress !== undefined
       ? initialAddress
-      : formatSavedDeliveryAddress(user?.deliveryAddress);
+      : formatDeliveryAddress(user?.deliveryAddress);
+  const hasInitialPosition =
+    Number.isFinite(Number(initialPosition?.lat)) &&
+    Number.isFinite(Number(initialPosition?.lng));
 
   const [isOpen, setIsOpen] = useState(false);
   const [address, setAddress] = useState(effectiveInitialAddress);
-  const [markerPos, setMarkerPos] = useState<Position>(DEFAULT_LOCATION);
+  const [markerPos, setMarkerPos] = useState<Position>(() =>
+    hasInitialPosition && initialPosition ? initialPosition : DEFAULT_LOCATION,
+  );
   const [statusMessage, setStatusMessage] = useState("");
   const [isLocating, setIsLocating] = useState(false);
   const [resolvedDeliveryAddress, setResolvedDeliveryAddress] =
@@ -163,6 +152,7 @@ export default function ProductDeliveryAddressPicker({
   const mapRef = useRef<google.maps.Map | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const lastAutoResolvedAddressRef = useRef("");
   const hasAddress = address.trim().length > 0;
 
   useEffect(() => {
@@ -173,11 +163,11 @@ export default function ProductDeliveryAddressPicker({
     });
   }, [effectiveInitialAddress]);
 
-  function applyLocation(
+  const applyLocation = useCallback((
     nextPosition: Position,
     nextAddress: string,
     nextDeliveryAddress?: DeliveryAddress,
-  ) {
+  ) => {
     const normalizedDeliveryAddress =
       nextDeliveryAddress || buildDeliveryAddress(nextAddress, undefined);
     setMarkerPos(nextPosition);
@@ -186,7 +176,52 @@ export default function ProductDeliveryAddressPicker({
     onAddressChange?.(nextAddress, nextPosition, normalizedDeliveryAddress);
     mapRef.current?.panTo(nextPosition);
     setStatusMessage("Delivery point selected.");
-  }
+  }, [onAddressChange]);
+
+  useEffect(() => {
+    const normalizedInitialAddress = effectiveInitialAddress.trim();
+
+    if (
+      !autoResolveInitialAddress ||
+      !isLoaded ||
+      !normalizedInitialAddress ||
+      hasInitialPosition ||
+      lastAutoResolvedAddressRef.current === normalizedInitialAddress
+    ) {
+      return;
+    }
+
+    lastAutoResolvedAddressRef.current = normalizedInitialAddress;
+
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: normalizedInitialAddress }, (results, status) => {
+      if (status !== "OK" || !results?.[0]?.geometry?.location) {
+        setStatusMessage(
+          "Confirm this address on the map to calculate delivery charges.",
+        );
+        return;
+      }
+
+      const nextPosition = {
+        lat: results[0].geometry.location.lat(),
+        lng: results[0].geometry.location.lng(),
+      };
+      const nextAddress = results[0].formatted_address || normalizedInitialAddress;
+      const nextDeliveryAddress = buildDeliveryAddress(
+        nextAddress,
+        results[0].address_components,
+      );
+
+      applyLocation(nextPosition, nextAddress, nextDeliveryAddress);
+      setStatusMessage("Saved delivery location confirmed.");
+    });
+  }, [
+    applyLocation,
+    autoResolveInitialAddress,
+    effectiveInitialAddress,
+    hasInitialPosition,
+    isLoaded,
+  ]);
 
   function reverseGeocode(nextPosition: Position, fallbackAddress = "") {
     if (!isLoaded) {

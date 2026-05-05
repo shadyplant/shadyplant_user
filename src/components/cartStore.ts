@@ -16,8 +16,18 @@ type CartStoreState = {
 type CartApiResponse = ApiResponse<{
   cart: {
     items?: Array<{
-      productId?: string;
       id?: string;
+      productId?: string;
+      variantId?: string;
+      variantLabel?: string;
+      packLabel?: string;
+      unitPrice?: number | null;
+      optionSelections?: Array<{
+        groupKey?: string;
+        optionKey?: string;
+        label?: string;
+        groupTitle?: string;
+      }>;
       quantity?: number;
     }>;
   };
@@ -64,19 +74,57 @@ function getServerSnapshot() {
 }
 
 function sanitizeCartItem(item: {
-  productId?: string;
   id?: string;
+  productId?: string;
+  variantId?: string;
+  variantLabel?: string;
+  packLabel?: string;
+  unitPrice?: number | null;
+  optionSelections?: Array<{
+    groupKey?: string;
+    optionKey?: string;
+    label?: string;
+    groupTitle?: string;
+  }>;
   quantity?: number;
 }): CartItem | null {
-  const productId = String(item.productId || item.id || "").trim();
+  const productId = String(item.productId || "").trim();
+  const lineId = String(item.id || "").trim();
   const quantity = Number(item.quantity);
 
-  if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
+  if (!productId || !lineId || !Number.isFinite(quantity) || quantity <= 0) {
     return null;
   }
 
   return {
+    id: lineId,
     productId,
+    variantId: String(item.variantId || "").trim(),
+    variantLabel: String(item.variantLabel || "").trim() || undefined,
+    packLabel: String(item.packLabel || "").trim() || undefined,
+    unitPrice:
+      item.unitPrice === undefined || item.unitPrice === null
+        ? null
+        : Number(item.unitPrice),
+    optionSelections: Array.isArray(item.optionSelections)
+      ? item.optionSelections.flatMap((selection) => {
+          const groupKey = String(selection.groupKey || "").trim();
+          const optionKey = String(selection.optionKey || "").trim();
+
+          if (!groupKey || !optionKey) {
+            return [];
+          }
+
+          return [
+            {
+              groupKey,
+              optionKey,
+              label: String(selection.label || "").trim() || undefined,
+              groupTitle: String(selection.groupTitle || "").trim() || undefined,
+            },
+          ];
+        })
+      : undefined,
     quantity: Math.max(1, Math.floor(quantity)),
   };
 }
@@ -99,17 +147,17 @@ function preserveCartItemOrder(
   }
 
   const nextItemsByProductId = new Map(
-    nextItems.map((item) => [item.productId, item]),
+    nextItems.map((item) => [item.id, item]),
   );
   const previousProductIds = new Set(
-    previousItems.map((item) => item.productId),
+    previousItems.map((item) => item.id),
   );
   const orderedExistingItems = previousItems.flatMap((item) => {
-    const nextItem = nextItemsByProductId.get(item.productId);
+    const nextItem = nextItemsByProductId.get(item.id);
     return nextItem ? [nextItem] : [];
   });
   const newItems = nextItems.filter(
-    (item) => !previousProductIds.has(item.productId),
+    (item) => !previousProductIds.has(item.id),
   );
 
   return [...orderedExistingItems, ...newItems];
@@ -232,7 +280,14 @@ export function useCartStore() {
     user?.id,
   ]);
 
-  async function addItem(productId: string, quantity = 1) {
+  async function addItem(
+    productId: string,
+    quantity = 1,
+    variant?: {
+      variantId?: string;
+      optionSelections?: CartItem["optionSelections"];
+    },
+  ) {
     if (!isAuthenticated || !user?.id) {
       throw new ApiError(401, "Please sign in to use your cart.", null);
     }
@@ -241,6 +296,8 @@ export function useCartStore() {
       method: "POST",
       body: JSON.stringify({
         productId,
+        variantId: variant?.variantId || "",
+        optionSelections: variant?.optionSelections || [],
         quantity,
       }),
     });
@@ -248,12 +305,12 @@ export function useCartStore() {
     return applyCartResponse(user.id, response);
   }
 
-  async function updateQuantity(productId: string, quantity: number) {
+  async function updateQuantity(itemId: string, quantity: number) {
     if (!isAuthenticated || !user?.id) {
       throw new ApiError(401, "Please sign in to use your cart.", null);
     }
 
-    const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${productId}`, {
+    const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${itemId}`, {
       method: "PATCH",
       body: JSON.stringify({ quantity }),
     });
@@ -261,12 +318,12 @@ export function useCartStore() {
     return applyCartResponse(user.id, response);
   }
 
-  async function removeItem(productId: string) {
+  async function removeItem(itemId: string) {
     if (!isAuthenticated || !user?.id) {
       throw new ApiError(401, "Please sign in to use your cart.", null);
     }
 
-    const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${productId}`, {
+    const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${itemId}`, {
       method: "DELETE",
     });
 
@@ -313,5 +370,9 @@ export function getCartCount(items: CartItem[]) {
 }
 
 export function getCartQuantity(items: CartItem[], productId: string) {
-  return items.find((item) => item.productId === productId)?.quantity ?? 0;
+  return items.find((item) => item.productId === productId && !item.variantId)?.quantity ?? 0;
+}
+
+export function getCartQuantityByLineId(items: CartItem[], lineId: string) {
+  return items.find((item) => item.id === lineId)?.quantity ?? 0;
 }

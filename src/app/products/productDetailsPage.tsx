@@ -18,80 +18,157 @@ import MobileProductImageCarousel from "@/components/MobileProductImageCarousel"
 import ProductMobileActionBar from "@/components/ProductMobileActionBar";
 import ProductReviewsPanel from "@/components/ProductReviewsPanel";
 import ProductBuyNowButton from "@/components/ProductBuyNowButton";
-import {
-  getProductExperience,
-  type ProductExperience,
-} from "@/components/ProductDetailsSections";
+import { getProductExperience } from "@/components/ProductDetailsSections";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import ReviewBottomSheet from "@/components/ReviewBottomSheet";
 import ProductShareButton from "@/components/ProductShareButton";
+import {
+  ProductOptionGroupsSelector,
+  ProductOptionSelectionProvider,
+  SelectedProductAvailabilityRow,
+  SelectedProductPackLabel,
+  SelectedProductPrice,
+  SelectedProductStockNotice,
+} from "@/components/ProductOptionSelectionContext";
 import SiteShell from "@/components/SiteShell";
 import WishlistButton from "@/components/WishlistButton";
 import { formatCurrency } from "@/lib/formatCurrency";
-import { fetchProductById, fetchProducts, type Product } from "@/lib/products";
+import {
+  fetchProductById,
+  fetchProducts,
+  type Product,
+  type ProductOptionGroup,
+} from "@/lib/products";
+import {
+  fetchProductReviews,
+  type ProductReviewsData,
+} from "@/lib/productReviews";
 import { getProductHref, slugifyProductName } from "@/lib/productUrls";
 import SeeInActionCarousel from "@/components/carousal/SeeInActionCarousel";
 
-type VariationOption = {
-  label: string;
-  note?: string;
-  selected?: boolean;
-  disabled?: boolean;
-};
-
-function getProductVariations(product: Product) {
+function buildFallbackProductOptionGroups(product: Product): ProductOptionGroup[] {
   if (product.category === "Lawn Grass") {
     const currentCoverage =
       product.packLabel.replace(/^Pack of\s*/i, "").trim() || "20 sq ft";
 
-    return {
-      title: "Select Coverage",
-      guideLabel: "Coverage guide",
-      options: [
-        { label: "10 sq ft" },
-        { label: currentCoverage, note: "Popular", selected: true },
-        { label: "40 sq ft", note: "Best value" },
-        { label: "80 sq ft", disabled: true },
-      ] satisfies VariationOption[],
-    };
+    return [
+      {
+        key: "coverage",
+        title: "Select Coverage",
+        subtitle: "Choose the option that fits your space best",
+        guideLabel: "Coverage guide",
+        options: [
+          {
+            key: "10-sq-ft",
+            label: "10 sq ft",
+            unit: "sq ft",
+            value: 10,
+            note: "",
+            price: null,
+            stock: null,
+            packLabel: "",
+            weight: null,
+            isDefault: false,
+            isDisabled: false,
+          },
+          {
+            key: "current-coverage",
+            label: currentCoverage,
+            unit: "",
+            value: null,
+            note: "Popular",
+            price: null,
+            stock: null,
+            packLabel: "",
+            weight: null,
+            isDefault: true,
+            isDisabled: false,
+          },
+          {
+            key: "40-sq-ft",
+            label: "40 sq ft",
+            unit: "sq ft",
+            value: 40,
+            note: "Best value",
+            price: null,
+            stock: null,
+            packLabel: "",
+            weight: null,
+            isDefault: false,
+            isDisabled: false,
+          },
+          {
+            key: "80-sq-ft",
+            label: "80 sq ft",
+            unit: "sq ft",
+            value: 80,
+            note: "",
+            price: null,
+            stock: null,
+            packLabel: "",
+            weight: null,
+            isDefault: false,
+            isDisabled: true,
+          },
+        ],
+      },
+    ];
   }
 
   if (product.category === "Indoor Plants" || product.category === "Ferns") {
-    return {
-      title: "Select Size",
-      guideLabel: "Pot size guide",
-      options: [
-        { label: "S" },
-        { label: "M", note: "Ready now" },
-        { label: "L", selected: true },
-        { label: "XL", note: "Low stock" },
-      ] satisfies VariationOption[],
-    };
+    return [
+      {
+        key: "size",
+        title: "Select Size",
+        subtitle: "Choose the option that fits your space best",
+        guideLabel: product.category === "Ferns" ? "Pot size guide" : "Plant size guide",
+        options: [
+          { key: "s", label: "S", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
+          { key: "m", label: "M", unit: "", value: null, note: "Ready now", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
+          { key: "l", label: "L", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: true, isDisabled: false },
+          { key: "xl", label: "XL", unit: "", value: null, note: "Low stock", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
+        ],
+      },
+    ];
   }
 
-  return {
-    title: "Select Size",
-    guideLabel: "Plant size guide",
-    options: [
-      { label: "S" },
-      { label: "M", selected: true },
-      { label: "L", note: "Low stock" },
-      { label: "XL", disabled: true },
-    ] satisfies VariationOption[],
-  };
+  return [
+    {
+      key: "size",
+      title: "Select Size",
+      subtitle: "Choose the option that fits your space best",
+      guideLabel: "Plant size guide",
+      options: [
+        { key: "s", label: "S", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
+        { key: "m", label: "M", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: true, isDisabled: false },
+        { key: "l", label: "L", unit: "", value: null, note: "Low stock", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
+        { key: "xl", label: "XL", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: true },
+      ],
+    },
+  ];
+}
+
+function resolveProductOptionGroups(product: Product) {
+  return product.optionGroups.length
+    ? product.optionGroups
+    : buildFallbackProductOptionGroups(product);
 }
 
 function MobileRatingSummary({
-  experience,
+  productId,
+  reviewData,
   productName,
 }: {
-  experience: ProductExperience;
+  productId: string;
+  reviewData: ProductReviewsData;
   productName: string;
 }) {
+  const { summary } = reviewData;
   const highestBreakdownCount = Math.max(
-    ...experience.ratingBreakdown.map((item) => item.count),
+    ...summary.ratingBreakdown.map((item) => item.count),
     1,
   );
+  const hasRatings = summary.totalRatings > 0;
 
   return (
     <section className="border-t border-[#e7e7e7] bg-white px-4 pb-6 pt-5">
@@ -102,12 +179,12 @@ function MobileRatingSummary({
       <div className="mt-6 grid grid-cols-[40%_60%] items-center gap-4">
         <div className="flex flex-col items-center border-r border-[#f0f0f0] pr-2 text-center">
           <p className="text-[34px] font-bold leading-none text-[#111111]">
-            {experience.rating.toFixed(1)}
+            {hasRatings ? summary.averageRating.toFixed(1) : "New"}
           </p>
 
           <div className="mt-2.5 flex items-center gap-0.5">
             {Array.from({ length: 5 }).map((_, index) => {
-              const filled = index < Math.round(experience.rating);
+              const filled = index < Math.round(summary.averageRating);
               return (
                 <Star
                   key={index}
@@ -120,15 +197,19 @@ function MobileRatingSummary({
           </div>
 
           <p className="mt-2 text-[11px] font-medium leading-relaxed text-[#8b8b8b]">
-            <span className="text-[#338f23]">Very Good</span>
+            <span className="text-[#338f23]">
+              {hasRatings ? "Verified ratings" : "No ratings yet"}
+            </span>
             <br />
-            {experience.totalRatings} ratings
+            {hasRatings
+              ? `${summary.totalRatings} ratings`
+              : "Be the first to review"}
           </p>
         </div>
 
         <div className="flex flex-col justify-center px-1">
           <div className="space-y-2">
-            {experience.ratingBreakdown.map((item) => (
+            {summary.ratingBreakdown.map((item) => (
               <div
                 key={item.stars}
                 className="grid grid-cols-[12px_1fr_28px] items-center gap-3"
@@ -155,8 +236,9 @@ function MobileRatingSummary({
 
       <div className="mt-8 flex justify-center">
         <ReviewBottomSheet
+          productId={productId}
           productName={productName}
-          triggerLabel="Review Us"
+          triggerLabel={hasRatings ? "Review Us" : "Write First Review"}
           triggerClassName="h-10 w-full max-w-[160px] rounded-full border border-[#e0e0e0] bg-white text-[13px] font-semibold text-[#111111] shadow-sm active:scale-95 transition-transform"
         />
       </div>
@@ -184,15 +266,19 @@ export async function renderProductDetailsPage({
     redirect(canonicalHref);
   }
 
-  const relatedProducts = await fetchProducts({
-    category: product.category,
-    excludeId: product.id,
-    limit: 3,
-  });
+  const [relatedProducts, reviewData] = await Promise.all([
+    fetchProducts({
+      category: product.category,
+      excludeId: product.id,
+      limit: 3,
+    }),
+    fetchProductReviews(product.id),
+  ]);
   const productExperience = getProductExperience(product);
-  const productVariations = getProductVariations(product);
+  const productOptionGroups = resolveProductOptionGroups(product);
   const originalPrice =
     product.price + Math.max(35, Math.round(product.price * 0.35));
+  const hasRatings = reviewData.summary.totalRatings > 0;
   const detailSections = productExperience.accordions.map((item) => {
     const Icon = item.title.includes("Delivery")
       ? Truck
@@ -208,15 +294,23 @@ export async function renderProductDetailsPage({
       <div className="bg-white">
         <MobileSearchHeader />
         <section className="bg-white pb-24 md:hidden px-[0.3rem]">
-          <div className="min-h-screen w-full">
-            <div className="mx-auto w-full max-w-2xl px-2 pb-8 pt-2 sm:px-4">
-              <MobileProductImageCarousel
-                images={product.images}
-                productName={product.name}
-                rating={productExperience.rating.toFixed(1)}
-              />
+          <ProductOptionSelectionProvider
+            product={product}
+            optionGroups={productOptionGroups}
+          >
+            <div className="min-h-screen w-full">
+              <div className="mx-auto w-full max-w-2xl px-2 pb-8 pt-2 sm:px-4">
+                <MobileProductImageCarousel
+                  images={product.images}
+                  productName={product.name}
+                  rating={
+                    hasRatings
+                      ? reviewData.summary.averageRating.toFixed(1)
+                      : "New"
+                  }
+                />
 
-              <section className="pt-3">
+                <section className="pt-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="line-clamp-1 text-[14px] font-normal leading-4 text-[#777777]">
@@ -226,7 +320,7 @@ export async function renderProductDetailsPage({
                       {product.name}
                     </h1>
                     <p className="mt-1 text-[15px] font-normal leading-5 text-[#b8b8b8]">
-                      {product.packLabel}
+                      <SelectedProductPackLabel />
                     </p>
                   </div>
 
@@ -247,17 +341,20 @@ export async function renderProductDetailsPage({
 
                 <div className="mt-3 flex flex-wrap items-baseline gap-x-2">
                   <span className="text-[18px] font-black leading-none text-[#111111]">
-                    {formatCurrency(product.price)}
+                    <SelectedProductPrice />
                   </span>
                   <span className="text-[14px] font-medium text-[#9d9d9d] line-through">
                     {formatCurrency(originalPrice)}
                   </span>
                 </div>
+                <SelectedProductStockNotice className="mt-2 block text-[12px] font-black uppercase tracking-[0.14em] text-[#b23b2b]" />
               </section>
 
-              <ProductDeliveryAddressPicker />
+                <ProductDeliveryAddressPicker />
 
-              <section className="mt-3 border-y border-[#dddddd] bg-white">
+                <ProductOptionGroupsSelector variant="mobile" />
+
+                <section className="mt-3 border-y border-[#dddddd] bg-white">
                 {detailSections.slice(0, 2).map((item, index) => (
                   <details
                     key={item.title}
@@ -286,17 +383,22 @@ export async function renderProductDetailsPage({
                     </div>
                   </details>
                 ))}
-              </section>
+                </section>
 
-              <MobileRatingSummary
-                experience={productExperience}
-                productName={product.name}
-              />
+                <MobileRatingSummary
+                  productId={product.id}
+                  reviewData={reviewData}
+                  productName={product.name}
+                />
 
-              <SeeInActionCarousel />
+                <SeeInActionCarousel
+                  key={`${product.id}-mobile-real-view`}
+                  clips={product.videoClips}
+                  productName={product.name}
+                />
 
-              {relatedProducts.length ? (
-                <section className="mt-5">
+                {relatedProducts.length ? (
+                  <section className="mt-5">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-[16px] font-black text-[#171410]">
                       Related Products
@@ -317,16 +419,20 @@ export async function renderProductDetailsPage({
                       />
                     ))}
                   </div>
-                </section>
-              ) : null}
+                  </section>
+                ) : null}
+              </div>
             </div>
-          </div>
-
-          <ProductMobileActionBar productId={product.id} />
+            <ProductMobileActionBar productId={product.id} stock={product.stock} />
+          </ProductOptionSelectionProvider>
         </section>
 
         <section className="hidden bg-white px-4 py-8 md:block md:px-6 md:py-12">
-          <div className="mx-auto max-w-7xl">
+          <ProductOptionSelectionProvider
+            product={product}
+            optionGroups={productOptionGroups}
+          >
+            <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-wrap items-center gap-2 text-xs font-semibold text-[#5b7751] md:text-sm">
               <Link href="/" className="hover:text-[#214f14]">
                 Home
@@ -371,7 +477,7 @@ export async function renderProductDetailsPage({
                         {product.name}
                       </h1>
                       <p className="mt-1 text-sm text-[#6d8464]">
-                        {product.packLabel}
+                        <SelectedProductPackLabel />
                       </p>
                     </div>
 
@@ -381,9 +487,17 @@ export async function renderProductDetailsPage({
                         className="text-[#f1bf4a]"
                         fill="currentColor"
                       />
-                      <span>{productExperience.rating.toFixed(1)}</span>
+                      <span>
+                        {hasRatings
+                          ? reviewData.summary.averageRating.toFixed(1)
+                          : "New"}
+                      </span>
                       <span className="h-3 w-px bg-[#d8e4c8]" />
-                      <span>{productExperience.totalRatings} ratings</span>
+                      <span>
+                        {hasRatings
+                          ? `${reviewData.summary.totalRatings} ratings`
+                          : "No ratings yet"}
+                      </span>
                     </div>
                   </div>
 
@@ -393,83 +507,27 @@ export async function renderProductDetailsPage({
 
                   <div className="mt-6 flex flex-wrap items-end gap-x-2 gap-y-1">
                     <p className="text-2xl font-bold leading-none text-[#214f14] md:text-3xl">
-                      {formatCurrency(product.price)}
+                      <SelectedProductPrice />
                     </p>
                     <span className="pb-0.5 text-xs font-semibold text-[#6c8a63] md:text-sm">
                       {product.unit}
                     </span>
                     <span className="rounded bg-white px-2 py-1 text-xs font-medium text-[#6d8464] shadow-sm md:px-3 md:py-1.5 md:text-sm">
-                      {product.packLabel}
+                      <SelectedProductPackLabel />
                     </span>
                   </div>
 
                   <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#214f14] shadow-sm md:px-4 md:py-2.5 md:text-sm">
                     <Leaf size={14} className="text-[#6fb44c]" />
-                    {productExperience.recommendPercent}% of buyers recommend
-                    this product
+                    {reviewData.summary.recommendPercent !== null
+                      ? `${reviewData.summary.recommendPercent}% of buyers recommend this product`
+                      : "This product is ready for its first verified review"}
                   </div>
 
-                  <div className="mt-6 rounded-xl border border-[#dce8ce] bg-white p-4 md:mt-8 md:p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-base font-bold text-[#163915]">
-                          {productVariations.title}
-                        </p>
-                        <p className="mt-0.5 text-xs text-[#6d8464] md:text-sm">
-                          Choose the option that fits your space best
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="text-xs font-semibold text-[#2c6db3] transition hover:text-[#214f14] md:text-sm"
-                      >
-                        {productVariations.guideLabel}
-                      </button>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2 md:gap-3">
-                      {productVariations.options.map((option) => (
-                        <button
-                          key={option.label}
-                          type="button"
-                          disabled={option.disabled}
-                          className={`min-w-[64px] rounded-lg border px-3 py-2 text-center transition md:min-w-[76px] md:px-4 md:py-2.5 ${
-                            option.selected
-                              ? "border-[#214f14] bg-[#214f14] text-white shadow-sm"
-                              : option.disabled
-                                ? "border-[#dbe6cf] bg-[#f8fbf4] text-[#b1beaa]"
-                                : "border-[#d8e6cb] bg-[#f9fcf5] text-[#163915] hover:border-[#aac58d] hover:bg-[#f2f8ea]"
-                          }`}
-                        >
-                          <span className="block text-sm font-semibold md:text-base">
-                            {option.label}
-                          </span>
-                          {option.note ? (
-                            <span
-                              className={`mt-0.5 block text-[10px] font-medium md:mt-1 md:text-[11px] ${
-                                option.selected
-                                  ? "text-[#d6e6bd]"
-                                  : "text-[#d45b39]"
-                              }`}
-                            >
-                              {option.note}
-                            </span>
-                          ) : null}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <ProductOptionGroupsSelector variant="desktop" />
 
                   <div className="mt-6 grid gap-2.5 rounded-xl bg-white p-4 md:mt-8 md:p-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-[#5c7752] md:text-sm">
-                        Availability
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#214f14] md:text-sm">
-                        <Leaf size={14} />
-                        In stock
-                      </span>
-                    </div>
+                    <SelectedProductAvailabilityRow />
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-[#5c7752] md:text-sm">
                         Care level
@@ -491,6 +549,7 @@ export async function renderProductDetailsPage({
                   <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] md:mt-8">
                     <AddToCartButton
                       productId={product.id}
+                      availableStock={product.stock}
                       className="flex items-center justify-between rounded-lg border border-[#174f18] bg-white px-4 py-2.5 text-sm font-semibold text-[#174f18] shadow-[2px_3px_0_rgba(23,79,24,0.12)] transition-colors hover:bg-[#f4fbf2] md:px-5 md:py-3"
                     />
                     <WishlistButton
@@ -501,6 +560,7 @@ export async function renderProductDetailsPage({
                     <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
                       <ProductBuyNowButton
                         productId={product.id}
+                        availableStock={product.stock}
                         className="theme-button rounded-[0.5rem] px-4 py-2.5 text-center text-sm font-semibold md:px-5 md:py-3"
                       >
                         Buy now
@@ -572,13 +632,18 @@ export async function renderProductDetailsPage({
                 </section>
 
                 <ProductReviewsPanel
-                  experience={productExperience}
+                  productId={product.id}
                   productName={product.name}
+                  reviewData={reviewData}
                 />
               </div>
             </div>
 
-            <SeeInActionCarousel />
+            <SeeInActionCarousel
+              key={`${product.id}-desktop-real-view`}
+              clips={product.videoClips}
+              productName={product.name}
+            />
 
             {relatedProducts.length ? (
               <div className="mt-2 rounded-2xl p-0 md:mt-2 md:p-8">
@@ -601,7 +666,8 @@ export async function renderProductDetailsPage({
                 </div>
               </div>
             ) : null}
-          </div>
+            </div>
+          </ProductOptionSelectionProvider>
         </section>
       </div>
     </SiteShell>

@@ -1,4 +1,8 @@
 import { getApiBaseUrl } from "@/lib/api";
+import {
+  resolveProductVideoClips,
+  type ProductVideoClip,
+} from "@/lib/productMedia";
 
 export type Product = {
   id: string;
@@ -9,6 +13,7 @@ export type Product = {
   weight: number;
   offer: string;
   minOrderQuantity: number;
+  stock: number;
   isOnTrend: boolean;
   isFeaturedLatest: boolean;
   packLabel: string;
@@ -18,12 +23,153 @@ export type Product = {
   image: string;
   images: string[];
   tags: string[];
+  videoClips: ProductVideoClip[];
+  optionGroups: ProductOptionGroup[];
 };
 
-type ProductApi = Omit<Product, "image" | "images"> & {
+export type ProductOption = {
+  key: string;
+  label: string;
+  unit: string;
+  value: number | null;
+  note: string;
+  price: number | null;
+  stock: number | null;
+  packLabel: string;
+  weight: number | null;
+  isDefault: boolean;
+  isDisabled: boolean;
+};
+
+export type ProductOptionGroup = {
+  key: string;
+  title: string;
+  subtitle: string;
+  guideLabel: string;
+  options: ProductOption[];
+};
+
+type ProductApi = Omit<Product, "image" | "images" | "videoClips"> & {
   image?: string;
   images?: string[];
+  videoClips?: Array<Partial<ProductVideoClip> & { image?: string }>;
 };
+
+function normalizeOptionValue(value: unknown) {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : null;
+}
+
+function formatOptionValue(value: number) {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+function buildOptionLabel(option: Partial<ProductOption>) {
+  const explicitLabel = String(option.label || "").trim();
+
+  if (explicitLabel) {
+    return explicitLabel;
+  }
+
+  const normalizedValue = normalizeOptionValue(option.value);
+  const normalizedUnit = String(option.unit || "").trim();
+
+  if (normalizedValue !== null && normalizedUnit) {
+    return `${formatOptionValue(normalizedValue)} ${normalizedUnit}`;
+  }
+
+  if (normalizedValue !== null) {
+    return formatOptionValue(normalizedValue);
+  }
+
+  return "";
+}
+
+function normalizeProductOptionGroups(
+  optionGroups: unknown,
+): ProductOptionGroup[] {
+  if (!Array.isArray(optionGroups)) {
+    return [];
+  }
+
+  return optionGroups
+    .map((group, groupIndex) => {
+      if (!group || typeof group !== "object") {
+        return null;
+      }
+
+      const rawGroup = group as Partial<ProductOptionGroup>;
+      const title = String(rawGroup.title || "").trim();
+      const options = Array.isArray(rawGroup.options)
+        ? rawGroup.options
+            .map((option, optionIndex) => {
+              if (!option || typeof option !== "object") {
+                return null;
+              }
+
+              const rawOption = option as Partial<ProductOption>;
+              const label = buildOptionLabel(rawOption);
+              const key =
+                String(rawOption.key || "").trim() ||
+                label ||
+                `option-${optionIndex + 1}`;
+
+              return {
+                key,
+                label,
+                unit: String(rawOption.unit || "").trim(),
+                value: normalizeOptionValue(rawOption.value),
+                note: String(rawOption.note || "").trim(),
+                price: normalizeOptionValue(
+                  (rawOption as Partial<ProductOption>).price,
+                ),
+                stock: normalizeOptionValue(
+                  (rawOption as Partial<ProductOption>).stock,
+                ),
+                packLabel: String(
+                  (rawOption as Partial<ProductOption>).packLabel || "",
+                ).trim(),
+                weight: normalizeOptionValue(
+                  (rawOption as Partial<ProductOption>).weight,
+                ),
+                isDefault: Boolean(rawOption.isDefault),
+                isDisabled:
+                  Boolean(rawOption.isDisabled) ||
+                  normalizeOptionValue((rawOption as Partial<ProductOption>).stock) === 0,
+              };
+            })
+            .filter((option): option is ProductOption => Boolean(option?.label))
+        : [];
+
+      if (!title || !options.length) {
+        return null;
+      }
+
+      const normalizedOptions = options.map((option) => ({
+        ...option,
+        isDefault: false,
+      }));
+      const selectedIndex = options.findIndex(
+        (option) => option.isDefault && !option.isDisabled,
+      );
+      const fallbackIndex = options.findIndex((option) => !option.isDisabled);
+      const resolvedIndex =
+        selectedIndex >= 0 ? selectedIndex : fallbackIndex >= 0 ? fallbackIndex : 0;
+
+      if (normalizedOptions[resolvedIndex]) {
+        normalizedOptions[resolvedIndex].isDefault = true;
+      }
+
+      return {
+        key: String(rawGroup.key || "").trim() || `group-${groupIndex + 1}`,
+        title,
+        subtitle: String(rawGroup.subtitle || "").trim(),
+        guideLabel: String(rawGroup.guideLabel || "").trim(),
+        options: normalizedOptions,
+      };
+    })
+    .filter((group): group is ProductOptionGroup => Boolean(group));
+}
 
 type ProductListResponse = {
   message: string;
@@ -56,11 +202,22 @@ function normalizeProduct(product: ProductApi): Product {
     offer: String(product.offer || "").trim(),
     minOrderQuantity:
       Number(product.minOrderQuantity) > 0 ? Number(product.minOrderQuantity) : 1,
+    stock: Math.max(0, Math.floor(Number(product.stock || 0))),
     isOnTrend: Boolean(product.isOnTrend),
     isFeaturedLatest: Boolean(product.isFeaturedLatest),
     image: images[0] || "",
     images,
     tags,
+    optionGroups: normalizeProductOptionGroups(product.optionGroups),
+    videoClips: resolveProductVideoClips({
+      id: String(product.id || "").trim(),
+      productId: String(product.productId || product.id || "").trim(),
+      name: String(product.name || "").trim(),
+      category: String(product.category || "").trim(),
+      image: images[0] || "",
+      images,
+      videoClips: Array.isArray(product.videoClips) ? product.videoClips : [],
+    }),
   };
 }
 

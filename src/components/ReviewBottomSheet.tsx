@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useId, useState } from "react";
-import { Camera, CheckCircle2, Leaf, Send, Star, X } from "lucide-react";
+import { CheckCircle2, Leaf, Loader2, Send, Star, X } from "lucide-react";
+import { submitProductReview } from "@/lib/productReviews";
 
 type ReviewBottomSheetProps = {
+  productId: string;
   productName?: string;
   triggerLabel?: string;
   triggerClassName?: string;
@@ -12,6 +14,7 @@ type ReviewBottomSheetProps = {
 const ratingLabels = ["Poor", "Okay", "Good", "Great", "Excellent"];
 
 export default function ReviewBottomSheet({
+  productId,
   productName = "this plant",
   triggerLabel = "Write a review",
   triggerClassName = "rounded-full border border-[#cfe0b5] px-5 py-3 text-sm font-bold text-[#214f14] transition hover:bg-[#f2f8ea]",
@@ -22,6 +25,8 @@ export default function ReviewBottomSheet({
   const [title, setTitle] = useState("");
   const [review, setReview] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const titleId = useId();
 
   useEffect(() => {
@@ -51,14 +56,32 @@ export default function ReviewBottomSheet({
     setIsOpen(false);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!canSubmit) {
+    if (!canSubmit || isSubmitting) {
       return;
     }
 
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await submitProductReview(productId, {
+        rating,
+        title: title.trim(),
+        review: review.trim(),
+      });
+      setSubmitted(true);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit your review right now.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function resetForm() {
@@ -67,6 +90,8 @@ export default function ReviewBottomSheet({
     setTitle("");
     setReview("");
     setSubmitted(false);
+    setSubmitError(null);
+    setIsSubmitting(false);
   }
 
   return (
@@ -198,28 +223,23 @@ export default function ReviewBottomSheet({
                     />
                   </label>
 
-                  <button
-                    type="button"
-                    className="flex items-center justify-between rounded-2xl border border-dashed border-[#c9dcb7] bg-[#f7fbf1] px-4 py-3 text-left text-sm font-semibold text-[#5b7751] transition hover:border-[#9fc681] hover:bg-[#f1f8eb]"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <Camera size={18} />
-                      Add plant photos
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-[0.14em] text-[#88a17d]">
-                      Optional
-                    </span>
-                  </button>
                 </div>
 
                 <div className="sticky bottom-0 -mx-5 mt-6 border-t border-[#e4edd9] bg-white px-5 py-4 md:-mx-7 md:px-7">
+                  {submitError ? (
+                    <p className="mb-3 text-sm text-[#b43f2a]">{submitError}</p>
+                  ) : null}
                   <button
                     type="submit"
-                    disabled={!canSubmit}
+                    disabled={!canSubmit || isSubmitting}
                     className="flex w-full items-center justify-center gap-2 rounded-full bg-[#214f14] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#163915] disabled:cursor-not-allowed disabled:bg-[#c9d8bd] md:text-base"
                   >
-                    <Send size={17} />
-                    Submit review
+                    {isSubmitting ? (
+                      <Loader2 size={17} className="animate-spin" />
+                    ) : (
+                      <Send size={17} />
+                    )}
+                    {isSubmitting ? "Submitting..." : "Submit review"}
                   </button>
                   <p className="mt-2 text-center text-xs text-[#7b9270]">
                     Rating, title, and a short review are required.

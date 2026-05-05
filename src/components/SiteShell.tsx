@@ -8,6 +8,7 @@ type SiteShellProps = {
   hideMobileHeader?: boolean;
   hideMobileBottomNav?: boolean;
   showFooter?: boolean;
+  headerInitialAddress?: string;
 };
 
 export default function SiteShell({
@@ -15,11 +16,12 @@ export default function SiteShell({
   hideMobileHeader = false,
   hideMobileBottomNav = false,
   showFooter = false,
+  headerInitialAddress = "",
 }: SiteShellProps) {
   return (
     <div className="theme-shell min-h-screen">
       <div className={hideMobileHeader ? "hidden md:block" : ""}>
-        <EcomHeader />
+        <EcomHeader initialDeliveryAddress={headerInitialAddress} />
       </div>
       <main>{children}</main>
       {showFooter ? <SiteFooter /> : null}

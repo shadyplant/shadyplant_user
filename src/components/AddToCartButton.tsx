@@ -4,13 +4,16 @@ import { useId, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   getCartQuantity,
+  getCartQuantityByLineId,
   useCartStore,
 } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
 
 type AddToCartButtonProps = {
   productId: string;
   quantity?: number;
+  availableStock?: number;
   className?: string;
   compact?: boolean;
   showQuantityBadge?: boolean;
@@ -145,6 +148,7 @@ function AddedToCartIcon({ className = "" }: { className?: string }) {
 export default function AddToCartButton({
   productId,
   quantity = 1,
+  availableStock,
   className = "",
   compact = false,
   showQuantityBadge = true,
@@ -155,8 +159,26 @@ export default function AddToCartButton({
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
   const { items: cartItems, addItem } = useCartStore();
-  const quantityInCart = getCartQuantity(cartItems, productId);
+  const selectedOptionContext = useOptionalProductOptionSelection();
+  const activeProductId = selectedOptionContext?.product.id || productId;
+  const quantityInCart = selectedOptionContext
+    ? getCartQuantityByLineId(cartItems, selectedOptionContext.resolved.lineId)
+    : getCartQuantity(cartItems, productId);
   const [justAdded, setJustAdded] = useState(false);
+  const effectiveAvailableStock =
+    selectedOptionContext?.resolved.stock ?? availableStock;
+  const stockAvailable = Math.max(
+    0,
+    Math.floor(
+      Number(
+        effectiveAvailableStock ?? 0,
+      ),
+    ),
+  );
+  const isOutOfStock =
+    effectiveAvailableStock !== undefined && stockAvailable <= 0;
+  const hasReachedStockLimit =
+    effectiveAvailableStock !== undefined && quantityInCart >= stockAvailable;
 
   function stopNestedNavigation(
     event:
@@ -170,12 +192,21 @@ export default function AddToCartButton({
     event.preventDefault();
     event.stopPropagation();
 
+    if (isOutOfStock || hasReachedStockLimit) {
+      return;
+    }
+
     if (!isAuthenticated) {
       router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
       return;
     }
 
-    await addItem(productId, quantity);
+    await addItem(activeProductId, quantity, selectedOptionContext
+      ? {
+          variantId: selectedOptionContext.resolved.variantId,
+          optionSelections: selectedOptionContext.resolved.optionSelections,
+        }
+      : undefined);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1400);
   }
@@ -187,8 +218,15 @@ export default function AddToCartButton({
         onMouseDown={stopNestedNavigation}
         onTouchStart={stopNestedNavigation}
         onClick={handleClick}
-        aria-label={quantityInCart ? `Add one more, ${quantityInCart} already in cart` : label}
-        className={`z-30 touch-manipulation ${className}`.trim()}
+        aria-label={
+          isOutOfStock
+            ? "Add to cart unavailable"
+            : quantityInCart
+              ? `Add one more, ${quantityInCart} already in cart`
+              : label
+        }
+        disabled={isOutOfStock || hasReachedStockLimit}
+        className={`z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
       >
         <div className="relative inline-flex items-center justify-center">
           {justAdded ? (
@@ -213,8 +251,9 @@ export default function AddToCartButton({
       onMouseDown={stopNestedNavigation}
       onTouchStart={stopNestedNavigation}
       onClick={handleClick}
-      className={`z-30 touch-manipulation ${className}`.trim()}
-      aria-label={label}
+      className={`z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
+      aria-label={isOutOfStock ? "Add to cart unavailable" : label}
+      disabled={isOutOfStock || hasReachedStockLimit}
     >
       <span className="inline-flex items-center gap-2">
         {justAdded ? (
@@ -222,7 +261,11 @@ export default function AddToCartButton({
         ) : (
           <AddToCartIcon className="h-6 w-6 text-white" />
         )}
-        <span>{justAdded ? "Added to cart" : children ?? label}</span>
+        <span>
+          {justAdded
+              ? "Added to cart"
+              : children ?? label}
+        </span>
       </span>
 
       {quantityInCart > 0 ? (

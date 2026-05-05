@@ -78,39 +78,6 @@ export default function HomeSlider() {
                     priority={index === 0}
                     className="object-cover"
                   />
-                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(12,20,10,0.72)_0%,rgba(12,20,10,0.36)_48%,rgba(12,20,10,0.18)_100%)]" />
-
-                  <div className="absolute inset-0 flex flex-col justify-end p-3.5 text-white sm:p-5 md:p-8">
-                    {/* Chip */}
-                    <span className="mb-1.5 inline-flex w-fit  px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.22em] text-white/90 backdrop-blur-sm sm:px-2.5 sm:py-1 sm:text-[7px] md:px-3 md:text-[10px] md:tracking-[0.28em]">
-                      {slide.chip}
-                    </span>
-
-                    {/* Title */}
-                    <p className="text-base font-black leading-tight tracking-[-0.04em] sm:text-xl md:max-w-md md:text-5xl md:tracking-[-0.05em]">
-                      {slide.title}
-                    </p>
-
-                    {/* Subtitle */}
-                    <p className="mt-0.5 text-xs font-semibold text-[#f4f7ee] sm:text-sm sm:mt-1 md:text-2xl md:mt-2">
-                      {slide.subtitle}
-                    </p>
-
-                    {/* Description — hidden on smallest screens, visible sm+ */}
-                    <p className="hidden sm:block mt-1 max-w-xs text-[11px] leading-5 text-white/80 sm:mt-1.5 md:max-w-md md:mt-2 md:text-base md:leading-6">
-                      {slide.description}
-                    </p>
-
-                    {/* CTA */}
-                    <div className="mt-3 md:mt-5">
-                      <Link
-                        href={slide.href}
-                        className="inline-flex items-center rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-[#173419] transition hover:bg-[#edf4e6] sm:px-4 sm:py-2 sm:text-xs md:px-5 md:py-2.5 md:text-sm"
-                      >
-                        Explore now
-                      </Link>
-                    </div>
-                  </div>
                 </div>
               ))}
             </div>

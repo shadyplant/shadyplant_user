@@ -206,6 +206,22 @@ export default function SearchResultsPageClient({
   }
 
   useEffect(() => {
+    const previousBackground = document.body.style.background;
+    const previousBackgroundImage = document.body.style.backgroundImage;
+    const previousBackgroundAttachment = document.body.style.backgroundAttachment;
+
+    document.body.style.background = "#ffffff";
+    document.body.style.backgroundImage = "none";
+    document.body.style.backgroundAttachment = "scroll";
+
+    return () => {
+      document.body.style.background = previousBackground;
+      document.body.style.backgroundImage = previousBackgroundImage;
+      document.body.style.backgroundAttachment = previousBackgroundAttachment;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isFilterSheetOpen && !isSortSheetOpen) {
       return;
     }
@@ -331,348 +347,350 @@ export default function SearchResultsPageClient({
 
   return (
     <SiteShell hideMobileHeader showFooter>
-      <div className="sticky top-0 z-50 bg-white md:hidden">
-        <MobileSearchHeader
-          initialQuery={query}
-          sticky={false}
-          onSearch={(nextQuery) => pushSearchState({ query: nextQuery })}
-        />
-        <div className="grid h-[46px] grid-cols-[1fr_auto_1fr] items-center border-t border-[#f1f1f1]">
-          <button
-            type="button"
-            onClick={() => setIsSortSheetOpen(true)}
-            className="flex h-full items-center justify-center gap-2 text-sm font-bold text-[#111111]"
-          >
-            <ArrowUpDown size={15} strokeWidth={1.8} />
-            Sort
-          </button>
-          <div className="h-5 w-px bg-[#cfcfcf]" />
-          <button
-            type="button"
-            onClick={() => setIsFilterSheetOpen(true)}
-            className="flex h-full items-center justify-center gap-2 text-sm font-bold text-[#111111]"
-          >
-            <SlidersHorizontal size={15} strokeWidth={1.8} />
-            Filter
-          </button>
+      <div className="min-h-screen bg-white">
+        <div className="sticky top-0 z-50 bg-white md:hidden">
+          <MobileSearchHeader
+            initialQuery={query}
+            sticky={false}
+            onSearch={(nextQuery) => pushSearchState({ query: nextQuery })}
+          />
+          <div className="grid h-[46px] grid-cols-[1fr_auto_1fr] items-center border-t border-[#f1f1f1]">
+            <button
+              type="button"
+              onClick={() => setIsSortSheetOpen(true)}
+              className="flex h-full items-center justify-center gap-2 text-sm font-bold text-[#111111]"
+            >
+              <ArrowUpDown size={15} strokeWidth={1.8} />
+              Sort
+            </button>
+            <div className="h-5 w-px bg-[#cfcfcf]" />
+            <button
+              type="button"
+              onClick={() => setIsFilterSheetOpen(true)}
+              className="flex h-full items-center justify-center gap-2 text-sm font-bold text-[#111111]"
+            >
+              <SlidersHorizontal size={15} strokeWidth={1.8} />
+              Filter
+            </button>
+          </div>
         </div>
-      </div>
 
-      <section className="px-4 py-5 md:px-6 md:py-12">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
-            <aside className="hidden h-fit rounded-[1.9rem] border border-[#dbe8cd] bg-white/95 p-5 shadow-[0_18px_45px_rgba(33,79,20,0.06)] lg:sticky lg:top-24 lg:block">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b8b58]">
-                    Filter By
-                  </p>
-                  <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                    Refine results
-                  </h2>
-                </div>
-                {hasActiveFilters ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      router.push("/search");
-                    }}
-                    className="text-sm font-semibold text-[#214f14]"
-                  >
-                    Clear all
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="mt-6">{filterGroups}</div>
-            </aside>
-
-            <div>
-              <div className="mb-6 hidden flex-col gap-4 rounded-[1.8rem] border border-[#dbe8cd] bg-white/95 p-4 shadow-[0_18px_45px_rgba(33,79,20,0.06)] md:flex md:flex-row md:items-center md:justify-between">
-                {/* LEFT SIDE */}
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6b8b58]">
-                  Showing {resultProducts.length} result(s)
-                  {query.trim() ? ` for "${query.trim()}"` : ""}
-                </p>
-
-                {/* RIGHT SIDE */}
-                <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 md:flex md:w-auto md:gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsFilterSheetOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[#d6e6bd] bg-[#f6faef] px-4 py-2.5 text-sm font-semibold text-[#214f14] lg:hidden"
-                  >
-                    <SlidersHorizontal size={16} />
-                    Filter
-                  </button>
-
-                  <label className="hidden items-center gap-2 whitespace-nowrap text-sm font-semibold text-[#214f14] md:inline-flex">
-                    <ArrowUpDown size={16} />
-                    Sort by
-                  </label>
-
-                  <div className="relative min-w-0">
-                    <select
-                      value={sort}
-                      onChange={(event) =>
-                        pushSearchState({
-                          sort: event.target.value as SortKey,
-                        })
-                      }
-                      className="w-full rounded-full border border-[#d6e6bd] bg-[#f6faef] px-4 py-2.5 pr-10 text-sm font-semibold text-[#214f14] outline-none md:w-auto"
-                    >
-                      {sortOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <SlidersHorizontal
-                      size={16}
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5c7752]"
-                    />
+        <section className="px-4 py-5 md:px-6 md:py-12">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
+              <aside className="hidden h-fit rounded-[1.9rem] border border-[#dbe8cd] bg-white/95 p-5 shadow-[0_18px_45px_rgba(33,79,20,0.06)] lg:sticky lg:top-24 lg:block">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b8b58]">
+                      Filter By
+                    </p>
+                    <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#163915]">
+                      Refine results
+                    </h2>
                   </div>
-                </div>
-              </div>
-
-              {hasActiveFilters ? (
-                <div className="mb-5 flex flex-wrap gap-2">
-                  {query.trim() ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        pushSearchState({ query: "" });
-                      }}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
-                    >
-                      q: {query.trim()}
-                      <X size={14} />
-                    </button>
-                  ) : null}
-
-                  {selectedCategories.map((category) => (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() =>
-                        pushSearchState({
-                          categories: selectedCategories.filter(
-                            (item) => item !== category,
-                          ),
-                        })
-                      }
-                      className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
-                    >
-                      {category}
-                      <X size={14} />
-                    </button>
-                  ))}
-
-                  {selectedBadges.map((badge) => (
-                    <button
-                      key={badge}
-                      type="button"
-                      onClick={() =>
-                        pushSearchState({
-                          badges: selectedBadges.filter(
-                            (item) => item !== badge,
-                          ),
-                        })
-                      }
-                      className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
-                    >
-                      {badge}
-                      <X size={14} />
-                    </button>
-                  ))}
-
-                  {selectedPriceRanges.map((rangeId) => {
-                    const label = priceRanges.find(
-                      (range) => range.id === rangeId,
-                    )?.label;
-
-                    if (!label) {
-                      return null;
-                    }
-
-                    return (
-                      <button
-                        key={rangeId}
-                        type="button"
-                        onClick={() =>
-                          pushSearchState({
-                            prices: selectedPriceRanges.filter(
-                              (item) => item !== rangeId,
-                            ),
-                          })
-                        }
-                        className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
-                      >
-                        {label}
-                        <X size={14} />
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-
-              {resultProducts.length ? (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-                  {resultProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-8 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)]">
-                  <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
-                    No products matched this search
-                  </h2>
-                  <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-[#5c7752]">
-                    Try a broader keyword, remove a few filters, or start again
-                    from the full search page.
-                  </p>
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  {hasActiveFilters ? (
                     <button
                       type="button"
                       onClick={() => {
                         router.push("/search");
                       }}
-                      className="theme-button inline-flex items-center justify-center rounded-full px-6 py-4 text-sm font-semibold"
+                      className="text-sm font-semibold text-[#214f14]"
                     >
-                      Clear all filters
+                      Clear all
                     </button>
-                    <Link
-                      href="/"
-                      className="inline-flex items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
+                  ) : null}
+                </div>
+
+                <div className="mt-6">{filterGroups}</div>
+              </aside>
+
+              <div>
+                <div className="mb-6 hidden flex-col gap-4 rounded-[1.8rem] border border-[#dbe8cd] bg-white/95 p-4 shadow-[0_18px_45px_rgba(33,79,20,0.06)] md:flex md:flex-row md:items-center md:justify-between">
+                  {/* LEFT SIDE */}
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6b8b58]">
+                    Showing {resultProducts.length} result(s)
+                    {query.trim() ? ` for "${query.trim()}"` : ""}
+                  </p>
+
+                  {/* RIGHT SIDE */}
+                  <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 md:flex md:w-auto md:gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsFilterSheetOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-full border border-[#d6e6bd] bg-[#f6faef] px-4 py-2.5 text-sm font-semibold text-[#214f14] lg:hidden"
                     >
-                      Back to home
-                    </Link>
+                      <SlidersHorizontal size={16} />
+                      Filter
+                    </button>
+
+                    <label className="hidden items-center gap-2 whitespace-nowrap text-sm font-semibold text-[#214f14] md:inline-flex">
+                      <ArrowUpDown size={16} />
+                      Sort by
+                    </label>
+
+                    <div className="relative min-w-0">
+                      <select
+                        value={sort}
+                        onChange={(event) =>
+                          pushSearchState({
+                            sort: event.target.value as SortKey,
+                          })
+                        }
+                        className="w-full rounded-full border border-[#d6e6bd] bg-[#f6faef] px-4 py-2.5 pr-10 text-sm font-semibold text-[#214f14] outline-none md:w-auto"
+                      >
+                        {sortOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <SlidersHorizontal
+                        size={16}
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5c7752]"
+                      />
+                    </div>
                   </div>
                 </div>
-              )}
+
+                {hasActiveFilters ? (
+                  <div className="mb-5 flex flex-wrap gap-2">
+                    {query.trim() ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          pushSearchState({ query: "" });
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
+                      >
+                        q: {query.trim()}
+                        <X size={14} />
+                      </button>
+                    ) : null}
+
+                    {selectedCategories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() =>
+                          pushSearchState({
+                            categories: selectedCategories.filter(
+                              (item) => item !== category,
+                            ),
+                          })
+                        }
+                        className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
+                      >
+                        {category}
+                        <X size={14} />
+                      </button>
+                    ))}
+
+                    {selectedBadges.map((badge) => (
+                      <button
+                        key={badge}
+                        type="button"
+                        onClick={() =>
+                          pushSearchState({
+                            badges: selectedBadges.filter(
+                              (item) => item !== badge,
+                            ),
+                          })
+                        }
+                        className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
+                      >
+                        {badge}
+                        <X size={14} />
+                      </button>
+                    ))}
+
+                    {selectedPriceRanges.map((rangeId) => {
+                      const label = priceRanges.find(
+                        (range) => range.id === rangeId,
+                      )?.label;
+
+                      if (!label) {
+                        return null;
+                      }
+
+                      return (
+                        <button
+                          key={rangeId}
+                          type="button"
+                          onClick={() =>
+                            pushSearchState({
+                              prices: selectedPriceRanges.filter(
+                                (item) => item !== rangeId,
+                              ),
+                            })
+                          }
+                          className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
+                        >
+                          {label}
+                          <X size={14} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {resultProducts.length ? (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+                    {resultProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-8 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)]">
+                    <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+                      No products matched this search
+                    </h2>
+                    <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-[#5c7752]">
+                      Try a broader keyword, remove a few filters, or start again
+                      from the full search page.
+                    </p>
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push("/search");
+                        }}
+                        className="theme-button inline-flex items-center justify-center rounded-full px-6 py-4 text-sm font-semibold"
+                      >
+                        Clear all filters
+                      </button>
+                      <Link
+                        href="/"
+                        className="inline-flex items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
+                      >
+                        Back to home
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {isFilterSheetOpen ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-end bg-black/45 backdrop-blur-[2px] lg:hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Product filters"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default"
-            aria-label="Close filters"
-            onClick={() => setIsFilterSheetOpen(false)}
-          />
+        {isFilterSheetOpen ? (
+          <div
+            className="fixed inset-0 z-[90] flex items-end bg-black/45 backdrop-blur-[2px] lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Product filters"
+          >
+            <button
+              type="button"
+              className="absolute inset-0 cursor-default"
+              aria-label="Close filters"
+              onClick={() => setIsFilterSheetOpen(false)}
+            />
 
-          <div className="relative w-full rounded-t-[1.8rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7e3cc]" />
-            <div className="flex items-center justify-between gap-4 border-b border-[#e4edd9] px-5 py-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b8b58]">
-                  Filter By
-                </p>
-                <h2 className="mt-1 text-xl font-black text-[#163915]">
-                  Refine results
-                </h2>
-              </div>
+            <div className="relative w-full rounded-t-[1.8rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
+              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7e3cc]" />
+              <div className="flex items-center justify-between gap-4 border-b border-[#e4edd9] px-5 py-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b8b58]">
+                    Filter By
+                  </p>
+                  <h2 className="mt-1 text-xl font-black text-[#163915]">
+                    Refine results
+                  </h2>
+                </div>
 
-              <button
-                type="button"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#4e6d46]"
-                aria-label="Close filters"
-                onClick={() => setIsFilterSheetOpen(false)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="max-h-[68vh] overflow-y-auto px-5 py-5">
-              {filterGroups}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 border-t border-[#e4edd9] bg-white px-5 py-4">
-              <button
-                type="button"
-                onClick={() => {
-                  router.push("/search");
-                  setIsFilterSheetOpen(false);
-                }}
-                className="rounded-full border border-[#cfe0b5] px-5 py-3 text-sm font-bold text-[#214f14]"
-              >
-                Clear all
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsFilterSheetOpen(false)}
-                className="rounded-full bg-[#214f14] px-5 py-3 text-sm font-bold text-white"
-              >
-                Show results
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {isSortSheetOpen ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-end bg-black/45 backdrop-blur-[2px] md:hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Sort products"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default"
-            aria-label="Close sort options"
-            onClick={() => setIsSortSheetOpen(false)}
-          />
-
-          <div className="relative w-full rounded-t-[1.3rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7d7d7]" />
-            <div className="flex items-center justify-between border-b border-[#eeeeee] px-5 py-4">
-              <div className="flex items-center gap-2 text-base font-bold text-[#111111]">
-                <ListFilter size={18} />
-                Sort
-              </div>
-              <button
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#dedede] text-[#222222]"
-                aria-label="Close sort options"
-                onClick={() => setIsSortSheetOpen(false)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="px-5 py-3">
-              {sortOptions.map((option) => (
                 <button
-                  key={option.value}
+                  type="button"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#4e6d46]"
+                  aria-label="Close filters"
+                  onClick={() => setIsFilterSheetOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="max-h-[68vh] overflow-y-auto px-5 py-5">
+                {filterGroups}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 border-t border-[#e4edd9] bg-white px-5 py-4">
+                <button
                   type="button"
                   onClick={() => {
-                    pushSearchState({ sort: option.value });
-                    setIsSortSheetOpen(false);
+                    router.push("/search");
+                    setIsFilterSheetOpen(false);
                   }}
-                  className={`flex w-full items-center justify-between border-b border-[#f0f0f0] py-4 text-left text-sm font-semibold last:border-b-0 ${
-                    sort === option.value ? "text-[#214f14]" : "text-[#222222]"
-                  }`}
+                  className="rounded-full border border-[#cfe0b5] px-5 py-3 text-sm font-bold text-[#214f14]"
                 >
-                  {option.label}
-                  {sort === option.value ? (
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#214f14]" />
-                  ) : null}
+                  Clear all
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setIsFilterSheetOpen(false)}
+                  className="rounded-full bg-[#214f14] px-5 py-3 text-sm font-bold text-white"
+                >
+                  Show results
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+
+        {isSortSheetOpen ? (
+          <div
+            className="fixed inset-0 z-[90] flex items-end bg-black/45 backdrop-blur-[2px] md:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sort products"
+          >
+            <button
+              type="button"
+              className="absolute inset-0 cursor-default"
+              aria-label="Close sort options"
+              onClick={() => setIsSortSheetOpen(false)}
+            />
+
+            <div className="relative w-full rounded-t-[1.3rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
+              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7d7d7]" />
+              <div className="flex items-center justify-between border-b border-[#eeeeee] px-5 py-4">
+                <div className="flex items-center gap-2 text-base font-bold text-[#111111]">
+                  <ListFilter size={18} />
+                  Sort
+                </div>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#dedede] text-[#222222]"
+                  aria-label="Close sort options"
+                  onClick={() => setIsSortSheetOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-5 py-3">
+                {sortOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      pushSearchState({ sort: option.value });
+                      setIsSortSheetOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between border-b border-[#f0f0f0] py-4 text-left text-sm font-semibold last:border-b-0 ${
+                      sort === option.value ? "text-[#214f14]" : "text-[#222222]"
+                    }`}
+                  >
+                    {option.label}
+                    {sort === option.value ? (
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#214f14]" />
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </SiteShell>
   );
 }

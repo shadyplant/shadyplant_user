@@ -2,6 +2,7 @@ import Link from "next/link";
 import CategorySection from "@/components/CategorySection";
 import HomeLocationStrip from "@/components/HomeLocationStrip";
 import ProductCard from "@/components/ProductCard";
+import type { HomeCategoryItem } from "@/lib/homeCategoryItems";
 import type { Product } from "@/lib/products";
 import HomeSlider from "@/pages/Home/components/HomeSlider";
 
@@ -42,10 +43,19 @@ function ProductGridSection({ title, products }: ProductSection) {
   );
 }
 
-export default function HomePage({ products = [] }: { products?: Product[] }) {
+export default function HomePage({
+  categoryItems = [],
+  products = [],
+  initialDeliveryAddress = "",
+}: {
+  categoryItems?: HomeCategoryItem[];
+  products?: Product[];
+  initialDeliveryAddress?: string;
+}) {
+  const categoryPulseIndices = [0];
   const productSections: ProductSection[] = [
     {
-      title: "Latest product showcase",
+      title: "Latest products collection",
       products,
     },
     {
@@ -69,9 +79,12 @@ export default function HomePage({ products = [] }: { products?: Product[] }) {
   return (
     <div className="bg-white space-y-4 pb-24 pt-0 md:pb-12 md:pt-0">
       <div className="md:hidden">
-        <HomeLocationStrip />
+        <HomeLocationStrip initialAddress={initialDeliveryAddress} />
       </div>
-      <CategorySection products={products} />
+      <CategorySection
+        items={categoryItems}
+        pulseIndices={categoryPulseIndices}
+      />
       <HomeSlider />
 
       {productSections.map((section) => (

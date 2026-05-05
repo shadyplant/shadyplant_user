@@ -186,6 +186,7 @@ export default function WishlistPageClient() {
                             <div className="mt-5 space-y-3">
                               <AddToCartButton
                                 productId={product.id}
+                                availableStock={product.stock}
                                 className="flex w-full items-center justify-between rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
                               />
                               <button

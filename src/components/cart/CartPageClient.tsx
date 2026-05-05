@@ -66,9 +66,14 @@ type CheckoutPreview = {
 };
 
 type DetailedCartItem = {
+  id: string;
   productId: string;
+  variantId: string;
+  variantLabel?: string;
+  packLabel?: string;
   quantity: number;
   subtotal: number;
+  availableStock: number;
   product: Product;
 };
 
@@ -84,6 +89,30 @@ type BillDetailsCardProps = {
 
 function getOriginalPrice(price: number) {
   return price + Math.max(35, Math.round(price * 0.35));
+}
+
+function resolveCartItemAvailableStock(
+  product: Product,
+  item: {
+    optionSelections?: Array<{
+      groupKey: string;
+      optionKey: string;
+    }>;
+  },
+) {
+  const matchingOption = [...(item.optionSelections || [])]
+    .reverse()
+    .map((selection) =>
+      product.optionGroups
+        .find((group) => group.key === selection.groupKey)
+        ?.options.find((option) => option.key === selection.optionKey),
+    )
+    .find((option) => option && option.stock !== null);
+
+  return Math.max(
+    0,
+    Math.floor(Number(matchingOption?.stock ?? product.stock ?? 0)),
+  );
 }
 
 function formatDeliveryAddress(deliveryAddress: {
@@ -199,9 +228,10 @@ export default function CartPageClient() {
   const mobileBillDetailsRef = useRef<HTMLDivElement | null>(null);
   const desktopBillDetailsRef = useRef<HTMLDivElement | null>(null);
   const [quantityEditor, setQuantityEditor] = useState<{
-    productId: string;
+    itemId: string;
     productName: string;
     value: string;
+    maxStock: number;
   } | null>(null);
   const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState(
     () => readCheckoutDraft()?.deliveryAddress || "",
@@ -252,7 +282,8 @@ export default function CartPageClient() {
           {
             ...item,
             product,
-            subtotal: product.price * item.quantity,
+            subtotal: Number(item.unitPrice ?? product.price) * item.quantity,
+            availableStock: resolveCartItemAvailableStock(product, item),
           },
         ];
       }),
@@ -273,6 +304,11 @@ export default function CartPageClient() {
   const deliveryAddressForPicker =
     selectedDeliveryAddress || savedDeliveryAddress;
   const hasCheckoutAddress = Boolean(deliveryAddressForPicker.trim());
+  const hasDeliveryCoordinates = Boolean(
+    selectedDeliveryPosition &&
+      Number.isFinite(Number(selectedDeliveryPosition.lat)) &&
+      Number.isFinite(Number(selectedDeliveryPosition.lng)),
+  );
   const deliveryFee =
     hasCheckoutAddress &&
     Number.isFinite(Number(checkoutPreview?.pricing.deliveryCharge))
@@ -418,18 +454,19 @@ export default function CartPageClient() {
 
   async function decreaseQuantity(item: DetailedCartItem) {
     if (item.quantity <= 1) {
-      await removeItem(item.product.id);
+      await removeItem(item.id);
       return;
     }
 
-    await updateQuantity(item.product.id, item.quantity - 1);
+    await updateQuantity(item.id, item.quantity - 1);
   }
 
   function openQuantityEditor(item: DetailedCartItem) {
     setQuantityEditor({
-      productId: item.product.id,
+      itemId: item.id,
       productName: item.product.name,
       value: String(item.quantity),
+      maxStock: Math.max(1, item.availableStock),
     });
   }
 
@@ -448,9 +485,9 @@ export default function CartPageClient() {
 
     const nextQuantity = Math.max(
       1,
-      Math.min(999, Math.floor(numericQuantity)),
+      Math.min(quantityEditor.maxStock, Math.floor(numericQuantity)),
     );
-    await updateQuantity(quantityEditor.productId, nextQuantity);
+    await updateQuantity(quantityEditor.itemId, nextQuantity);
     setQuantityEditor(null);
   }
 
@@ -477,6 +514,26 @@ export default function CartPageClient() {
       setDeliveryQuoteError(
         "Please wait while we calculate the delivery charge.",
       );
+      return;
+    }
+
+    if (!hasDeliveryCoordinates) {
+      setDeliveryQuoteError(
+        "Confirm your delivery location on the map to calculate delivery charge.",
+      );
+
+      const targetRef =
+        typeof window !== "undefined" && window.innerWidth >= 768
+          ? desktopDeliveryAddressRef
+          : mobileDeliveryAddressRef;
+
+      window.setTimeout(() => {
+        targetRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 0);
+
       return;
     }
 
@@ -573,6 +630,8 @@ export default function CartPageClient() {
             <ProductDeliveryAddressPicker
               variant="cart-select"
               initialAddress={deliveryAddressForPicker}
+              initialPosition={selectedDeliveryPosition}
+              autoResolveInitialAddress
               emptyLabel="Select location"
               onAddressChange={handleDeliveryAddressChange}
               onDone={handleDeliveryAddressDone}
@@ -580,6 +639,13 @@ export default function CartPageClient() {
             {showDeliveryAddressAlert ? (
               <p className="mt-2 px-1 text-xs font-semibold text-[#b42318]">
                 Enter your delivery address before checkout.
+              </p>
+            ) : null}
+            {!showDeliveryAddressAlert &&
+            hasCheckoutAddress &&
+            !hasDeliveryCoordinates ? (
+              <p className="mt-2 px-1 text-xs font-semibold text-[#8a5a00]">
+                Confirm this address on the map to calculate delivery charges.
               </p>
             ) : null}
           </div>
@@ -620,7 +686,7 @@ export default function CartPageClient() {
 
                   return (
                   <article
-                    key={item.product.id}
+                    key={item.id}
                     className="rounded-md border border-[#d9d9d9] bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
                   >
                     <div className="grid grid-cols-[84px_minmax(0,1fr)_auto] gap-3 min-[390px]:grid-cols-[96px_minmax(0,1fr)_auto] sm:grid-cols-[108px_minmax(0,1fr)_auto] sm:gap-4">
@@ -644,6 +710,11 @@ export default function CartPageClient() {
                         >
                           {item.product.name}
                         </Link>
+                        {item.variantLabel || item.packLabel ? (
+                          <p className="mt-1 text-[11px] font-medium text-[#58724f] min-[390px]:text-[12px]">
+                            {item.variantLabel || item.packLabel}
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-[21px] font-black leading-none tracking-[-0.02em] text-[#111111] min-[390px]:text-[24px]">
                           {formatCurrency(item.subtotal)}
                         </p>
@@ -671,7 +742,7 @@ export default function CartPageClient() {
                       <div className="flex min-w-0 items-center gap-3 text-[12px] font-semibold text-[#30343b] min-[390px]:gap-5 min-[390px]:text-[14px] sm:gap-7">
                         <button
                           type="button"
-                          onClick={() => void removeItem(item.product.id)}
+                          onClick={() => void removeItem(item.id)}
                           className="inline-flex h-8 min-w-0 items-center gap-1.5 whitespace-nowrap min-[390px]:gap-2"
                         >
                           <Trash2 size={14} strokeWidth={2} />
@@ -704,19 +775,22 @@ export default function CartPageClient() {
                         >
                           {item.quantity}
                         </button>
-                        <button
-                          type="button"
-                          aria-label={`Increase quantity for ${item.product.name}`}
-                          onClick={() =>
-                            void updateQuantity(
-                              item.product.id,
-                              item.quantity + 1,
-                            )
-                          }
-                          className="flex h-full items-center justify-center"
-                        >
-                          <Plus size={24} strokeWidth={2.6} />
-                        </button>
+                          <button
+                            type="button"
+                            aria-label={`Increase quantity for ${item.product.name}`}
+                            onClick={() =>
+                              item.quantity < item.availableStock
+                                ? void updateQuantity(
+                                    item.id,
+                                    item.quantity + 1,
+                                  )
+                                : undefined
+                            }
+                            disabled={item.quantity >= item.availableStock}
+                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Plus size={24} strokeWidth={2.6} />
+                          </button>
                       </div>
                     </div>
                   </article>
@@ -789,6 +863,8 @@ export default function CartPageClient() {
             <ProductDeliveryAddressPicker
               variant="cart-select"
               initialAddress={deliveryAddressForPicker}
+              initialPosition={selectedDeliveryPosition}
+              autoResolveInitialAddress
               emptyLabel="Select delivery address"
               onAddressChange={handleDeliveryAddressChange}
               onDone={handleDeliveryAddressDone}
@@ -796,6 +872,13 @@ export default function CartPageClient() {
             {showDeliveryAddressAlert ? (
               <p className="mt-2 px-1 text-sm font-semibold text-[#b42318]">
                 Enter your delivery address before checkout.
+              </p>
+            ) : null}
+            {!showDeliveryAddressAlert &&
+            hasCheckoutAddress &&
+            !hasDeliveryCoordinates ? (
+              <p className="mt-2 px-1 text-sm font-semibold text-[#8a5a00]">
+                Confirm this address on the map to calculate delivery charges.
               </p>
             ) : null}
           </div>
@@ -845,7 +928,7 @@ export default function CartPageClient() {
 
                   return (
                   <article
-                    key={item.product.id}
+                    key={item.id}
                     className="rounded-md border border-[#d9d9d9] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
                   >
                     <div className="grid grid-cols-[140px_minmax(0,1fr)_auto] gap-4">
@@ -869,6 +952,11 @@ export default function CartPageClient() {
                         >
                           {item.product.name}
                         </Link>
+                        {item.variantLabel || item.packLabel ? (
+                          <p className="mt-1 text-sm font-medium text-[#58724f]">
+                            {item.variantLabel || item.packLabel}
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-3xl font-black leading-none tracking-[-0.02em] text-[#111111]">
                           {formatCurrency(item.subtotal)}
                         </p>
@@ -896,7 +984,7 @@ export default function CartPageClient() {
                       <div className="flex min-w-0 items-center gap-7 text-sm font-semibold text-[#30343b]">
                         <button
                           type="button"
-                          onClick={() => void removeItem(item.product.id)}
+                          onClick={() => void removeItem(item.id)}
                           className="inline-flex h-8 items-center gap-2 whitespace-nowrap"
                         >
                           <Trash2 size={15} strokeWidth={2} />
@@ -933,12 +1021,15 @@ export default function CartPageClient() {
                           type="button"
                           aria-label={`Increase quantity for ${item.product.name}`}
                           onClick={() =>
-                            void updateQuantity(
-                              item.product.id,
-                              item.quantity + 1,
-                            )
+                            item.quantity < item.availableStock
+                              ? void updateQuantity(
+                                  item.id,
+                                  item.quantity + 1,
+                                )
+                              : undefined
                           }
-                          className="flex h-full items-center justify-center"
+                          disabled={item.quantity >= item.availableStock}
+                          className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Plus size={27} strokeWidth={2.6} />
                         </button>
@@ -1092,7 +1183,7 @@ export default function CartPageClient() {
             <input
               type="number"
               min={1}
-              max={999}
+              max={quantityEditor.maxStock}
               inputMode="numeric"
               value={quantityEditor.value}
               onChange={(event) =>

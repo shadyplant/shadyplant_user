@@ -23,6 +23,7 @@ import {
   type CheckoutPosition,
 } from "@/lib/checkoutSession";
 import {
+  hasCompleteDeliveryAddress,
   normalizeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/validation";
@@ -125,10 +126,26 @@ function formatDeliveryAddress(deliveryAddress: Partial<DeliveryAddress> | null 
   );
 }
 
-function createFallbackDeliveryAddress(address: string) {
+function extractPostalCode(address: string) {
+  return address.match(/\b\d{6}\b/)?.[0] || "";
+}
+
+function buildDeliveryAddressFromBilling(
+  form: BillingForm,
+  preferredFormattedAddress = "",
+) {
+  const postalCode = extractPostalCode(form.address);
+
   return normalizeDeliveryAddress({
-    formattedAddress: address,
-    line1: address,
+    formattedAddress:
+      preferredFormattedAddress.trim() ||
+      [form.address.trim(), form.city.trim(), form.state.trim(), postalCode]
+        .filter(Boolean)
+        .join(", "),
+    line1: form.address.trim(),
+    city: form.city.trim(),
+    state: form.state.trim(),
+    postalCode,
   });
 }
 
@@ -227,6 +244,19 @@ export default function BillingDetailsClient() {
     }
 
     const normalizedBillingDetails = normalizeBillingDetailsDraft(form);
+    const normalizedUserDeliveryAddress = normalizeDeliveryAddress(
+      user?.deliveryAddress,
+    );
+    const deliveryAddressForProfile = hasCompleteDeliveryAddress(
+      deliveryAddressDetails,
+    )
+      ? deliveryAddressDetails
+      : hasCompleteDeliveryAddress(normalizedUserDeliveryAddress)
+        ? normalizedUserDeliveryAddress
+        : deliveryAddress.trim()
+          ? buildDeliveryAddressFromBilling(form, deliveryAddress.trim())
+          : buildDeliveryAddressFromBilling(form);
+
     writeBillingDetailsDraft(normalizedBillingDetails);
 
     if (user) {
@@ -234,12 +264,7 @@ export default function BillingDetailsClient() {
         await updateProfile({
           fullName: user.fullName || normalizedBillingDetails.name,
           phoneNumber: user.phoneNumber || normalizedBillingDetails.contact,
-          deliveryAddress:
-            deliveryAddressDetails.formattedAddress || deliveryAddress.trim()
-              ? deliveryAddressDetails.formattedAddress
-                ? deliveryAddressDetails
-                : createFallbackDeliveryAddress(deliveryAddress.trim())
-              : normalizeDeliveryAddress(user.deliveryAddress),
+          deliveryAddress: deliveryAddressForProfile,
           billingDetails: normalizedBillingDetails,
         });
       } catch (error) {
@@ -321,6 +346,8 @@ export default function BillingDetailsClient() {
               <ProductDeliveryAddressPicker
                 variant="checkout-card"
                 initialAddress={deliveryAddress}
+                initialPosition={deliveryPosition}
+                autoResolveInitialAddress
                 emptyLabel="Select delivery address"
                 onAddressChange={handleDeliveryAddressChange}
                 onDone={handleDeliveryAddressDone}

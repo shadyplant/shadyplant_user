@@ -3,16 +3,23 @@
 import { FormEvent, useState } from "react";
 import { Minus, Plus, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { getCartQuantity, useCartStore } from "@/components/cartStore";
+import {
+  getCartQuantity,
+  getCartQuantityByLineId,
+  useCartStore,
+} from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
 import ProductBuyNowButton from "@/components/ProductBuyNowButton";
+import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
 
 type ProductMobileActionBarProps = {
   productId: string;
+  stock: number;
 };
 
 export default function ProductMobileActionBar({
   productId,
+  stock,
 }: ProductMobileActionBarProps) {
   const [isQuantityPopupOpen, setIsQuantityPopupOpen] = useState(false);
   const [quantityInput, setQuantityInput] = useState("1");
@@ -20,8 +27,19 @@ export default function ProductMobileActionBar({
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
-  const quantity = getCartQuantity(items, productId);
+  const selectedOptionContext = useOptionalProductOptionSelection();
+  const activeProductId = selectedOptionContext?.product.id || productId;
+  const quantity = selectedOptionContext
+    ? getCartQuantityByLineId(items, selectedOptionContext.resolved.lineId)
+    : getCartQuantity(items, productId);
   const displayQuantity = Math.max(1, quantity);
+  const availableStock = Math.max(
+    0,
+    Math.floor(
+      Number((selectedOptionContext?.resolved.stock ?? stock) || 0),
+    ),
+  );
+  const activeLineId = selectedOptionContext?.resolved.lineId || productId;
 
   function redirectToAuth() {
     router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
@@ -43,25 +61,34 @@ export default function ProductMobileActionBar({
     }
 
     if (quantity === 1) {
-      await removeItem(productId);
+      await removeItem(activeLineId);
       return;
     }
 
-    await updateQuantity(productId, quantity - 1);
+    await updateQuantity(activeLineId, quantity - 1);
   }
 
   async function handleIncrease() {
+    if (availableStock <= 0 || quantity >= availableStock) {
+      return;
+    }
+
     if (!isAuthenticated) {
       redirectToAuth();
       return;
     }
 
     if (quantity <= 0) {
-      await addItem(productId, 1);
+      await addItem(activeProductId, 1, selectedOptionContext
+        ? {
+            variantId: selectedOptionContext.resolved.variantId,
+            optionSelections: selectedOptionContext.resolved.optionSelections,
+          }
+        : undefined);
       return;
     }
 
-    await updateQuantity(productId, quantity + 1);
+    await updateQuantity(activeLineId, quantity + 1);
   }
 
   async function handleQuantitySubmit(event: FormEvent<HTMLFormElement>) {
@@ -78,12 +105,20 @@ export default function ProductMobileActionBar({
       return;
     }
 
-    const nextQuantity = Math.max(1, Math.min(99, Math.floor(numericQuantity)));
+    const nextQuantity = Math.max(
+      1,
+      Math.min(availableStock || 1, Math.floor(numericQuantity)),
+    );
 
     if (quantity <= 0) {
-      await addItem(productId, nextQuantity);
+      await addItem(activeProductId, nextQuantity, selectedOptionContext
+        ? {
+            variantId: selectedOptionContext.resolved.variantId,
+            optionSelections: selectedOptionContext.resolved.optionSelections,
+          }
+        : undefined);
     } else {
-      await updateQuantity(productId, nextQuantity);
+      await updateQuantity(activeLineId, nextQuantity);
     }
 
     setIsQuantityPopupOpen(false);
@@ -93,7 +128,11 @@ export default function ProductMobileActionBar({
     <>
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e5e5e5] bg-white/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
         <div className="mx-auto grid max-w-2xl grid-cols-[minmax(0,0.98fr)_minmax(0,1fr)] gap-3">
-          {quantity <= 0 ? (
+          {availableStock <= 0 ? (
+            <div className="flex h-12 items-center justify-center rounded-xl border border-[#e6c7c2] bg-[#fff6f5] px-3 text-sm font-black text-[#b23b2b]">
+              Out of stock
+            </div>
+          ) : quantity <= 0 ? (
             <button
               type="button"
               onClick={() => void handleIncrease()}
@@ -124,7 +163,8 @@ export default function ProductMobileActionBar({
               <button
                 type="button"
                 onClick={() => void handleIncrease()}
-                className="flex items-center justify-center transition hover:bg-[#f4fbf2]"
+                disabled={quantity >= availableStock}
+                className="flex items-center justify-center transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Increase cart quantity"
               >
                 <Plus size={19} strokeWidth={2.4} />
@@ -133,7 +173,8 @@ export default function ProductMobileActionBar({
           )}
 
           <ProductBuyNowButton
-            productId={productId}
+            productId={activeProductId}
+            availableStock={availableStock}
             className="flex h-12 items-center justify-center rounded-[0.5rem] bg-[#55ad35] px-4 text-sm font-black text-white transition hover:bg-[#469829]"
           >
             Buy Now
@@ -175,7 +216,7 @@ export default function ProductMobileActionBar({
               id="mobile-product-quantity"
               type="number"
               min={1}
-              max={99}
+              max={availableStock}
               inputMode="numeric"
               value={quantityInput}
               onChange={(event) => setQuantityInput(event.target.value)}

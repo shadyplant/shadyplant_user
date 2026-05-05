@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Leaf, Mail, MapPin, Phone } from "lucide-react";
+import Image from "next/image";
 
 const shopLinks = [
   { label: "All Products", href: "/search" },
@@ -77,12 +78,16 @@ export default function SiteFooter() {
       <div className="mx-auto max-w-7xl px-4 py-14 md:px-6">
         <div className="grid gap-10 lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.95fr]">
           <div>
-            <div className="inline-flex items-center gap-3 bg-[#f3f6ef] px-4 py-3">
-              <span className="rounded-xl bg-[#dff5b6] p-2 text-[#173d12]">
-                <Leaf size={18} />
-              </span>
-              <span className="text-sm font-black uppercase tracking-[0.2em]">
-                Grass Green Nursery
+            <div className="inline-flex items-center gap-3  px-4 py-3">
+              <span className="rounded-xl p-2 text-[#173d12]">
+                <Image
+                  src="/ggn-logo2.svg"
+                  alt="Grass Green Nursery"
+                  width={188}
+                  height={54}
+                  priority
+                  className="h-10 w-auto md:h-13"
+                />
               </span>
             </div>
 

@@ -36,8 +36,6 @@ import { formatCurrency } from "@/lib/formatCurrency";
 import {
   fetchProductById,
   fetchProducts,
-  type Product,
-  type ProductOptionGroup,
 } from "@/lib/products";
 import {
   fetchProductReviews,
@@ -45,114 +43,6 @@ import {
 } from "@/lib/productReviews";
 import { getProductHref, slugifyProductName } from "@/lib/productUrls";
 import SeeInActionCarousel from "@/components/carousal/SeeInActionCarousel";
-
-function buildFallbackProductOptionGroups(product: Product): ProductOptionGroup[] {
-  if (product.category === "Lawn Grass") {
-    const currentCoverage =
-      product.packLabel.replace(/^Pack of\s*/i, "").trim() || "20 sq ft";
-
-    return [
-      {
-        key: "coverage",
-        title: "Select Coverage",
-        subtitle: "Choose the option that fits your space best",
-        guideLabel: "Coverage guide",
-        options: [
-          {
-            key: "10-sq-ft",
-            label: "10 sq ft",
-            unit: "sq ft",
-            value: 10,
-            note: "",
-            price: null,
-            stock: null,
-            packLabel: "",
-            weight: null,
-            isDefault: false,
-            isDisabled: false,
-          },
-          {
-            key: "current-coverage",
-            label: currentCoverage,
-            unit: "",
-            value: null,
-            note: "Popular",
-            price: null,
-            stock: null,
-            packLabel: "",
-            weight: null,
-            isDefault: true,
-            isDisabled: false,
-          },
-          {
-            key: "40-sq-ft",
-            label: "40 sq ft",
-            unit: "sq ft",
-            value: 40,
-            note: "Best value",
-            price: null,
-            stock: null,
-            packLabel: "",
-            weight: null,
-            isDefault: false,
-            isDisabled: false,
-          },
-          {
-            key: "80-sq-ft",
-            label: "80 sq ft",
-            unit: "sq ft",
-            value: 80,
-            note: "",
-            price: null,
-            stock: null,
-            packLabel: "",
-            weight: null,
-            isDefault: false,
-            isDisabled: true,
-          },
-        ],
-      },
-    ];
-  }
-
-  if (product.category === "Indoor Plants" || product.category === "Ferns") {
-    return [
-      {
-        key: "size",
-        title: "Select Size",
-        subtitle: "Choose the option that fits your space best",
-        guideLabel: product.category === "Ferns" ? "Pot size guide" : "Plant size guide",
-        options: [
-          { key: "s", label: "S", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
-          { key: "m", label: "M", unit: "", value: null, note: "Ready now", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
-          { key: "l", label: "L", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: true, isDisabled: false },
-          { key: "xl", label: "XL", unit: "", value: null, note: "Low stock", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
-        ],
-      },
-    ];
-  }
-
-  return [
-    {
-      key: "size",
-      title: "Select Size",
-      subtitle: "Choose the option that fits your space best",
-      guideLabel: "Plant size guide",
-      options: [
-        { key: "s", label: "S", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
-        { key: "m", label: "M", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: true, isDisabled: false },
-        { key: "l", label: "L", unit: "", value: null, note: "Low stock", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: false },
-        { key: "xl", label: "XL", unit: "", value: null, note: "", price: null, stock: null, packLabel: "", weight: null, isDefault: false, isDisabled: true },
-      ],
-    },
-  ];
-}
-
-function resolveProductOptionGroups(product: Product) {
-  return product.optionGroups.length
-    ? product.optionGroups
-    : buildFallbackProductOptionGroups(product);
-}
 
 function MobileRatingSummary({
   productId,
@@ -275,7 +165,7 @@ export async function renderProductDetailsPage({
     fetchProductReviews(product.id),
   ]);
   const productExperience = getProductExperience(product);
-  const productOptionGroups = resolveProductOptionGroups(product);
+  const productOptionGroups = product.optionGroups;
   const originalPrice =
     product.price + Math.max(35, Math.round(product.price * 0.35));
   const hasRatings = reviewData.summary.totalRatings > 0;

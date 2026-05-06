@@ -17,7 +17,10 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { formatDeliveryAddress } from "@/lib/deliveryAddress";
+import {
+  formatDeliveryAddress,
+  sanitizeFormattedDeliveryAddress,
+} from "@/lib/deliveryAddress";
 
 const LIBRARIES: "places"[] = ["places"];
 const DEFAULT_LOCATION = {
@@ -44,6 +47,9 @@ function buildDeliveryAddress(
   formattedAddress: string,
   components: google.maps.GeocoderAddressComponent[] | undefined,
 ): DeliveryAddress {
+  const sanitizedFormattedAddress = sanitizeFormattedDeliveryAddress(
+    formattedAddress,
+  );
   const streetNumber = getAddressPart(components, "street_number");
   const route = getAddressPart(components, "route");
   const locality =
@@ -57,10 +63,12 @@ function buildDeliveryAddress(
     getAddressPart(components, "sublocality") ||
     getAddressPart(components, "neighborhood");
   const line1 = [streetNumber, route].filter(Boolean).join(" ").trim();
+  const fallbackLine1 =
+    line1 || sublocality || locality || state || sanitizedFormattedAddress;
 
   return {
-    formattedAddress: formattedAddress.trim(),
-    line1: line1 || formattedAddress.trim(),
+    formattedAddress: sanitizedFormattedAddress,
+    line1: fallbackLine1.trim(),
     line2: sublocality,
     city: locality,
     state,
@@ -170,10 +178,13 @@ export default function ProductDeliveryAddressPicker({
   ) => {
     const normalizedDeliveryAddress =
       nextDeliveryAddress || buildDeliveryAddress(nextAddress, undefined);
+    const displayAddress =
+      formatDeliveryAddress(normalizedDeliveryAddress) ||
+      sanitizeFormattedDeliveryAddress(nextAddress);
     setMarkerPos(nextPosition);
-    setAddress(nextAddress);
+    setAddress(displayAddress);
     setResolvedDeliveryAddress(normalizedDeliveryAddress);
-    onAddressChange?.(nextAddress, nextPosition, normalizedDeliveryAddress);
+    onAddressChange?.(displayAddress, nextPosition, normalizedDeliveryAddress);
     mapRef.current?.panTo(nextPosition);
     setStatusMessage("Delivery point selected.");
   }, [onAddressChange]);

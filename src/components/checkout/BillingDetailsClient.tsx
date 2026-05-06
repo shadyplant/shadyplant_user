@@ -22,6 +22,7 @@ import {
   type BillingDetailsDraft,
   type CheckoutPosition,
 } from "@/lib/checkoutSession";
+import { formatDeliveryAddress } from "@/lib/deliveryAddress";
 import {
   hasCompleteDeliveryAddress,
   normalizeDeliveryAddress,
@@ -107,23 +108,6 @@ function isValidIndianMobileNumber(phoneNumber: string) {
 
 function hasSavedBillingDetails(details: BillingDetailsDraft) {
   return Object.values(details).some((value) => String(value || "").trim());
-}
-
-function formatDeliveryAddress(deliveryAddress: Partial<DeliveryAddress> | null | undefined) {
-  const normalizedAddress = normalizeDeliveryAddress(deliveryAddress);
-
-  return (
-    normalizedAddress.formattedAddress ||
-    [
-      normalizedAddress.line1,
-      normalizedAddress.line2,
-      normalizedAddress.city,
-      normalizedAddress.state,
-      normalizedAddress.postalCode,
-    ]
-      .filter(Boolean)
-      .join(", ")
-  );
 }
 
 function extractPostalCode(address: string) {

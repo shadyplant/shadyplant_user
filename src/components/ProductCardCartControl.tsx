@@ -85,7 +85,8 @@ export default function ProductCardCartControl({
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
-  const { items: requestedAlertItems, requestAlert } = useProductStockAlertStore();
+  const { items: requestedAlertItems, requestAlert } =
+    useProductStockAlertStore();
   const hasRequestedNotify = requestedAlertItems.includes(productId);
   const quantity = getCartQuantity(items, productId);
   const defaultLineId = `${productId}::default`;
@@ -220,7 +221,7 @@ export default function ProductCardCartControl({
           {hasRequestedNotify
             ? "Requested"
             : isSubmittingNotify
-              ? "Saving..."
+              ? "Processing..."
               : "Get Notify"}
         </span>
         <BellRing size={18} strokeWidth={2.2} />

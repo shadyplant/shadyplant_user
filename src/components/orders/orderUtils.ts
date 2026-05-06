@@ -3,6 +3,14 @@ export type TrackingStep = {
   title: string;
   description: string;
   state: "complete" | "current" | "upcoming";
+  occurredAt?: string | null;
+  entries: TrackingEntry[];
+};
+
+export type TrackingEntry = {
+  id: string;
+  message: string;
+  timestamp: string;
 };
 
 export type Order = {
@@ -18,6 +26,13 @@ export type Order = {
     name?: string;
     image?: string;
     quantity: number;
+    variantId?: string;
+    variantLabel?: string;
+    packLabel?: string;
+    unit?: string;
+    unitPrice?: number;
+    subtotal?: number;
+    currency?: string;
   }>;
   fullName: string;
   email: string;
@@ -31,6 +46,19 @@ export type Order = {
     landmark: string;
     notes: string;
   };
+  billingDetails?: {
+    name?: string;
+    contact?: string;
+    email?: string;
+    gstin?: string;
+    state?: string;
+    city?: string;
+    address?: string;
+  };
+  deliveryLocation?: {
+    lat?: number;
+    lng?: number;
+  };
   deliveryDate: string;
   quantitySqft: number;
   distanceKm: number;
@@ -39,17 +67,27 @@ export type Order = {
     rate: number;
     description: string;
   };
+  paymentMethod?: string;
   paymentMethodLabel: string;
+  paymentStatus: string;
   paymentStatusLabel: string;
+  paymentDetails?: Record<string, unknown>;
   currentStatus: string;
   trackingTimeline: TrackingStep[];
   pricing: {
     total: number;
-    materialSubtotal: number;
-    shippingSubtotal: number;
-    recommendedSubtotal: number;
+    materialSubtotal?: number;
+    shippingSubtotal?: number;
+    recommendedSubtotal?: number;
+    itemsSubtotal?: number;
+    deliveryCharge?: number;
+    currency?: string;
+    distanceKm?: number;
+    deliveryRate?: number;
+    totalWeightKg?: number;
   };
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type FilterKey = "All" | "Active" | "Delivered";
@@ -90,7 +128,29 @@ export function formatAddress(order: Order) {
 }
 
 export function formatOrderStatus(status: string) {
+  const normalizedStatus = String(status || "").trim().toLowerCase();
+
+  if (normalizedStatus === "confirmed") {
+    return "Order confirmed";
+  }
+
+  if (normalizedStatus === "out_for_delivery") {
+    return "Out for delivery";
+  }
+
+  if (normalizedStatus === "shipped") {
+    return "Shipped";
+  }
+
+  if (normalizedStatus === "delivered") {
+    return "Delivered";
+  }
+
   return status.replace(/_/g, " ");
+}
+
+export function canDownloadInvoice(order: Order) {
+  return String(order.paymentStatus || "").trim().toLowerCase() === "paid";
 }
 
 export function getOrderHref(orderId: string) {

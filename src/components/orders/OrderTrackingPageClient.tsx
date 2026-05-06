@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, PackageSearch } from "lucide-react";
+import OrderReviewPrompt from "@/components/orders/OrderReviewPrompt";
 import SiteShell from "@/components/SiteShell";
 import { type ApiResponse } from "@/lib/api";
 import { formatCurrency } from "@/lib/formatCurrency";
@@ -38,6 +39,21 @@ function getPreviewProduct(order: Order, products: Product[]) {
   );
 }
 
+function getReviewProduct(order: Order, previewProduct: Product | null) {
+  const previewItem = order.items?.[0] || order.orderItems?.[0];
+  const productId =
+    previewProduct?.id ||
+    previewProduct?.productId ||
+    previewItem?.productId ||
+    "";
+  const productName =
+    previewProduct?.name ||
+    order.orderItems?.[0]?.name ||
+    "Delivered item";
+
+  return productId ? { productId, productName } : null;
+}
+
 function OrderPreviewCard({
   order,
   previewProduct,
@@ -55,104 +71,112 @@ function OrderPreviewCard({
       ? `${order.items.length} item${order.items.length > 1 ? "s" : ""} in this order`
       : order.orderItems?.length
         ? `${order.orderItems.length} item${order.orderItems.length > 1 ? "s" : ""} in this order`
-      : `Order #${order.orderNumber}`);
-  const mobileMeta = [
-    `#${order.orderNumber}`,
-    formatOrderStatus(order.currentStatus),
-  ]
+        : `Order #${order.orderNumber}`);
+  const mobileMeta = [`#${order.orderNumber}`, formatOrderStatus(order.currentStatus)]
     .filter(Boolean)
     .join(" • ");
+  const reviewProduct = isDelivered(order)
+    ? getReviewProduct(order, previewProduct)
+    : null;
 
   return (
-    <Link
-      href={orderHref}
-      className="group block rounded-[1.6rem] bg-white p-3 shadow-[0_16px_36px_rgba(33,79,20,0.05)] transition hover:border-[#c4d9b3] hover:shadow-[0_20px_40px_rgba(33,79,20,0.08)] md:p-5"
-    >
-      <div className="flex items-start gap-3 md:gap-4">
-        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-[#eef5e3] text-[#214f14] md:h-24 md:w-24 md:rounded-[1.4rem]">
-          {previewImage ? (
-            <Image
-              src={previewImage}
-              alt={previewProduct?.name || previewTitle}
-              fill
-              sizes="96px"
-              className="object-cover"
-            />
-          ) : (
-            <PackageSearch size={30} className="md:h-9 md:w-9" />
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3 md:hidden">
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-1 text-sm font-black text-[#163915]">
-                {previewTitle}
-              </p>
-              <p className="mt-1 line-clamp-1 text-xs font-medium text-[#6d8464]">
-                {mobileMeta}
-              </p>
-            </div>
-
-            <div className="shrink-0 text-right">
-              <p className="text-sm font-black text-[#2f65d9]">
-                {formatCurrency(order.pricing.total)}
-              </p>
-              <div className="mt-1 flex items-center justify-end text-[#5d7b56] transition group-hover:text-[#214f14]">
-                <ChevronRight size={16} />
-              </div>
-            </div>
+    <article className="rounded-[1.6rem] bg-white p-3 shadow-[0_16px_36px_rgba(33,79,20,0.05)] transition hover:border-[#c4d9b3] hover:shadow-[0_20px_40px_rgba(33,79,20,0.08)] md:p-5">
+      <Link href={orderHref} className="group block">
+        <div className="flex items-start gap-3 md:gap-4">
+          <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-[#eef5e3] text-[#214f14] md:h-24 md:w-24 md:rounded-[1.4rem]">
+            {previewImage ? (
+              <Image
+                src={previewImage}
+                alt={previewProduct?.name || previewTitle}
+                fill
+                sizes="96px"
+                className="object-cover"
+              />
+            ) : (
+              <PackageSearch size={30} className="md:h-9 md:w-9" />
+            )}
           </div>
 
-          <div className="hidden items-start justify-between gap-3 md:flex">
-            <div className="min-w-0">
-              <p className="line-clamp-1 text-sm font-black text-[#163915] md:text-base">
-                {previewTitle}
-              </p>
-              <p className="mt-1 text-xs font-medium text-[#6d8464]">
-                Order #{order.orderNumber}
-              </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-[#6b8b58]">
-                {formatOrderStatus(order.currentStatus)}
-              </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3 md:hidden">
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-1 text-sm font-black text-[#163915]">
+                  {previewTitle}
+                </p>
+                <p className="mt-1 line-clamp-1 text-xs font-medium text-[#6d8464]">
+                  {mobileMeta}
+                </p>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-black text-[#2f65d9]">
+                  {formatCurrency(order.pricing.total)}
+                </p>
+                <div className="mt-1 flex items-center justify-end text-[#5d7b56] transition group-hover:text-[#214f14]">
+                  <ChevronRight size={16} />
+                </div>
+              </div>
             </div>
 
-            <div className="shrink-0 text-right">
-              <p className="text-sm font-black text-[#2f65d9] md:text-base">
-                {formatCurrency(order.pricing.total)}
+            <div className="hidden items-start justify-between gap-3 md:flex">
+              <div className="min-w-0">
+                <p className="line-clamp-1 text-sm font-black text-[#163915] md:text-base">
+                  {previewTitle}
+                </p>
+                <p className="mt-1 text-xs font-medium text-[#6d8464]">
+                  Order #{order.orderNumber}
+                </p>
+                <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-[#6b8b58]">
+                  {formatOrderStatus(order.currentStatus)}
+                </p>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-black text-[#2f65d9] md:text-base">
+                  {formatCurrency(order.pricing.total)}
+                </p>
+                <div className="mt-2 inline-flex items-center gap-1 text-[#5d7b56] transition group-hover:text-[#214f14]">
+                  <span className="text-xs font-semibold md:text-sm">
+                    View details
+                  </span>
+                  <ChevronRight size={18} />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 hidden space-y-2 text-sm text-[#58724f] md:block">
+              <p className="line-clamp-2">
+                {formatAddress(order) || "Address unavailable"}
               </p>
-              <div className="mt-2 inline-flex items-center gap-1 text-[#5d7b56] transition group-hover:text-[#214f14]">
-                <span className="text-xs font-semibold md:text-sm">
-                  View details
+              <p>
+                Delivery target:{" "}
+                <span className="font-semibold text-[#355f2a]">
+                  {formatDateTime(order.deliveryDate)}
                 </span>
-                <ChevronRight size={18} />
-              </div>
+              </p>
+              <p>
+                {order.quantitySqft} sqft • {order.vehicle.name} •{" "}
+                {order.paymentStatusLabel}
+              </p>
+              {currentStep ? (
+                <p className="text-xs text-[#708669] md:text-sm">
+                  Tracking: {currentStep.title}
+                </p>
+              ) : null}
             </div>
           </div>
-
-          <div className="mt-3 hidden space-y-2 text-sm text-[#58724f] md:block">
-            <p className="line-clamp-2">
-              {formatAddress(order) || "Address unavailable"}
-            </p>
-            <p>
-              Delivery target:{" "}
-              <span className="font-semibold text-[#355f2a]">
-                {formatDateTime(order.deliveryDate)}
-              </span>
-            </p>
-            <p>
-              {order.quantitySqft} sqft • {order.vehicle.name} •{" "}
-              {order.paymentStatusLabel}
-            </p>
-            {currentStep ? (
-              <p className="text-xs text-[#708669] md:text-sm">
-                Tracking: {currentStep.title}
-              </p>
-            ) : null}
-          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {reviewProduct ? (
+        <div className="mt-4">
+          <OrderReviewPrompt
+            productId={reviewProduct.productId}
+            productName={reviewProduct.productName}
+          />
+        </div>
+      ) : null}
+    </article>
   );
 }
 

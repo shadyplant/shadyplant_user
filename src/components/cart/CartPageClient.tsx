@@ -27,6 +27,10 @@ import {
   writeCheckoutDraft,
   type CheckoutPosition,
 } from "@/lib/checkoutSession";
+import {
+  formatDeliveryAddress,
+  sanitizeFormattedDeliveryAddress,
+} from "@/lib/deliveryAddress";
 import { formatCurrency } from "@/lib/formatCurrency";
 import type { Product } from "@/lib/products";
 import { useProductsStore } from "@/components/productsStore";
@@ -112,28 +116,6 @@ function resolveCartItemAvailableStock(
   return Math.max(
     0,
     Math.floor(Number(matchingOption?.stock ?? product.stock ?? 0)),
-  );
-}
-
-function formatDeliveryAddress(deliveryAddress: {
-  formattedAddress?: string;
-  line1?: string;
-  line2?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-}) {
-  return (
-    deliveryAddress.formattedAddress ||
-    [
-    deliveryAddress.line1,
-    deliveryAddress.line2,
-    deliveryAddress.city,
-    deliveryAddress.state,
-    deliveryAddress.postalCode,
-  ]
-    .filter(Boolean)
-    .join(", ")
   );
 }
 
@@ -234,7 +216,7 @@ export default function CartPageClient() {
     maxStock: number;
   } | null>(null);
   const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState(
-    () => readCheckoutDraft()?.deliveryAddress || "",
+    () => sanitizeFormattedDeliveryAddress(readCheckoutDraft()?.deliveryAddress),
   );
   const [selectedDeliveryPosition, setSelectedDeliveryPosition] =
     useState<CheckoutPosition | null>(
@@ -302,12 +284,13 @@ export default function CartPageClient() {
     ? formatDeliveryAddress(user.deliveryAddress)
     : "";
   const deliveryAddressForPicker =
-    selectedDeliveryAddress || savedDeliveryAddress;
+    sanitizeFormattedDeliveryAddress(selectedDeliveryAddress) ||
+    sanitizeFormattedDeliveryAddress(savedDeliveryAddress);
   const hasCheckoutAddress = Boolean(deliveryAddressForPicker.trim());
   const hasDeliveryCoordinates = Boolean(
     selectedDeliveryPosition &&
-      Number.isFinite(Number(selectedDeliveryPosition.lat)) &&
-      Number.isFinite(Number(selectedDeliveryPosition.lng)),
+    Number.isFinite(Number(selectedDeliveryPosition.lat)) &&
+    Number.isFinite(Number(selectedDeliveryPosition.lng)),
   );
   const deliveryFee =
     hasCheckoutAddress &&
@@ -395,9 +378,10 @@ export default function CartPageClient() {
     position?: CheckoutPosition,
     deliveryAddress?: DeliveryAddress,
   ) {
-    setSelectedDeliveryAddress(address);
+    const cleanedAddress = sanitizeFormattedDeliveryAddress(address);
+    setSelectedDeliveryAddress(cleanedAddress);
 
-    if (address.trim()) {
+    if (cleanedAddress.trim()) {
       setShowDeliveryAddressAlert(false);
       setDeliveryQuoteError(null);
     }
@@ -405,7 +389,7 @@ export default function CartPageClient() {
     if (position) {
       setSelectedDeliveryPosition(position);
       writeCheckoutDraft({
-        deliveryAddress: address,
+        deliveryAddress: cleanedAddress,
         deliveryPosition: position,
       });
       if (deliveryAddress) {
@@ -420,7 +404,7 @@ export default function CartPageClient() {
       setSelectedDeliveryPosition(null);
       setCheckoutPreview(null);
       setDeliveryQuoteError(null);
-      if (!address.trim()) {
+      if (!cleanedAddress.trim()) {
         writeCheckoutDraft({
           deliveryAddress: "",
           deliveryPosition: null,
@@ -685,96 +669,96 @@ export default function CartPageClient() {
                   const productHref = getProductHref(item.product);
 
                   return (
-                  <article
-                    key={item.id}
-                    className="rounded-md border border-[#d9d9d9] bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                  >
-                    <div className="grid grid-cols-[84px_minmax(0,1fr)_auto] gap-3 min-[390px]:grid-cols-[96px_minmax(0,1fr)_auto] sm:grid-cols-[108px_minmax(0,1fr)_auto] sm:gap-4">
-                      <Link
-                        href={productHref}
-                        className="relative h-[84px] w-[84px] overflow-hidden rounded-md bg-[#f4f8ef] min-[390px]:h-24 min-[390px]:w-24 sm:h-[108px] sm:w-[108px]"
-                      >
-                        <Image
-                          src={item.product.image}
-                          alt={item.product.name}
-                          fill
-                          sizes="(max-width: 389px) 84px, (max-width: 639px) 96px, 108px"
-                          className="object-cover"
-                        />
-                      </Link>
-
-                      <div className="min-w-0">
+                    <article
+                      key={item.id}
+                      className="rounded-md border border-[#d9d9d9] bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                    >
+                      <div className="grid grid-cols-[84px_minmax(0,1fr)_auto] gap-3 min-[390px]:grid-cols-[96px_minmax(0,1fr)_auto] sm:grid-cols-[108px_minmax(0,1fr)_auto] sm:gap-4">
                         <Link
                           href={productHref}
-                          className="line-clamp-1 text-[19px] font-semibold leading-6 text-[#111827] min-[390px]:text-[22px] min-[390px]:leading-7 sm:text-[24px]"
+                          className="relative h-[84px] w-[84px] overflow-hidden rounded-md bg-[#f4f8ef] min-[390px]:h-24 min-[390px]:w-24 sm:h-[108px] sm:w-[108px]"
                         >
-                          {item.product.name}
-                        </Link>
-                        {item.variantLabel || item.packLabel ? (
-                          <p className="mt-1 text-[11px] font-medium text-[#58724f] min-[390px]:text-[12px]">
-                            {item.variantLabel || item.packLabel}
-                          </p>
-                        ) : null}
-                        <p className="mt-1 text-[21px] font-black leading-none tracking-[-0.02em] text-[#111111] min-[390px]:text-[24px]">
-                          {formatCurrency(item.subtotal)}
-                        </p>
-                        <p className="mt-2 text-[12px] font-medium text-[#202020]">
-                          Delivery by {deliveryLabel}
-                        </p>
-                      </div>
-
-                      <div className="pt-1 text-[#008000]">
-                        <span className="inline-flex items-center gap-1 align-middle">
-                          <Star
-                            size={13}
-                            fill="currentColor"
-                            strokeWidth={0}
-                            className="block shrink-0"
+                          <Image
+                            src={item.product.image}
+                            alt={item.product.name}
+                            fill
+                            sizes="(max-width: 389px) 84px, (max-width: 639px) 96px, 108px"
+                            className="object-cover"
                           />
-                          <span className="flex h-[13px] items-center text-[12px] font-medium leading-none">
-                            4.{(item.product.price % 10) + 1}
+                        </Link>
+
+                        <div className="min-w-0">
+                          <Link
+                            href={productHref}
+                            className="line-clamp-1 text-[19px] font-semibold leading-6 text-[#111827] min-[390px]:text-[22px] min-[390px]:leading-7 sm:text-[24px]"
+                          >
+                            {item.product.name}
+                          </Link>
+                          {item.variantLabel || item.packLabel ? (
+                            <p className="mt-1 text-[11px] font-medium text-[#58724f] min-[390px]:text-[12px]">
+                              {item.variantLabel || item.packLabel}
+                            </p>
+                          ) : null}
+                          <p className="mt-1 text-[21px] font-black leading-none tracking-[-0.02em] text-[#111111] min-[390px]:text-[24px]">
+                            {formatCurrency(item.subtotal)}
+                          </p>
+                          <p className="mt-2 text-[12px] font-medium text-[#202020]">
+                            Delivery by {deliveryLabel}
+                          </p>
+                        </div>
+
+                        <div className="pt-1 text-[#008000]">
+                          <span className="inline-flex items-center gap-1 align-middle">
+                            <Star
+                              size={13}
+                              fill="currentColor"
+                              strokeWidth={0}
+                              className="block shrink-0"
+                            />
+                            <span className="flex h-[13px] items-center text-[12px] font-medium leading-none">
+                              4.{(item.product.price % 10) + 1}
+                            </span>
                           </span>
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-[minmax(0,1fr)_116px] items-center gap-2 min-[390px]:grid-cols-[minmax(0,1fr)_140px] min-[390px]:gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
-                      <div className="flex min-w-0 items-center gap-3 text-[12px] font-semibold text-[#30343b] min-[390px]:gap-5 min-[390px]:text-[14px] sm:gap-7">
-                        <button
-                          type="button"
-                          onClick={() => void removeItem(item.id)}
-                          className="inline-flex h-8 min-w-0 items-center gap-1.5 whitespace-nowrap min-[390px]:gap-2"
-                        >
-                          <Trash2 size={14} strokeWidth={2} />
-                          Remove
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCheckoutClick}
-                          className="inline-flex h-8 min-w-0 items-center gap-1.5 whitespace-nowrap min-[390px]:gap-2"
-                        >
-                          <Zap size={14} strokeWidth={1.9} />
-                          Buy this now
-                        </button>
+                        </div>
                       </div>
 
-                      <div className="grid h-10 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[0.5rem] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b] min-[390px]:h-12 min-[390px]:rounded-[14px]">
-                        <button
-                          type="button"
-                          aria-label={`Decrease quantity for ${item.product.name}`}
-                          onClick={() => void decreaseQuantity(item)}
-                          className="flex h-full items-center justify-center"
-                        >
-                          <Minus size={22} strokeWidth={2.6} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openQuantityEditor(item)}
-                          className="min-w-0 text-center text-[16px] font-black leading-none transition hover:bg-[#e8f8ee] min-[390px]:text-[18px]"
-                          aria-label={`Edit quantity for ${item.product.name}`}
-                        >
-                          {item.quantity}
-                        </button>
+                      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_116px] items-center gap-2 min-[390px]:grid-cols-[minmax(0,1fr)_140px] min-[390px]:gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+                        <div className="flex min-w-0 items-center gap-3 text-[12px] font-semibold text-[#30343b] min-[390px]:gap-5 min-[390px]:text-[14px] sm:gap-7">
+                          <button
+                            type="button"
+                            onClick={() => void removeItem(item.id)}
+                            className="inline-flex h-8 min-w-0 items-center gap-1.5 whitespace-nowrap min-[390px]:gap-2"
+                          >
+                            <Trash2 size={14} strokeWidth={2} />
+                            Remove
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCheckoutClick}
+                            className="inline-flex h-8 min-w-0 items-center gap-1.5 whitespace-nowrap min-[390px]:gap-2"
+                          >
+                            <Zap size={14} strokeWidth={1.9} />
+                            Buy this now
+                          </button>
+                        </div>
+
+                        <div className="grid h-10 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[0.5rem] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b] min-[390px]:h-12 min-[390px]:rounded-[14px]">
+                          <button
+                            type="button"
+                            aria-label={`Decrease quantity for ${item.product.name}`}
+                            onClick={() => void decreaseQuantity(item)}
+                            className="flex h-full items-center justify-center"
+                          >
+                            <Minus size={22} strokeWidth={2.6} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openQuantityEditor(item)}
+                            className="min-w-0 text-center text-[16px] font-black leading-none transition hover:bg-[#e8f8ee] min-[390px]:text-[18px]"
+                            aria-label={`Edit quantity for ${item.product.name}`}
+                          >
+                            {item.quantity}
+                          </button>
                           <button
                             type="button"
                             aria-label={`Increase quantity for ${item.product.name}`}
@@ -791,9 +775,9 @@ export default function CartPageClient() {
                           >
                             <Plus size={24} strokeWidth={2.6} />
                           </button>
+                        </div>
                       </div>
-                    </div>
-                  </article>
+                    </article>
                   );
                 })}
               </div>
@@ -854,7 +838,7 @@ export default function CartPageClient() {
 
           <div
             ref={desktopDeliveryAddressRef}
-            className={`mb-8 max-w-2xl rounded-2xl transition ${
+            className={`mb-8 hidden max-w-2xl rounded-2xl transition ${
               showDeliveryAddressAlert
                 ? "border border-[#d93025] bg-[#fff6f5] p-3"
                 : "border border-transparent"
@@ -927,115 +911,115 @@ export default function CartPageClient() {
                   const productHref = getProductHref(item.product);
 
                   return (
-                  <article
-                    key={item.id}
-                    className="rounded-md border border-[#d9d9d9] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                  >
-                    <div className="grid grid-cols-[140px_minmax(0,1fr)_auto] gap-4">
-                      <Link
-                        href={productHref}
-                        className="relative h-[140px] w-[140px] overflow-hidden rounded-md bg-[#f4f8ef]"
-                      >
-                        <Image
-                          src={item.product.image}
-                          alt={item.product.name}
-                          fill
-                          sizes="140px"
-                          className="object-cover"
-                        />
-                      </Link>
-
-                      <div className="min-w-0">
+                    <article
+                      key={item.id}
+                      className="rounded-md border border-[#d9d9d9] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                    >
+                      <div className="grid grid-cols-[140px_minmax(0,1fr)_auto] gap-4">
                         <Link
                           href={productHref}
-                          className="line-clamp-1 text-2xl font-semibold leading-8 text-[#111827]"
+                          className="relative h-[140px] w-[140px] overflow-hidden rounded-md bg-[#f4f8ef]"
                         >
-                          {item.product.name}
-                        </Link>
-                        {item.variantLabel || item.packLabel ? (
-                          <p className="mt-1 text-sm font-medium text-[#58724f]">
-                            {item.variantLabel || item.packLabel}
-                          </p>
-                        ) : null}
-                        <p className="mt-1 text-3xl font-black leading-none tracking-[-0.02em] text-[#111111]">
-                          {formatCurrency(item.subtotal)}
-                        </p>
-                        <p className="mt-3 text-sm font-medium text-[#202020]">
-                          Delivery by {deliveryLabel}
-                        </p>
-                      </div>
-
-                      <div className="pt-1 text-[#008000]">
-                        <span className="inline-flex items-center gap-1 align-middle">
-                          <Star
-                            size={14}
-                            fill="currentColor"
-                            strokeWidth={0}
-                            className="block shrink-0"
+                          <Image
+                            src={item.product.image}
+                            alt={item.product.name}
+                            fill
+                            sizes="140px"
+                            className="object-cover"
                           />
-                          <span className="flex h-[14px] items-center text-sm font-medium leading-none">
-                            4.{(item.product.price % 10) + 1}
+                        </Link>
+
+                        <div className="min-w-0">
+                          <Link
+                            href={productHref}
+                            className="line-clamp-1 text-2xl font-semibold leading-8 text-[#111827]"
+                          >
+                            {item.product.name}
+                          </Link>
+                          {item.variantLabel || item.packLabel ? (
+                            <p className="mt-1 text-sm font-medium text-[#58724f]">
+                              {item.variantLabel || item.packLabel}
+                            </p>
+                          ) : null}
+                          <p className="mt-1 text-3xl font-black leading-none tracking-[-0.02em] text-[#111111]">
+                            {formatCurrency(item.subtotal)}
+                          </p>
+                          <p className="mt-3 text-sm font-medium text-[#202020]">
+                            Delivery by {deliveryLabel}
+                          </p>
+                        </div>
+
+                        <div className="pt-1 text-[#008000]">
+                          <span className="inline-flex items-center gap-1 align-middle">
+                            <Star
+                              size={14}
+                              fill="currentColor"
+                              strokeWidth={0}
+                              className="block shrink-0"
+                            />
+                            <span className="flex h-[14px] items-center text-sm font-medium leading-none">
+                              4.{(item.product.price % 10) + 1}
+                            </span>
                           </span>
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 grid grid-cols-[minmax(0,1fr)_160px] items-center gap-4">
-                      <div className="flex min-w-0 items-center gap-7 text-sm font-semibold text-[#30343b]">
-                        <button
-                          type="button"
-                          onClick={() => void removeItem(item.id)}
-                          className="inline-flex h-8 items-center gap-2 whitespace-nowrap"
-                        >
-                          <Trash2 size={15} strokeWidth={2} />
-                          Remove
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCheckoutClick}
-                          className="inline-flex h-8 items-center gap-2 whitespace-nowrap"
-                        >
-                          <Zap size={15} strokeWidth={1.9} />
-                          Buy this now
-                        </button>
+                        </div>
                       </div>
 
-                      <div className="grid h-12 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[14px] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b] shadow-[3px_4px_0_rgba(22,57,21,0.18)]">
-                        <button
-                          type="button"
-                          aria-label={`Decrease quantity for ${item.product.name}`}
-                          onClick={() => void decreaseQuantity(item)}
-                          className="flex h-full items-center justify-center"
-                        >
-                          <Minus size={24} strokeWidth={2.6} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openQuantityEditor(item)}
-                          className="min-w-0 text-center text-[18px] font-black leading-none transition hover:bg-[#e8f8ee]"
-                          aria-label={`Edit quantity for ${item.product.name}`}
-                        >
-                          {item.quantity}
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Increase quantity for ${item.product.name}`}
-                          onClick={() =>
-                            item.quantity < item.availableStock
-                              ? void updateQuantity(
-                                  item.id,
-                                  item.quantity + 1,
-                                )
-                              : undefined
-                          }
-                          disabled={item.quantity >= item.availableStock}
-                          className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Plus size={27} strokeWidth={2.6} />
-                        </button>
+                      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_160px] items-center gap-4">
+                        <div className="flex min-w-0 items-center gap-7 text-sm font-semibold text-[#30343b]">
+                          <button
+                            type="button"
+                            onClick={() => void removeItem(item.id)}
+                            className="inline-flex h-8 items-center gap-2 whitespace-nowrap"
+                          >
+                            <Trash2 size={15} strokeWidth={2} />
+                            Remove
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCheckoutClick}
+                            className="inline-flex h-8 items-center gap-2 whitespace-nowrap"
+                          >
+                            <Zap size={15} strokeWidth={1.9} />
+                            Buy this now
+                          </button>
+                        </div>
+
+                        <div className="grid h-12 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[14px] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b] shadow-[3px_4px_0_rgba(22,57,21,0.18)]">
+                          <button
+                            type="button"
+                            aria-label={`Decrease quantity for ${item.product.name}`}
+                            onClick={() => void decreaseQuantity(item)}
+                            className="flex h-full items-center justify-center"
+                          >
+                            <Minus size={24} strokeWidth={2.6} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openQuantityEditor(item)}
+                            className="min-w-0 text-center text-[18px] font-black leading-none transition hover:bg-[#e8f8ee]"
+                            aria-label={`Edit quantity for ${item.product.name}`}
+                          >
+                            {item.quantity}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Increase quantity for ${item.product.name}`}
+                            onClick={() =>
+                              item.quantity < item.availableStock
+                                ? void updateQuantity(
+                                    item.id,
+                                    item.quantity + 1,
+                                  )
+                                : undefined
+                            }
+                            disabled={item.quantity >= item.availableStock}
+                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Plus size={27} strokeWidth={2.6} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </article>
+                    </article>
                   );
                 })}
 

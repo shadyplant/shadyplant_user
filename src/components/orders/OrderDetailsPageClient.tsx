@@ -11,16 +11,47 @@ import {
   PackageSearch,
   Truck,
 } from "lucide-react";
+import OrderReviewPrompt from "@/components/orders/OrderReviewPrompt";
+import OrderInvoiceDownloadButton from "@/components/orders/OrderInvoiceDownloadButton";
 import SiteShell from "@/components/SiteShell";
 import { type ApiResponse } from "@/lib/api";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
+  canDownloadInvoice,
   formatAddress,
   formatDateTime,
   formatOrderStatus,
   type Order,
 } from "@/components/orders/orderUtils";
+
+function formatTrackingHeadlineDate(value?: string | null) {
+  if (!value) {
+    return "Pending";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getReviewProduct(order: Order) {
+  const previewItem = order.items?.[0] || order.orderItems?.[0];
+  const productId = previewItem?.productId || "";
+  const productName = order.orderItems?.[0]?.name || "Delivered item";
+
+  return productId ? { productId, productName } : null;
+}
 
 export default function OrderDetailsPageClient({
   orderId,
@@ -69,6 +100,9 @@ export default function OrderDetailsPageClient({
   );
 
   const formattedAddress = order ? formatAddress(order) : "";
+  const reviewProduct =
+    order && order.currentStatus === "delivered" ? getReviewProduct(order) : null;
+  const canShowInvoice = order ? canDownloadInvoice(order) : false;
 
   return (
     <SiteShell>
@@ -140,6 +174,9 @@ export default function OrderDetailsPageClient({
                       <p className="mt-2 text-2xl font-black text-[#2f65d9]">
                         {formatCurrency(order.pricing.total)}
                       </p>
+                      {canShowInvoice ? (
+                        <OrderInvoiceDownloadButton order={order} />
+                      ) : null}
                     </div>
                   </div>
 
@@ -161,7 +198,7 @@ export default function OrderDetailsPageClient({
                           <p>Method: {order.paymentMethodLabel}</p>
                           <p>
                             Shipping:{" "}
-                            {formatCurrency(order.pricing.shippingSubtotal)}
+                            {formatCurrency(order.pricing.shippingSubtotal ?? 0)}
                           </p>
                         </div>
                       </div>
@@ -182,52 +219,80 @@ export default function OrderDetailsPageClient({
                           Expanded Track History
                         </h2>
 
-                        <div className="mt-5 space-y-4">
+                        <div className="mt-5 space-y-6">
                           {order.trackingTimeline.map((step, index) => (
                             <div
                               key={`${order.id}-${step.key}`}
-                              className="relative flex gap-3"
+                              className="relative flex gap-4"
                             >
                               {index !== order.trackingTimeline.length - 1 ? (
-                                <div className="absolute bottom-[-16px] left-[11px] top-6 w-[2px] bg-[#dbe5d3]" />
+                                <div className="absolute bottom-[-28px] left-[11px] top-6 w-[2px] bg-[#69b657]" />
                               ) : null}
 
                               <div className="relative z-10 mt-0.5 shrink-0">
                                 {step.state === "complete" ? (
                                   <CheckCircle2
                                     size={24}
-                                    className="bg-white text-green-600"
+                                    className="bg-[#fbfdf8] text-[#4ea34a]"
                                   />
                                 ) : (
                                   <Clock
                                     size={24}
                                     className={
                                       step.state === "current"
-                                        ? "bg-white text-amber-500"
-                                        : "bg-white text-gray-300"
+                                        ? "bg-[#fbfdf8] text-[#4ea34a]"
+                                        : "bg-[#fbfdf8] text-gray-300"
                                     }
                                   />
                                 )}
                               </div>
 
-                              <div className="pb-2">
-                                <p
-                                  className={`text-sm font-medium ${
-                                    step.state === "upcoming"
-                                      ? "text-gray-500"
-                                      : "text-gray-900"
-                                  }`}
-                                >
-                                  {step.title}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {step.description}
-                                </p>
+                              <div className="min-w-0 flex-1 pb-2">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  <p
+                                    className={`text-[1.05rem] font-semibold ${
+                                      step.state === "upcoming"
+                                        ? "text-gray-500"
+                                        : "text-[#1f1f1f]"
+                                    }`}
+                                  >
+                                    {step.title}
+                                  </p>
+                                  <p className="text-sm font-medium text-[#777777]">
+                                    {formatTrackingHeadlineDate(step.occurredAt)}
+                                  </p>
+                                </div>
+
+                                {Array.isArray(step.entries) && step.entries.length ? (
+                                  <div className="mt-4 space-y-4">
+                                    {step.entries.map((entry) => (
+                                      <div key={entry.id}>
+                                        <p className="text-[15px] leading-6 text-[#232323]">
+                                          {entry.message}
+                                        </p>
+                                        <p className="mt-0.5 text-sm text-[#8c8c8c]">
+                                          {formatDateTime(entry.timestamp)}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="mt-2 text-sm text-[#8c8c8c]">
+                                    {step.description}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
+
+                      {reviewProduct ? (
+                        <OrderReviewPrompt
+                          productId={reviewProduct.productId}
+                          productName={reviewProduct.productName}
+                        />
+                      ) : null}
                     </div>
 
                     <aside className="space-y-4">

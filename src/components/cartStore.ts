@@ -22,6 +22,7 @@ type CartApiResponse = ApiResponse<{
       variantLabel?: string;
       packLabel?: string;
       unitPrice?: number | null;
+      unitMrp?: number | null;
       optionSelections?: Array<{
         groupKey?: string;
         optionKey?: string;
@@ -80,6 +81,7 @@ function sanitizeCartItem(item: {
   variantLabel?: string;
   packLabel?: string;
   unitPrice?: number | null;
+  unitMrp?: number | null;
   optionSelections?: Array<{
     groupKey?: string;
     optionKey?: string;
@@ -106,6 +108,10 @@ function sanitizeCartItem(item: {
       item.unitPrice === undefined || item.unitPrice === null
         ? null
         : Number(item.unitPrice),
+    unitMrp:
+      item.unitMrp === undefined || item.unitMrp === null
+        ? null
+        : Number(item.unitMrp),
     optionSelections: Array.isArray(item.optionSelections)
       ? item.optionSelections.flatMap((selection) => {
           const groupKey = String(selection.groupKey || "").trim();

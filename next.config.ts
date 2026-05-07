@@ -7,6 +7,7 @@ loadEnvConfig(path.join(__dirname, ".."));
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  allowedDevOrigins: ["**.*"],
 
   images: {
     remotePatterns: [

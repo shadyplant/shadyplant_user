@@ -31,6 +31,9 @@ export type Order = {
     packLabel?: string;
     unit?: string;
     unitPrice?: number;
+    unitMrp?: number;
+    unitDiscount?: number;
+    discountPercent?: number;
     subtotal?: number;
     currency?: string;
   }>;

@@ -10,6 +10,7 @@ import { useProductStockAlertStore } from "@/components/productStockAlertStore";
 type ProductCardCartControlProps = {
   productId: string;
   stock: number;
+  minOrderQuantity: number;
 };
 
 function AddCartIcon() {
@@ -78,21 +79,26 @@ function AddCartIcon() {
 export default function ProductCardCartControl({
   productId,
   stock,
+  minOrderQuantity,
 }: ProductCardCartControlProps) {
   const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
   const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const { items, addItem, updateQuantity } = useCartStore();
   const { items: requestedAlertItems, requestAlert } =
     useProductStockAlertStore();
   const hasRequestedNotify = requestedAlertItems.includes(productId);
   const quantity = getCartQuantity(items, productId);
   const defaultLineId = `${productId}::default`;
-  const displayQuantity = Math.max(1, quantity);
-  const inputValue = draftQuantity ?? String(displayQuantity);
   const availableStock = Math.max(0, Math.floor(Number(stock || 0)));
+  const effectiveMinimumQuantity =
+    availableStock > 0
+      ? Math.max(1, Math.min(minOrderQuantity, availableStock))
+      : Math.max(1, minOrderQuantity);
+  const displayQuantity = Math.max(effectiveMinimumQuantity, quantity);
+  const inputValue = draftQuantity ?? String(displayQuantity);
 
   function swallowCardNavigation(
     event:
@@ -136,7 +142,7 @@ export default function ProductCardCartControl({
       return;
     }
 
-    await addItem(productId, 1);
+    await addItem(productId, effectiveMinimumQuantity);
   }
 
   async function decreaseQuantity() {
@@ -145,13 +151,19 @@ export default function ProductCardCartControl({
       return;
     }
 
-    if (quantity <= 1) {
-      await removeItem(defaultLineId);
+    if (quantity <= 0) {
+      return;
+    }
+
+    if (quantity <= effectiveMinimumQuantity) {
       setDraftQuantity(null);
       return;
     }
 
-    await updateQuantity(defaultLineId, quantity - 1);
+    await updateQuantity(
+      defaultLineId,
+      Math.max(effectiveMinimumQuantity, quantity - 1),
+    );
     setDraftQuantity(null);
   }
 
@@ -165,7 +177,12 @@ export default function ProductCardCartControl({
       return;
     }
 
-    await updateQuantity(defaultLineId, quantity + 1);
+    await updateQuantity(
+      defaultLineId,
+      quantity < effectiveMinimumQuantity
+        ? effectiveMinimumQuantity
+        : quantity + 1,
+    );
     setDraftQuantity(null);
   }
 
@@ -183,8 +200,8 @@ export default function ProductCardCartControl({
     }
 
     const nextQuantity = Math.max(
-      1,
-      Math.min(availableStock || 1, Math.floor(numericValue)),
+      effectiveMinimumQuantity,
+      Math.min(availableStock || effectiveMinimumQuantity, Math.floor(numericValue)),
     );
 
     if (quantity <= 0) {
@@ -251,7 +268,8 @@ export default function ProductCardCartControl({
         onMouseDown={swallowCardNavigation}
         onTouchStart={swallowCardNavigation}
         onClick={() => void decreaseQuantity()}
-        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829]"
+        disabled={quantity <= effectiveMinimumQuantity}
+        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Decrease cart quantity"
       >
         <Minus size={19} strokeWidth={2.7} />
@@ -259,7 +277,7 @@ export default function ProductCardCartControl({
 
       <input
         type="number"
-        min={1}
+        min={effectiveMinimumQuantity}
         max={availableStock}
         inputMode="numeric"
         value={inputValue}

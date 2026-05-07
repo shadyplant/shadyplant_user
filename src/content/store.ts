@@ -12,6 +12,7 @@ export type CartItem = {
   variantLabel?: string;
   packLabel?: string;
   unitPrice?: number | null;
+  unitMrp?: number | null;
   optionSelections?: Array<{
     groupKey: string;
     optionKey: string;

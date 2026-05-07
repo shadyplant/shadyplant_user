@@ -187,6 +187,7 @@ export default function WishlistPageClient() {
                               <AddToCartButton
                                 productId={product.id}
                                 availableStock={product.stock}
+                                minOrderQuantity={product.minOrderQuantity}
                                 className="flex w-full items-center justify-between rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
                               />
                               <button

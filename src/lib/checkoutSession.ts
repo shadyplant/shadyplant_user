@@ -1,3 +1,8 @@
+import {
+  normalizeDeliveryAddress,
+  type DeliveryAddress,
+} from "@/lib/validation";
+
 export type CheckoutPosition = {
   lat: number;
   lng: number;
@@ -14,6 +19,7 @@ export type BillingDetailsDraft = {
 
 export type CheckoutDraft = {
   deliveryAddress?: string;
+  deliveryAddressDetails?: DeliveryAddress | null;
   deliveryPosition?: CheckoutPosition | null;
   createdAt?: string;
 };
@@ -60,6 +66,11 @@ export function readCheckoutDraft(): CheckoutDraft | null {
 
     return {
       deliveryAddress: String(draft.deliveryAddress || "").trim(),
+      deliveryAddressDetails: Object.values(
+        normalizeDeliveryAddress(draft.deliveryAddressDetails),
+      ).some(Boolean)
+        ? normalizeDeliveryAddress(draft.deliveryAddressDetails)
+        : null,
       deliveryPosition:
         Number.isFinite(lat) && Number.isFinite(lng)
           ? { lat, lng }
@@ -76,10 +87,20 @@ export function writeCheckoutDraft(draft: CheckoutDraft) {
     return;
   }
 
+  const normalizedDeliveryAddress = normalizeDeliveryAddress(
+    draft.deliveryAddressDetails,
+  );
+  const hasDeliveryAddressDetails = Object.values(
+    normalizedDeliveryAddress,
+  ).some(Boolean);
+
   window.sessionStorage.setItem(
     CHECKOUT_DRAFT_STORAGE_KEY,
     JSON.stringify({
       deliveryAddress: String(draft.deliveryAddress || "").trim(),
+      deliveryAddressDetails: hasDeliveryAddressDetails
+        ? normalizedDeliveryAddress
+        : null,
       deliveryPosition:
         draft.deliveryPosition &&
         Number.isFinite(Number(draft.deliveryPosition.lat)) &&

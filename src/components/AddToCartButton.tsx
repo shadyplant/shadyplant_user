@@ -1,5 +1,6 @@
 "use client";
 
+import { Minus, Plus } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -14,6 +15,8 @@ type AddToCartButtonProps = {
   productId: string;
   quantity?: number;
   availableStock?: number;
+  minOrderQuantity?: number;
+  showQuantityControls?: boolean;
   className?: string;
   compact?: boolean;
   showQuantityBadge?: boolean;
@@ -149,6 +152,8 @@ export default function AddToCartButton({
   productId,
   quantity = 1,
   availableStock,
+  minOrderQuantity = 1,
+  showQuantityControls = false,
   className = "",
   compact = false,
   showQuantityBadge = true,
@@ -158,9 +163,11 @@ export default function AddToCartButton({
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
-  const { items: cartItems, addItem } = useCartStore();
+  const { items: cartItems, addItem, updateQuantity } = useCartStore();
   const selectedOptionContext = useOptionalProductOptionSelection();
   const activeProductId = selectedOptionContext?.product.id || productId;
+  const activeLineId =
+    selectedOptionContext?.resolved.lineId || `${productId}::default`;
   const quantityInCart = selectedOptionContext
     ? getCartQuantityByLineId(cartItems, selectedOptionContext.resolved.lineId)
     : getCartQuantity(cartItems, productId);
@@ -175,10 +182,15 @@ export default function AddToCartButton({
       ),
     ),
   );
+  const effectiveMinimumQuantity =
+    stockAvailable > 0
+      ? Math.max(1, Math.min(minOrderQuantity, stockAvailable))
+      : Math.max(1, minOrderQuantity);
   const isOutOfStock =
     effectiveAvailableStock !== undefined && stockAvailable <= 0;
   const hasReachedStockLimit =
     effectiveAvailableStock !== undefined && quantityInCart >= stockAvailable;
+  const displayQuantity = Math.max(effectiveMinimumQuantity, quantityInCart);
 
   function stopNestedNavigation(
     event:
@@ -201,14 +213,76 @@ export default function AddToCartButton({
       return;
     }
 
-    await addItem(activeProductId, quantity, selectedOptionContext
+    await addItem(
+      activeProductId,
+      Math.max(quantity, effectiveMinimumQuantity),
+      selectedOptionContext
       ? {
           variantId: selectedOptionContext.resolved.variantId,
           optionSelections: selectedOptionContext.resolved.optionSelections,
         }
-      : undefined);
+      : undefined,
+    );
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1400);
+  }
+
+  async function handleDecreaseQuantity(
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!isAuthenticated) {
+      router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
+      return;
+    }
+
+    if (quantityInCart <= effectiveMinimumQuantity) {
+      return;
+    }
+
+    await updateQuantity(
+      activeLineId,
+      Math.max(effectiveMinimumQuantity, quantityInCart - 1),
+    );
+  }
+
+  async function handleIncreaseQuantity(
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (isOutOfStock || hasReachedStockLimit) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
+      return;
+    }
+
+    if (quantityInCart <= 0) {
+      await addItem(
+        activeProductId,
+        effectiveMinimumQuantity,
+        selectedOptionContext
+          ? {
+              variantId: selectedOptionContext.resolved.variantId,
+              optionSelections: selectedOptionContext.resolved.optionSelections,
+            }
+          : undefined,
+      );
+      return;
+    }
+
+    await updateQuantity(
+      activeLineId,
+      quantityInCart < effectiveMinimumQuantity
+        ? effectiveMinimumQuantity
+        : quantityInCart + 1,
+    );
   }
 
   if (compact) {
@@ -242,6 +316,42 @@ export default function AddToCartButton({
           ) : null}
         </div>
       </button>
+    );
+  }
+
+  if (showQuantityControls && quantityInCart > 0 && !isOutOfStock) {
+    return (
+      <div
+        className={`grid h-11 w-full grid-cols-[3rem_minmax(0,1fr)_3rem] overflow-hidden rounded-[0.5rem] bg-[#55ad35] text-white ${className}`.trim()}
+      >
+        <button
+          type="button"
+          onMouseDown={stopNestedNavigation}
+          onTouchStart={stopNestedNavigation}
+          onClick={(event) => void handleDecreaseQuantity(event)}
+          disabled={quantityInCart <= effectiveMinimumQuantity}
+          className="flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Decrease cart quantity"
+        >
+          <Minus size={20} strokeWidth={2.6} />
+        </button>
+
+        <div className="flex min-w-0 items-center justify-center border-x border-white/30 text-lg font-black">
+          {displayQuantity}
+        </div>
+
+        <button
+          type="button"
+          onMouseDown={stopNestedNavigation}
+          onTouchStart={stopNestedNavigation}
+          onClick={(event) => void handleIncreaseQuantity(event)}
+          disabled={hasReachedStockLimit}
+          className="flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Increase cart quantity"
+        >
+          <Plus size={20} strokeWidth={2.6} />
+        </button>
+      </div>
     );
   }
 

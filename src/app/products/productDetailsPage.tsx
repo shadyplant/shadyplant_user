@@ -27,12 +27,12 @@ import {
   ProductOptionSelectionProvider,
   SelectedProductAvailabilityRow,
   SelectedProductPackLabel,
+  SelectedProductMrp,
   SelectedProductPrice,
   SelectedProductStockNotice,
 } from "@/components/ProductOptionSelectionContext";
 import SiteShell from "@/components/SiteShell";
 import WishlistButton from "@/components/WishlistButton";
-import { formatCurrency } from "@/lib/formatCurrency";
 import {
   fetchProductById,
   fetchProducts,
@@ -166,8 +166,6 @@ export async function renderProductDetailsPage({
   ]);
   const productExperience = getProductExperience(product);
   const productOptionGroups = product.optionGroups;
-  const originalPrice =
-    product.price + Math.max(35, Math.round(product.price * 0.35));
   const hasRatings = reviewData.summary.totalRatings > 0;
   const detailSections = productExperience.accordions.map((item) => {
     const Icon = item.title.includes("Delivery")
@@ -233,9 +231,7 @@ export async function renderProductDetailsPage({
                   <span className="text-[18px] font-black leading-none text-[#111111]">
                     <SelectedProductPrice />
                   </span>
-                  <span className="text-[14px] font-medium text-[#9d9d9d] line-through">
-                    {formatCurrency(originalPrice)}
-                  </span>
+                  <SelectedProductMrp className="text-[14px] font-medium text-[#9d9d9d] line-through" />
                 </div>
                 <SelectedProductStockNotice className="mt-2 block text-[12px] font-black uppercase tracking-[0.14em] text-[#b23b2b]" />
               </section>
@@ -313,7 +309,11 @@ export async function renderProductDetailsPage({
                 ) : null}
               </div>
             </div>
-            <ProductMobileActionBar productId={product.id} stock={product.stock} />
+            <ProductMobileActionBar
+              productId={product.id}
+              stock={product.stock}
+              minOrderQuantity={product.minOrderQuantity}
+            />
           </ProductOptionSelectionProvider>
         </section>
 
@@ -440,7 +440,9 @@ export async function renderProductDetailsPage({
                     <AddToCartButton
                       productId={product.id}
                       availableStock={product.stock}
-                      className="flex items-center justify-between rounded-lg border border-[#174f18] bg-white px-4 py-2.5 text-sm font-semibold text-[#174f18] shadow-[2px_3px_0_rgba(23,79,24,0.12)] transition-colors hover:bg-[#f4fbf2] md:px-5 md:py-3"
+                      minOrderQuantity={product.minOrderQuantity}
+                      showQuantityControls
+                      className="shadow-[2px_3px_0_rgba(23,79,24,0.12)]"
                     />
                     <WishlistButton
                       productId={product.id}
@@ -451,6 +453,7 @@ export async function renderProductDetailsPage({
                       <ProductBuyNowButton
                         productId={product.id}
                         availableStock={product.stock}
+                        minOrderQuantity={product.minOrderQuantity}
                         className="theme-button rounded-[0.5rem] px-4 py-2.5 text-center text-sm font-semibold md:px-5 md:py-3"
                       >
                         Buy now

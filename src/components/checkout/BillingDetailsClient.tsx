@@ -148,7 +148,7 @@ export default function BillingDetailsClient() {
   );
   const [deliveryAddressDetails, setDeliveryAddressDetails] =
     useState<DeliveryAddress>(() =>
-      normalizeDeliveryAddress(null),
+      normalizeDeliveryAddress(readCheckoutDraft()?.deliveryAddressDetails),
     );
   const [errors, setErrors] = useState<BillingErrors>({});
   const [submitMessage, setSubmitMessage] = useState("");
@@ -189,16 +189,18 @@ export default function BillingDetailsClient() {
     position?: CheckoutPosition,
     nextDeliveryAddress?: DeliveryAddress,
   ) {
+    const normalizedNextDeliveryAddress = nextDeliveryAddress
+      ? normalizeDeliveryAddress(nextDeliveryAddress)
+      : deliveryAddressDetails;
     setDeliveryAddress(address);
-    if (nextDeliveryAddress) {
-      setDeliveryAddressDetails(nextDeliveryAddress);
-    }
+    setDeliveryAddressDetails(normalizedNextDeliveryAddress);
     if (position) {
       setDeliveryPosition(position);
     }
 
     writeCheckoutDraft({
       deliveryAddress: address.trim(),
+      deliveryAddressDetails: normalizedNextDeliveryAddress,
       deliveryPosition: position || deliveryPosition,
     });
   }
@@ -242,6 +244,11 @@ export default function BillingDetailsClient() {
           : buildDeliveryAddressFromBilling(form);
 
     writeBillingDetailsDraft(normalizedBillingDetails);
+    writeCheckoutDraft({
+      deliveryAddress: deliveryAddress.trim(),
+      deliveryAddressDetails: deliveryAddressForProfile,
+      deliveryPosition,
+    });
 
     if (user) {
       try {

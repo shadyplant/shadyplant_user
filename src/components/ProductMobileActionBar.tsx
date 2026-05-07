@@ -15,30 +15,36 @@ import { useOptionalProductOptionSelection } from "@/components/ProductOptionSel
 type ProductMobileActionBarProps = {
   productId: string;
   stock: number;
+  minOrderQuantity: number;
 };
 
 export default function ProductMobileActionBar({
   productId,
   stock,
+  minOrderQuantity,
 }: ProductMobileActionBarProps) {
   const [isQuantityPopupOpen, setIsQuantityPopupOpen] = useState(false);
   const [quantityInput, setQuantityInput] = useState("1");
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated } = useAuth();
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const { items, addItem, updateQuantity } = useCartStore();
   const selectedOptionContext = useOptionalProductOptionSelection();
   const activeProductId = selectedOptionContext?.product.id || productId;
   const quantity = selectedOptionContext
     ? getCartQuantityByLineId(items, selectedOptionContext.resolved.lineId)
     : getCartQuantity(items, productId);
-  const displayQuantity = Math.max(1, quantity);
   const availableStock = Math.max(
     0,
     Math.floor(
       Number((selectedOptionContext?.resolved.stock ?? stock) || 0),
     ),
   );
+  const effectiveMinimumQuantity =
+    availableStock > 0
+      ? Math.max(1, Math.min(minOrderQuantity, availableStock))
+      : Math.max(1, minOrderQuantity);
+  const displayQuantity = Math.max(effectiveMinimumQuantity, quantity);
   const activeLineId = selectedOptionContext?.resolved.lineId || productId;
 
   function redirectToAuth() {
@@ -56,16 +62,14 @@ export default function ProductMobileActionBar({
       return;
     }
 
-    if (quantity <= 0) {
+    if (quantity <= effectiveMinimumQuantity) {
       return;
     }
 
-    if (quantity === 1) {
-      await removeItem(activeLineId);
-      return;
-    }
-
-    await updateQuantity(activeLineId, quantity - 1);
+    await updateQuantity(
+      activeLineId,
+      Math.max(effectiveMinimumQuantity, quantity - 1),
+    );
   }
 
   async function handleIncrease() {
@@ -79,7 +83,7 @@ export default function ProductMobileActionBar({
     }
 
     if (quantity <= 0) {
-      await addItem(activeProductId, 1, selectedOptionContext
+      await addItem(activeProductId, effectiveMinimumQuantity, selectedOptionContext
         ? {
             variantId: selectedOptionContext.resolved.variantId,
             optionSelections: selectedOptionContext.resolved.optionSelections,
@@ -88,7 +92,12 @@ export default function ProductMobileActionBar({
       return;
     }
 
-    await updateQuantity(activeLineId, quantity + 1);
+    await updateQuantity(
+      activeLineId,
+      quantity < effectiveMinimumQuantity
+        ? effectiveMinimumQuantity
+        : quantity + 1,
+    );
   }
 
   async function handleQuantitySubmit(event: FormEvent<HTMLFormElement>) {
@@ -106,8 +115,11 @@ export default function ProductMobileActionBar({
     }
 
     const nextQuantity = Math.max(
-      1,
-      Math.min(availableStock || 1, Math.floor(numericQuantity)),
+      effectiveMinimumQuantity,
+      Math.min(
+        availableStock || effectiveMinimumQuantity,
+        Math.floor(numericQuantity),
+      ),
     );
 
     if (quantity <= 0) {
@@ -145,7 +157,8 @@ export default function ProductMobileActionBar({
               <button
                 type="button"
                 onClick={() => void handleDecrease()}
-                className="flex items-center justify-center transition hover:bg-[#f4fbf2]"
+                disabled={quantity <= effectiveMinimumQuantity}
+                className="flex items-center justify-center transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Decrease cart quantity"
               >
                 <Minus size={18} strokeWidth={2.4} />
@@ -215,7 +228,7 @@ export default function ProductMobileActionBar({
             <input
               id="mobile-product-quantity"
               type="number"
-              min={1}
+              min={effectiveMinimumQuantity}
               max={availableStock}
               inputMode="numeric"
               value={quantityInput}

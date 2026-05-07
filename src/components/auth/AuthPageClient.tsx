@@ -3,20 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowRight,
-  KeyRound,
-  Mail,
-  Phone,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
+import { startTransition, useEffect, useRef, useState } from "react";
+import { Phone, UserRound } from "lucide-react";
+import AuthLoginPanel from "@/components/auth/AuthLoginPanel";
 import SiteShell from "@/components/SiteShell";
 import { ApiError } from "@/lib/api";
 import {
   isValidIdentifier,
-  validateLoginForm,
   validateOtpForm,
   validateRegistrationForm,
   validateResetPasswordForm,
@@ -38,11 +31,6 @@ type RegisterForm = {
   fullName: string;
   email: string;
   phoneNumber: string;
-  password: string;
-};
-
-type LoginForm = {
-  identifier: string;
   password: string;
 };
 
@@ -196,7 +184,6 @@ export default function AuthPageClient() {
   const {
     isAuthenticated,
     isReady,
-    login,
     loginWithGoogle,
     register,
     requestPasswordReset,
@@ -210,10 +197,7 @@ export default function AuthPageClient() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loginForm, setLoginForm] = useState<LoginForm>({
-    identifier: "",
-    password: "",
-  });
+  const [loginPrefillIdentifier, setLoginPrefillIdentifier] = useState("");
   const [registerForm, setRegisterForm] = useState<RegisterForm>({
     fullName: "",
     email: "",
@@ -234,23 +218,6 @@ export default function AuthPageClient() {
   });
   const [verifiedResetIdentifier, setVerifiedResetIdentifier] = useState("");
 
-  const stepTitle = useMemo(() => {
-    switch (step) {
-      case "register":
-        return "Create your account";
-      case "verify":
-        return "Verify your account";
-      case "forgot":
-        return "Request password reset";
-      case "forgot-verify":
-        return "Verify reset OTP";
-      case "reset":
-        return "Choose a new password";
-      default:
-        return "Sign in to continue";
-    }
-  }, [step]);
-
   useEffect(() => {
     if (isReady && isAuthenticated) {
       router.replace(nextPath);
@@ -266,28 +233,6 @@ export default function AuthPageClient() {
     setStatusMessage(null);
     setStatusTone("success");
     setErrors({});
-  }
-
-  async function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    resetFeedback();
-    const data = handleValidation(validateLoginForm(loginForm));
-
-    if (!data) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      await login(data);
-      router.replace(nextPath);
-    } catch (error) {
-      setStatusTone("error");
-      setStatusMessage(getApiErrorMessage(error, "Unable to sign in."));
-    } finally {
-      setIsSubmitting(false);
-    }
   }
 
   async function handleRegisterSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -458,10 +403,7 @@ export default function AuthPageClient() {
         otp: "",
       });
       setStep("login");
-      setLoginForm({
-        identifier: verifiedResetIdentifier,
-        password: "",
-      });
+      setLoginPrefillIdentifier(verifiedResetIdentifier);
     } catch (error) {
       setStatusTone("error");
       setStatusMessage(getApiErrorMessage(error, "Unable to reset password."));
@@ -513,117 +455,22 @@ export default function AuthPageClient() {
             <div>{renderFeedback}</div>
 
             {step === "login" ? (
-              <form onSubmit={handleLoginSubmit} className="mt-6 space-y-4">
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isSubmitting}
-                  className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dbe8cd] bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
-                >
-                  <GoogleMark />
-                  Continue with Google
-                </button>
-
-                <div className="flex items-center gap-3 py-1">
-                  <div className="h-px flex-1 bg-[#e6ecde]" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8aa07d]">
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-[#e6ecde]" />
-                </div>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Email or phone number
-                  </span>
-                  <div className="relative">
-                    <Mail
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
-                      size={18}
-                    />
-                    <input
-                      type="text"
-                      value={loginForm.identifier}
-                      onChange={(event) =>
-                        setLoginForm((current) => ({
-                          ...current,
-                          identifier: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
-                      placeholder="user@example.com or +91 98765 43210"
-                    />
-                  </div>
-                  {errors.identifier ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.identifier}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Password
-                  </span>
-                  <div className="relative">
-                    <KeyRound
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
-                      size={18}
-                    />
-                    <input
-                      type="password"
-                      value={loginForm.password}
-                      onChange={(event) =>
-                        setLoginForm((current) => ({
-                          ...current,
-                          password: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
-                      placeholder="Enter your password"
-                    />
-                  </div>
-                  {errors.password ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.password}
-                    </span>
-                  ) : null}
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isSubmitting ? "Signing in..." : "Sign In"}
-                </button>
-
-                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-[#edf2e7] pt-4 text-sm text-[#58724f]">
-                  <span>New here?</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetFeedback();
-                      setStep("register");
-                    }}
-                    className="font-semibold text-[#214f14]"
-                  >
-                    Register
-                  </button>
-                  <span className="text-[#b7c5ad]">|</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetFeedback();
-                      setVerifiedResetIdentifier("");
-                      setStep("forgot");
-                    }}
-                    className="font-semibold text-[#214f14]"
-                  >
-                    Forgot Password
-                  </button>
-                </div>
-              </form>
+              <AuthLoginPanel
+                key={loginPrefillIdentifier || "login"}
+                nextPath={nextPath}
+                initialIdentifier={loginPrefillIdentifier}
+                onRequestRegister={() => {
+                  resetFeedback();
+                  setLoginPrefillIdentifier("");
+                  setStep("register");
+                }}
+                onRequestForgotPassword={() => {
+                  resetFeedback();
+                  setLoginPrefillIdentifier("");
+                  setVerifiedResetIdentifier("");
+                  setStep("forgot");
+                }}
+              />
             ) : null}
 
             {step === "register" ? (

@@ -12,8 +12,6 @@ type ProductCardProps = {
 };
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const originalPrice =
-    product.price + Math.max(35, Math.round(product.price * 0.35));
   const productHref = getProductHref(product);
 
   return (
@@ -77,13 +75,16 @@ export default function ProductCard({ product }: ProductCardProps) {
             <span className="text-xl font-bold leading-none tracking-normal text-[#050505] sm:text-2xl">
               {formatCurrency(product.price)}
             </span>
-            <span className="text-sm font-medium leading-none text-[#9b9b9b] line-through sm:text-base">
-              {formatCurrency(originalPrice)}
-            </span>
+            {product.mrp > product.price ? (
+              <span className="text-sm font-medium leading-none text-[#9b9b9b] line-through sm:text-base">
+                {formatCurrency(product.mrp)}
+              </span>
+            ) : null}
           </div>
           <ProductCardCartControl
             productId={product.id}
             stock={product.stock}
+            minOrderQuantity={product.minOrderQuantity}
           />
         </div>
       </div>

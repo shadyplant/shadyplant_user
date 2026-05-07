@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  buildPersistedDeliveryAddress,
   formatDeliveryAddress,
   sanitizeFormattedDeliveryAddress,
 } from "@/lib/deliveryAddress";
@@ -111,6 +112,7 @@ type ProductDeliveryAddressPickerProps = {
   initialPosition?: Position | null;
   autoResolveInitialAddress?: boolean;
   emptyLabel?: string;
+  persistToProfile?: boolean;
   onAddressChange?: (
     address: string,
     position?: Position,
@@ -129,10 +131,11 @@ export default function ProductDeliveryAddressPicker({
   initialPosition = null,
   autoResolveInitialAddress = false,
   emptyLabel = "Enter your location",
+  persistToProfile,
   onAddressChange,
   onDone,
 }: ProductDeliveryAddressPickerProps) {
-  const { user } = useAuth();
+  const { updateProfile, user } = useAuth();
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey,
@@ -153,6 +156,7 @@ export default function ProductDeliveryAddressPicker({
   );
   const [statusMessage, setStatusMessage] = useState("");
   const [isLocating, setIsLocating] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [resolvedDeliveryAddress, setResolvedDeliveryAddress] =
     useState<DeliveryAddress>(() =>
       buildDeliveryAddress(effectiveInitialAddress, undefined),
@@ -162,6 +166,11 @@ export default function ProductDeliveryAddressPicker({
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const lastAutoResolvedAddressRef = useRef("");
   const hasAddress = address.trim().length > 0;
+  const shouldPersistToProfile =
+    persistToProfile ??
+    (variant === "field" ||
+      variant === "home-strip" ||
+      variant === "header-inline");
 
   useEffect(() => {
     const nextAddress = effectiveInitialAddress;
@@ -318,6 +327,28 @@ export default function ProductDeliveryAddressPicker({
     onAddressChange?.("", undefined, clearedDeliveryAddress);
     setStatusMessage("");
     addressInputRef.current?.focus();
+  }
+
+  async function persistSelectionToProfile(nextDeliveryAddress: DeliveryAddress) {
+    if (!shouldPersistToProfile || !user) {
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setStatusMessage("Saving delivery address...");
+
+    try {
+      await updateProfile({
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        deliveryAddress: buildPersistedDeliveryAddress(nextDeliveryAddress),
+      });
+      setStatusMessage("Delivery address saved to your profile.");
+    } catch {
+      setStatusMessage("Selected location was not saved to your profile.");
+    } finally {
+      setIsSavingProfile(false);
+    }
   }
 
   const trigger =
@@ -564,16 +595,17 @@ export default function ProductDeliveryAddressPicker({
                     resolvedDeliveryAddress,
                   );
                   onDone?.(address, markerPos, resolvedDeliveryAddress);
+                  void persistSelectionToProfile(resolvedDeliveryAddress);
                   setIsOpen(false);
                 }}
-                disabled={!hasAddress}
+                disabled={!hasAddress || isSavingProfile}
                 className={`h-12 rounded-2xl text-sm font-semibold transition ${
-                  hasAddress
+                  hasAddress && !isSavingProfile
                     ? "bg-[#245d00] text-white hover:bg-[#1b4700]"
                     : "cursor-not-allowed bg-[#dce8ce] text-[#8aa27a]"
                 }`}
               >
-                Done
+                {isSavingProfile ? "Saving..." : "Done"}
               </button>
             </div>
           </section>

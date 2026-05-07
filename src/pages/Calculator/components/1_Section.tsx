@@ -27,6 +27,16 @@ import { useRouter } from "next/navigation";
 import { requestJson } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
+  cleanupCashfreeReturnUrl,
+  clearCashfreeCheckoutSession,
+  getCashfreeReturnState,
+  loadCashfreeSdk,
+  openCashfreeCheckout,
+  readCashfreeCheckoutSession,
+  writeCashfreeCheckoutSession,
+  type CashfreeMode,
+} from "@/lib/cashfreeCheckout";
+import {
   hasCompleteDeliveryAddress,
   validateCheckoutForm,
 } from "@/lib/validation";
@@ -43,30 +53,6 @@ const VEHICLES = [
   { id: "medium", name: "Medium Truck", rate: 25, desc: "Up to 1200 sqft" },
   { id: "heavy", name: "Heavy Loader", rate: 45, desc: "Up to 3000 sqft" },
 ] as const;
-
-type RazorpaySuccessResponse = {
-  razorpay_payment_id: string;
-  razorpay_order_id: string;
-  razorpay_signature: string;
-};
-
-type RazorpayOptions = {
-  key: string | undefined;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  order_id: string;
-  handler: (response: RazorpaySuccessResponse) => void;
-  prefill: {
-    contact?: string;
-    email?: string;
-    name?: string;
-  };
-  theme: {
-    color: string;
-  };
-};
 
 type DeliveryQuoteResponse = {
   ok: boolean;
@@ -85,10 +71,11 @@ type CheckoutState = {
   warning: string | null;
 };
 
-type RazorpayCheckout = {
+type CashfreeCheckout = {
   paymentAttemptId: string;
-  keyId: string;
+  paymentSessionId: string;
   orderId: string;
+  cfOrderId: string;
   amount: number;
   currency: string;
   businessName: string;
@@ -98,7 +85,21 @@ type RazorpayCheckout = {
     email?: string;
     contact?: string;
   };
+  mode: CashfreeMode;
+  returnUrl: string;
   shouldSimulateWebhook: boolean;
+};
+
+type PaymentAttemptStatus = {
+  id: string;
+  status: string;
+  statusLabel: string;
+  orderId: string | null;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 function getVehicle(vehicleId: string) {
@@ -175,20 +176,6 @@ export default function GrassCalculator() {
       map?.panTo(newPos);
     }
   };
-
-  const loadRazorpay = () =>
-    new Promise<boolean>((resolve) => {
-      if (window.Razorpay) {
-        resolve(true);
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
 
   async function calculateFinal() {
     setStatusMessage(null);
@@ -271,8 +258,112 @@ export default function GrassCalculator() {
       paymentMethod,
       deliveryAddress: user.deliveryAddress,
       recommendedItems: [],
+      returnPath: "/checkout",
     };
   }
+
+  const pollPaymentAttempt = useCallback(
+    async (paymentAttemptId: string) => {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const response = await fetchWithAuth<{
+          message: string;
+          data: { paymentAttempt: PaymentAttemptStatus };
+        }>(`/payments/cashfree/attempts/${paymentAttemptId}`);
+        const paymentAttempt = response.data.paymentAttempt;
+
+        if (paymentAttempt.status === "completed" && paymentAttempt.orderId) {
+          clearCashfreeCheckoutSession();
+          cleanupCashfreeReturnUrl();
+          router.push("/order");
+          return true;
+        }
+
+        if (paymentAttempt.status === "failed") {
+          clearCashfreeCheckoutSession();
+          cleanupCashfreeReturnUrl();
+          setStatusMessage("Payment failed before order confirmation. Please try again.");
+          return false;
+        }
+
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1200);
+        });
+      }
+
+      setStatusMessage(
+        "Payment was submitted. We are waiting for secure verification from the server webhook.",
+      );
+      return false;
+    },
+    [fetchWithAuth, router],
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const returnState = getCashfreeReturnState();
+    const persistedCheckout = readCashfreeCheckoutSession();
+    const paymentAttemptId =
+      returnState.paymentAttemptId || persistedCheckout?.paymentAttemptId || "";
+
+    if (!returnState.isReturn || !paymentAttemptId) {
+      return;
+    }
+
+    let isActive = true;
+    setIsProcessing(true);
+    setStatusMessage("Confirming your payment securely...");
+
+    void (async () => {
+      try {
+        if (
+          persistedCheckout?.paymentAttemptId === paymentAttemptId &&
+          persistedCheckout.shouldSimulateWebhook
+        ) {
+          await fetchWithAuth(`/payments/cashfree/test-webhook/${paymentAttemptId}`, {
+            method: "POST",
+          });
+        } else {
+          await fetchWithAuth<{
+            message: string;
+            data: { paymentAttempt: PaymentAttemptStatus };
+          }>(`/payments/cashfree/attempts/${paymentAttemptId}/verify`, {
+            method: "POST",
+          });
+        }
+
+        if (!isActive) {
+          return;
+        }
+
+        await pollPaymentAttempt(paymentAttemptId);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setStatusMessage(
+          getErrorMessage(
+            error,
+            "Payment was submitted, but confirmation is still pending.",
+          ),
+        );
+      } finally {
+        if (!isActive) {
+          return;
+        }
+
+        cleanupCashfreeReturnUrl();
+        setIsProcessing(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [fetchWithAuth, isAuthenticated, pollPaymentAttempt]);
 
   async function downloadPDF() {
     if (!receiptRef.current) {
@@ -331,70 +422,35 @@ export default function GrassCalculator() {
     setStatusMessage(null);
 
     try {
-      const scriptLoaded = await loadRazorpay();
+      const scriptLoaded = await loadCashfreeSdk();
       if (!scriptLoaded) {
-        throw new Error("Razorpay failed to load.");
+        throw new Error("Cashfree checkout failed to load.");
       }
 
       const response = await fetchWithAuth<{
         message: string;
-        data: { checkout: RazorpayCheckout };
-      }>("/payments/razorpay/create-order", {
+        data: { checkout: CashfreeCheckout };
+      }>("/payments/cashfree/create-order", {
         method: "POST",
         body: JSON.stringify(buildOrderPayload("online_payment")),
       });
 
       const checkout = response.data.checkout;
 
-      if (!window.Razorpay) {
-        throw new Error("Razorpay is unavailable right now.");
-      }
-
-      const razorpay = new window.Razorpay({
-        key: checkout.keyId,
-        amount: checkout.amount,
-        currency: checkout.currency,
-        name: checkout.businessName,
-        description: checkout.description,
-        order_id: checkout.orderId,
-        prefill: {
-          contact: checkout.prefill.contact,
-          email: checkout.prefill.email,
-          name: checkout.prefill.name,
-        },
-        handler: () => {
-          void (async () => {
-            try {
-              if (checkout.shouldSimulateWebhook) {
-                await fetchWithAuth(
-                  `/payments/razorpay/test-webhook/${checkout.paymentAttemptId}`,
-                  {
-                    method: "POST",
-                  },
-                );
-              }
-
-              router.push("/order");
-            } catch (error) {
-              setStatusMessage(
-                getErrorMessage(
-                  error,
-                  "Payment was captured, but order finalization is still pending.",
-                ),
-              );
-            } finally {
-              setIsProcessing(false);
-            }
-          })();
-        },
-        theme: {
-          color: "#16a34a",
-        },
+      writeCashfreeCheckoutSession({
+        paymentAttemptId: checkout.paymentAttemptId,
+        shouldSimulateWebhook: checkout.shouldSimulateWebhook,
+        returnPath: "/checkout",
       });
 
-      razorpay.open();
+      await openCashfreeCheckout({
+        mode: checkout.mode,
+        paymentSessionId: checkout.paymentSessionId,
+      });
+
+      setIsProcessing(false);
     } catch (error) {
-      setStatusMessage(getErrorMessage(error, "Unable to start online payment."));
+      setStatusMessage(getErrorMessage(error, "Unable to start Cashfree payment."));
       setIsProcessing(false);
     }
   }

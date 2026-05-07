@@ -454,7 +454,7 @@ export default function SearchResultsPageClient({
                 </div>
 
                 {hasActiveFilters ? (
-                  <div className="mb-5 flex flex-wrap gap-2">
+                  <div className="mb-5 hidden flex-wrap gap-2 md:flex">
                     {query.trim() ? (
                       <button
                         type="button"

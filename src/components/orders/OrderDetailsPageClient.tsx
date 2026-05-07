@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
-  Clock,
+  Circle,
   HelpCircle,
   MapPin,
   PackageSearch,
@@ -51,6 +51,10 @@ function getReviewProduct(order: Order) {
   const productName = order.orderItems?.[0]?.name || "Delivered item";
 
   return productId ? { productId, productName } : null;
+}
+
+function isReachedTrackingStep(state: Order["trackingTimeline"][number]["state"]) {
+  return state === "complete" || state === "current";
 }
 
 export default function OrderDetailsPageClient({
@@ -220,29 +224,38 @@ export default function OrderDetailsPageClient({
                         </h2>
 
                         <div className="mt-5 space-y-6">
-                          {order.trackingTimeline.map((step, index) => (
+                          {order.trackingTimeline.map((step, index) => {
+                            const isReached = isReachedTrackingStep(step.state);
+                            const nextStep = order.trackingTimeline[index + 1];
+                            const nextStepReached = nextStep
+                              ? isReachedTrackingStep(nextStep.state)
+                              : false;
+
+                            return (
                             <div
                               key={`${order.id}-${step.key}`}
                               className="relative flex gap-4"
                             >
                               {index !== order.trackingTimeline.length - 1 ? (
-                                <div className="absolute bottom-[-28px] left-[11px] top-6 w-[2px] bg-[#69b657]" />
+                                <div
+                                  className={`absolute bottom-[-28px] left-[11px] top-6 w-[2px] ${nextStepReached ? "bg-[#69b657]" : "bg-[#d6dfcf]"}`}
+                                />
                               ) : null}
 
                               <div className="relative z-10 mt-0.5 shrink-0">
-                                {step.state === "complete" ? (
+                                {isReached ? (
                                   <CheckCircle2
-                                    size={24}
-                                    className="bg-[#fbfdf8] text-[#4ea34a]"
-                                  />
-                                ) : (
-                                  <Clock
                                     size={24}
                                     className={
                                       step.state === "current"
-                                        ? "bg-[#fbfdf8] text-[#4ea34a]"
-                                        : "bg-[#fbfdf8] text-gray-300"
+                                        ? "rounded-full bg-[#fbfdf8] text-[#4ea34a] ring-2 ring-[#dbe8cd]"
+                                        : "bg-[#fbfdf8] text-[#4ea34a]"
                                     }
+                                  />
+                                ) : (
+                                  <Circle
+                                    size={24}
+                                    className="bg-[#fbfdf8] text-[#c8d2c2]"
                                   />
                                 )}
                               </div>
@@ -283,7 +296,8 @@ export default function OrderDetailsPageClient({
                                 )}
                               </div>
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                       </div>
 

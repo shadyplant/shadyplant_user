@@ -24,6 +24,7 @@ type ResolvedProductPurchaseState = {
   selectedLabels: string[];
   displayLabel: string;
   price: number;
+  mrp: number;
   stock: number;
   packLabel: string;
   weight: number;
@@ -101,6 +102,9 @@ function resolvePurchaseState(
   const resolvedPriceCandidate = [...selectedOptions]
     .reverse()
     .find(({ option }) => normalizeOptionNumber(option.price) !== null)?.option.price;
+  const resolvedMrpCandidate = [...selectedOptions]
+    .reverse()
+    .find(({ option }) => normalizeOptionNumber(option.mrp) !== null)?.option.mrp;
   const resolvedStockCandidate = [...selectedOptions]
     .reverse()
     .find(({ option }) => normalizeOptionNumber(option.stock) !== null)?.option.stock;
@@ -120,6 +124,11 @@ function resolvePurchaseState(
     displayLabel: optionSelections.map((selection) => selection.label).join(" / "),
     price:
       normalizeOptionNumber(resolvedPriceCandidate) ?? Number(product.price || 0),
+    mrp:
+      Math.max(
+        normalizeOptionNumber(resolvedMrpCandidate) ?? Number(product.mrp || 0),
+        normalizeOptionNumber(resolvedPriceCandidate) ?? Number(product.price || 0),
+      ),
     stock:
       Math.max(
         0,
@@ -346,6 +355,20 @@ export function SelectedProductPrice({
 }) {
   const { resolved } = useProductOptionSelection();
   return <span className={className}>{formatCurrency(resolved.price)}</span>;
+}
+
+export function SelectedProductMrp({
+  className,
+}: {
+  className?: string;
+}) {
+  const { resolved } = useProductOptionSelection();
+
+  if (resolved.mrp <= resolved.price) {
+    return null;
+  }
+
+  return <span className={className}>{formatCurrency(resolved.mrp)}</span>;
 }
 
 export function SelectedProductPackLabel({

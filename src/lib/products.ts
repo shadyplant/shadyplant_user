@@ -10,6 +10,7 @@ export type Product = {
   name: string;
   category: string;
   price: number;
+  mrp: number;
   weight: number;
   offer: string;
   minOrderQuantity: number;
@@ -34,6 +35,7 @@ export type ProductOption = {
   value: number | null;
   note: string;
   price: number | null;
+  mrp: number | null;
   stock: number | null;
   packLabel: string;
   weight: number | null;
@@ -113,6 +115,12 @@ function normalizeProductOptionGroups(
                 String(rawOption.key || "").trim() ||
                 label ||
                 `option-${optionIndex + 1}`;
+              const normalizedPrice = normalizeOptionValue(
+                (rawOption as Partial<ProductOption>).price,
+              );
+              const normalizedMrp = normalizeOptionValue(
+                (rawOption as Partial<ProductOption>).mrp,
+              );
 
               return {
                 key,
@@ -120,9 +128,11 @@ function normalizeProductOptionGroups(
                 unit: String(rawOption.unit || "").trim(),
                 value: normalizeOptionValue(rawOption.value),
                 note: String(rawOption.note || "").trim(),
-                price: normalizeOptionValue(
-                  (rawOption as Partial<ProductOption>).price,
-                ),
+                price: normalizedPrice,
+                mrp:
+                  normalizedPrice === null && normalizedMrp === null
+                    ? null
+                    : Math.max(normalizedMrp ?? 0, normalizedPrice ?? 0),
                 stock: normalizeOptionValue(
                   (rawOption as Partial<ProductOption>).stock,
                 ),
@@ -198,6 +208,7 @@ function normalizeProduct(product: ProductApi): Product {
   return {
     ...product,
     productId: String(product.productId || product.id || "").trim(),
+    mrp: Math.max(Number(product.mrp || 0), Number(product.price || 0)),
     weight: Number(product.weight) > 0 ? Number(product.weight) : 0,
     offer: String(product.offer || "").trim(),
     minOrderQuantity:

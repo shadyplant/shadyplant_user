@@ -13,7 +13,8 @@ type InvoiceLineItem = {
   hsn: string;
   quantity: number;
   mrp: number;
-  discount: number;
+  discountPercent: number;
+  discountAmount: number;
   rate: number;
   taxLabel: string;
   amount: number;
@@ -125,6 +126,11 @@ function getInvoiceLineItems(order: Order): InvoiceLineItem[] {
     return order.orderItems.map((item, index) => {
       const quantity = Math.max(1, Math.floor(Number(item.quantity || 0)));
       const rate = Number(item.unitPrice || 0);
+      const mrp = Math.max(Number(item.unitMrp || rate), rate);
+      const unitDiscount = Math.max(0, mrp - rate);
+      const discountAmount = Number((unitDiscount * quantity).toFixed(2));
+      const discountPercent =
+        mrp > 0 ? Number(((unitDiscount / mrp) * 100).toFixed(2)) : 0;
       const amount =
         Number(item.subtotal || 0) > 0
           ? Number(item.subtotal || 0)
@@ -140,8 +146,9 @@ function getInvoiceLineItems(order: Order): InvoiceLineItem[] {
         description: descriptionParts.join(", ") || "Catalog order item",
         hsn: "0602",
         quantity,
-        mrp: rate,
-        discount: 0,
+        mrp,
+        discountPercent,
+        discountAmount,
         rate,
         taxLabel: "0%",
         amount,
@@ -163,12 +170,23 @@ function getInvoiceLineItems(order: Order): InvoiceLineItem[] {
       hsn: "0602",
       quantity,
       mrp: unitRate,
-      discount: 0,
+      discountPercent: 0,
+      discountAmount: 0,
       rate: unitRate,
       taxLabel: "0%",
       amount: materialSubtotal,
     },
   ];
+}
+
+function formatDiscountPercent(value: number) {
+  const roundedValue = Number(value || 0);
+
+  if (!roundedValue) {
+    return "0%";
+  }
+
+  return `${Number.isInteger(roundedValue) ? roundedValue : roundedValue.toFixed(2)}%`;
 }
 
 function getBillingLines(order: Order) {
@@ -228,6 +246,10 @@ export default function OrderInvoiceDocument({
   const invoiceItems = getInvoiceLineItems(order);
   const itemsSubtotal = Number(
     order.pricing.itemsSubtotal ?? order.pricing.materialSubtotal ?? 0,
+  );
+  const totalDiscount = invoiceItems.reduce(
+    (sum, item) => sum + Number(item.discountAmount || 0),
+    0,
   );
   const deliveryCharge = Number(
     order.pricing.deliveryCharge ?? order.pricing.shippingSubtotal ?? 0,
@@ -531,7 +553,7 @@ export default function OrderInvoiceDocument({
                 <Td center>{item.hsn}</Td>
                 <Td center>{item.quantity}</Td>
                 <Td center>{formatAmount(item.mrp)}</Td>
-                <Td center>{formatAmount(item.discount)}</Td>
+                <Td center>{formatDiscountPercent(item.discountPercent)}</Td>
                 <Td center>{formatAmount(item.rate)}</Td>
                 <Td center>{item.taxLabel}</Td>
                 <Td center>{formatAmount(item.amount)}</Td>
@@ -599,7 +621,7 @@ export default function OrderInvoiceDocument({
             </tr>
             <tr>
               <SummaryLabelTd>Discount</SummaryLabelTd>
-              <SummaryValueTd>{formatAmount(0)}</SummaryValueTd>
+              <SummaryValueTd>{formatAmount(totalDiscount)}</SummaryValueTd>
             </tr>
 
             {/* Row 4: Net total in words | Net total dark */}

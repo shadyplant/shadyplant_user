@@ -28,13 +28,17 @@ import {
   type CheckoutPosition,
 } from "@/lib/checkoutSession";
 import {
+  buildCheckoutDeliveryAddressPayload,
   formatDeliveryAddress,
   sanitizeFormattedDeliveryAddress,
 } from "@/lib/deliveryAddress";
 import { formatCurrency } from "@/lib/formatCurrency";
 import type { Product } from "@/lib/products";
 import { useProductsStore } from "@/components/productsStore";
-import type { DeliveryAddress } from "@/lib/validation";
+import {
+  normalizeDeliveryAddress,
+  type DeliveryAddress,
+} from "@/lib/validation";
 import { getProductHref } from "@/lib/productUrls";
 
 const CART_DELIVERY_OFFSET_DAYS = 5;
@@ -77,6 +81,7 @@ type DetailedCartItem = {
   packLabel?: string;
   quantity: number;
   subtotal: number;
+  unitMrp: number;
   availableStock: number;
   product: Product;
 };
@@ -90,10 +95,6 @@ type BillDetailsCardProps = {
   deliveryErrorMessage?: string | null;
   isDeliveryLoading?: boolean;
 };
-
-function getOriginalPrice(price: number) {
-  return price + Math.max(35, Math.round(price * 0.35));
-}
 
 function resolveCartItemAvailableStock(
   product: Product,
@@ -213,14 +214,19 @@ export default function CartPageClient() {
     itemId: string;
     productName: string;
     value: string;
+    minQuantity: number;
     maxStock: number;
   } | null>(null);
-  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState(
-    () => sanitizeFormattedDeliveryAddress(readCheckoutDraft()?.deliveryAddress),
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState(() =>
+    sanitizeFormattedDeliveryAddress(readCheckoutDraft()?.deliveryAddress),
   );
   const [selectedDeliveryPosition, setSelectedDeliveryPosition] =
     useState<CheckoutPosition | null>(
       () => readCheckoutDraft()?.deliveryPosition || null,
+    );
+  const [selectedDeliveryAddressDetails, setSelectedDeliveryAddressDetails] =
+    useState<DeliveryAddress | null>(
+      () => readCheckoutDraft()?.deliveryAddressDetails || null,
     );
   const [checkoutPreview, setCheckoutPreview] =
     useState<CheckoutPreview | null>(null);
@@ -265,6 +271,10 @@ export default function CartPageClient() {
             ...item,
             product,
             subtotal: Number(item.unitPrice ?? product.price) * item.quantity,
+            unitMrp: Math.max(
+              Number(item.unitMrp ?? product.mrp ?? product.price),
+              Number(item.unitPrice ?? product.price),
+            ),
             availableStock: resolveCartItemAvailableStock(product, item),
           },
         ];
@@ -275,7 +285,7 @@ export default function CartPageClient() {
   const itemCount = getCartCount(cartItems);
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
   const mrpSubtotal = items.reduce(
-    (sum, item) => sum + getOriginalPrice(item.product.price) * item.quantity,
+    (sum, item) => sum + item.unitMrp * item.quantity,
     0,
   );
   const discount = Math.max(0, mrpSubtotal - subtotal);
@@ -329,10 +339,11 @@ export default function CartPageClient() {
         >("/checkout/preview", {
           method: "POST",
           body: JSON.stringify({
-            deliveryAddress: {
-              formattedAddress: deliveryAddressForPicker,
-              ...(user?.deliveryAddress || {}),
-            },
+            deliveryAddress: buildCheckoutDeliveryAddressPayload(
+              deliveryAddressForPicker,
+              selectedDeliveryAddressDetails,
+              user?.deliveryAddress,
+            ),
             deliveryLocation: selectedDeliveryPosition,
           }),
           signal: controller.signal,
@@ -369,6 +380,7 @@ export default function CartPageClient() {
     hasCheckoutAddress,
     isAuthenticated,
     items.length,
+    selectedDeliveryAddressDetails,
     selectedDeliveryPosition,
     user?.deliveryAddress,
   ]);
@@ -379,7 +391,11 @@ export default function CartPageClient() {
     deliveryAddress?: DeliveryAddress,
   ) {
     const cleanedAddress = sanitizeFormattedDeliveryAddress(address);
+    const nextDeliveryAddress = deliveryAddress
+      ? normalizeDeliveryAddress(deliveryAddress)
+      : selectedDeliveryAddressDetails;
     setSelectedDeliveryAddress(cleanedAddress);
+    setSelectedDeliveryAddressDetails(nextDeliveryAddress || null);
 
     if (cleanedAddress.trim()) {
       setShowDeliveryAddressAlert(false);
@@ -390,6 +406,7 @@ export default function CartPageClient() {
       setSelectedDeliveryPosition(position);
       writeCheckoutDraft({
         deliveryAddress: cleanedAddress,
+        deliveryAddressDetails: nextDeliveryAddress || null,
         deliveryPosition: position,
       });
       if (deliveryAddress) {
@@ -404,11 +421,13 @@ export default function CartPageClient() {
       setSelectedDeliveryPosition(null);
       setCheckoutPreview(null);
       setDeliveryQuoteError(null);
+      writeCheckoutDraft({
+        deliveryAddress: cleanedAddress,
+        deliveryAddressDetails: nextDeliveryAddress || null,
+        deliveryPosition: null,
+      });
       if (!cleanedAddress.trim()) {
-        writeCheckoutDraft({
-          deliveryAddress: "",
-          deliveryPosition: null,
-        });
+        setSelectedDeliveryAddressDetails(null);
       }
     }
   }
@@ -437,19 +456,29 @@ export default function CartPageClient() {
   }
 
   async function decreaseQuantity(item: DetailedCartItem) {
-    if (item.quantity <= 1) {
-      await removeItem(item.id);
+    const minQuantity = Math.max(
+      1,
+      Math.min(item.product.minOrderQuantity, Math.max(1, item.availableStock)),
+    );
+
+    if (item.quantity <= minQuantity) {
       return;
     }
 
-    await updateQuantity(item.id, item.quantity - 1);
+    await updateQuantity(item.id, Math.max(minQuantity, item.quantity - 1));
   }
 
   function openQuantityEditor(item: DetailedCartItem) {
+    const minQuantity = Math.max(
+      1,
+      Math.min(item.product.minOrderQuantity, Math.max(1, item.availableStock)),
+    );
+
     setQuantityEditor({
       itemId: item.id,
       productName: item.product.name,
-      value: String(item.quantity),
+      value: String(Math.max(minQuantity, item.quantity)),
+      minQuantity,
       maxStock: Math.max(1, item.availableStock),
     });
   }
@@ -468,7 +497,7 @@ export default function CartPageClient() {
     }
 
     const nextQuantity = Math.max(
-      1,
+      quantityEditor.minQuantity,
       Math.min(quantityEditor.maxStock, Math.floor(numericQuantity)),
     );
     await updateQuantity(quantityEditor.itemId, nextQuantity);
@@ -543,6 +572,9 @@ export default function CartPageClient() {
 
     writeCheckoutDraft({
       deliveryAddress: deliveryAddressForPicker,
+      deliveryAddressDetails:
+        selectedDeliveryAddressDetails ||
+        normalizeDeliveryAddress(user?.deliveryAddress),
       deliveryPosition: selectedDeliveryPosition,
     });
 
@@ -747,7 +779,17 @@ export default function CartPageClient() {
                             type="button"
                             aria-label={`Decrease quantity for ${item.product.name}`}
                             onClick={() => void decreaseQuantity(item)}
-                            className="flex h-full items-center justify-center"
+                            disabled={
+                              item.quantity <=
+                              Math.max(
+                                1,
+                                Math.min(
+                                  item.product.minOrderQuantity,
+                                  Math.max(1, item.availableStock),
+                                ),
+                              )
+                            }
+                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Minus size={22} strokeWidth={2.6} />
                           </button>
@@ -989,7 +1031,17 @@ export default function CartPageClient() {
                             type="button"
                             aria-label={`Decrease quantity for ${item.product.name}`}
                             onClick={() => void decreaseQuantity(item)}
-                            className="flex h-full items-center justify-center"
+                            disabled={
+                              item.quantity <=
+                              Math.max(
+                                1,
+                                Math.min(
+                                  item.product.minOrderQuantity,
+                                  Math.max(1, item.availableStock),
+                                ),
+                              )
+                            }
+                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Minus size={24} strokeWidth={2.6} />
                           </button>
@@ -1070,14 +1122,6 @@ export default function CartPageClient() {
                               : formatCurrency(deliveryFee)}
                       </span>
                     </div>
-                    {checkoutPreview ? (
-                      <div className="flex items-center justify-between">
-                        <span>Chargeable weight</span>
-                        <span className="font-semibold text-[#214f14]">
-                          {checkoutPreview.summary.totalWeightKg} kg
-                        </span>
-                      </div>
-                    ) : null}
                   </div>
 
                   <div className="mt-5 border-t border-[#dbe8cd] pt-5">
@@ -1166,7 +1210,7 @@ export default function CartPageClient() {
 
             <input
               type="number"
-              min={1}
+              min={quantityEditor.minQuantity}
               max={quantityEditor.maxStock}
               inputMode="numeric"
               value={quantityEditor.value}

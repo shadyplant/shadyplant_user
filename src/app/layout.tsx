@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import SignInPromptModal from "@/components/auth/SignInPromptModal";
 import { appMono, appSans } from "@/lib/fonts";
 import "./globals.css";
 
@@ -18,7 +19,10 @@ export default function RootLayout({
       <body
         className={`${appSans.variable} ${appMono.variable} min-h-full flex flex-col font-sans`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <SignInPromptModal />
+        </AuthProvider>
       </body>
     </html>
   );

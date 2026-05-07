@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Leaf, Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
 import Image from "next/image";
 
 const shopLinks = [
@@ -22,7 +22,6 @@ const supportLinks = [
   { label: "Cart", href: "/cart" },
   { label: "Wishlist", href: "/wishlist" },
   { label: "Checkout", href: "/checkout" },
-  { label: "Payment", href: "/payment" },
   { label: "Order Summary", href: "/order-summary" },
 ];
 

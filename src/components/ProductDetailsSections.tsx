@@ -6,7 +6,7 @@ import {
   ShieldCheck,
   Truck,
 } from "lucide-react";
-import type { Product } from "@/lib/products";
+import type { Product, ProductDetailSection } from "@/lib/products";
 
 type ProductHighlight = {
   label: string;
@@ -15,8 +15,7 @@ type ProductHighlight = {
 
 type ProductAccordion = {
   title: string;
-  subtitle: string;
-  content: string[];
+  description: string;
 };
 
 export type ProductExperience = {
@@ -43,30 +42,27 @@ function getCategoryContent(product: Product) {
       accordions: [
         {
           title: "Product Description",
-          subtitle: "Plant profile, finish, and ideal spaces",
-          content: [
+          description: [
             `${productName} brings fresh green texture to compact indoor spaces without feeling high-maintenance.`,
             "Works especially well near windows, reception desks, reading corners, and shaded balconies.",
             "Each order is selected for healthy foliage, balanced shape, and easy settling after delivery.",
-          ],
+          ].join("\n"),
         },
         {
           title: "Care and Placement",
-          subtitle: "Watering, light, and routine upkeep",
-          content: [
+          description: [
             "Keep the soil lightly moist but never soggy, and allow the top layer to breathe between waterings.",
             "Place in filtered daylight and rotate the pot every week for even growth.",
             "Trim tired leaves occasionally and feed lightly during active growing months.",
-          ],
+          ].join("\n"),
         },
         {
           title: "Delivery and Plant Health",
-          subtitle: "Dispatch support and replacement guidance",
-          content: [
+          description: [
             "Plants are wrapped for airflow and stem protection before dispatch.",
             "If transit stress is visible on arrival, give the plant 24 to 48 hours in shade before repotting.",
             "Our support team can help with placement and watering guidance after delivery.",
-          ],
+          ].join("\n"),
         },
       ],
     };
@@ -83,30 +79,27 @@ function getCategoryContent(product: Product) {
       accordions: [
         {
           title: "Product Description",
-          subtitle: "Texture, fullness, and ideal placement",
-          content: [
+          description: [
             `${productName} is chosen for soft layered foliage that instantly fills shaded spaces with movement and volume.`,
             "A great fit for balcony corners, patios, covered verandas, and decorative hanging setups.",
             "The plant is sent with compact shaping so it can recover quickly and fan out after settling in.",
-          ],
+          ].join("\n"),
         },
         {
           title: "Care and Placement",
-          subtitle: "Moisture, humidity, and trimming tips",
-          content: [
+          description: [
             "Ferns prefer steady moisture, so avoid letting the root ball dry out completely.",
             "Keep them out of harsh afternoon sun and mist lightly in drier rooms or windy balconies.",
             "Trim brown fronds from the base to keep the plant looking fresh and balanced.",
-          ],
+          ].join("\n"),
         },
         {
           title: "Delivery and Plant Health",
-          subtitle: "Transit care and support promises",
-          content: [
+          description: [
             "We secure delicate fronds with breathable wrapping to reduce rubbing during transit.",
             "Place the fern in shade after delivery and water lightly if the soil surface feels dry.",
             "Support is available if you need help restoring volume after shipping.",
-          ],
+          ].join("\n"),
         },
       ],
     };
@@ -123,30 +116,27 @@ function getCategoryContent(product: Product) {
       accordions: [
         {
           title: "Product Description",
-          subtitle: "Coverage, finish, and project suitability",
-          content: [
+          description: [
             `${productName} is prepared for clean lawn coverage with a fresh, natural finish suited to homes, pathways, and open green patches.`,
             "Works well for new lawns, patch repairs, and softening hardscape-heavy outdoor spaces.",
             "A solid pick when you want dependable color and a surface that settles evenly over time.",
-          ],
+          ].join("\n"),
         },
         {
           title: "Installation and Care",
-          subtitle: "Watering, first-week care, and mowing",
-          content: [
+          description: [
             "Lay on leveled soil and water thoroughly right after installation so the roots can knit into the base.",
             "For the first week, keep the grass consistently moist and avoid heavy movement on fresh sections.",
             "Begin mowing only after the lawn is established and the blades are standing upright evenly.",
-          ],
+          ].join("\n"),
         },
         {
           title: "Delivery and Replacement",
-          subtitle: "Fresh-cut dispatch and service guidance",
-          content: [
+          description: [
             "Grass is dispatched as fresh stock for faster laying and better settling.",
             "Plan delivery close to installation time for the best finish and reduced handling stress.",
             "If you are ordering for a larger site, our team can guide staging and watering priorities.",
-          ],
+          ].join("\n"),
         },
       ],
     };
@@ -162,33 +152,41 @@ function getCategoryContent(product: Product) {
     accordions: [
       {
         title: "Product Description",
-        subtitle: "Bloom style, color impact, and placement",
-        content: [
+        description: [
           `${productName} is selected for visible color impact and reliable garden presence in outdoor settings.`,
           "Useful for entrance framing, sunny terraces, boundary planting, and decorative feature pots.",
           "The plant is packed to retain shape and reduce branch movement during delivery.",
-        ],
+        ].join("\n"),
       },
       {
         title: "Care and Placement",
-        subtitle: "Sunlight, watering, and pruning support",
-        content: [
+        description: [
           "Place where the plant can receive strong daylight and enough air movement.",
           "Water deeply when the topsoil begins to dry and reduce overwatering in humid spells.",
           "Light pruning after a bloom cycle helps encourage cleaner growth and future branching.",
-        ],
+        ].join("\n"),
       },
       {
         title: "Delivery and Plant Health",
-        subtitle: "Dispatch expectations and aftercare",
-        content: [
+        description: [
           "Branches are secured for transit to protect buds and tender growth.",
           "Allow one to two days for the plant to relax after delivery before moving it into full sun.",
           "Our team can suggest watering and trimming adjustments if you need post-delivery support.",
-        ],
+        ].join("\n"),
       },
     ],
   };
+}
+
+function getProductAccordions(product: Product): ProductAccordion[] {
+  if (Array.isArray(product.detailSections) && product.detailSections.length) {
+    return product.detailSections.map((section: ProductDetailSection) => ({
+      title: section.title,
+      description: section.description,
+    }));
+  }
+
+  return getCategoryContent(product).accordions;
 }
 
 export function getProductExperience(product: Product): ProductExperience {
@@ -196,7 +194,7 @@ export function getProductExperience(product: Product): ProductExperience {
 
   return {
     highlights: categoryContent.highlights,
-    accordions: categoryContent.accordions,
+    accordions: getProductAccordions(product),
     nurseryPromises: [
       {
         title: "Nursery Fresh",
@@ -256,7 +254,9 @@ export default function ProductDetailsSections({ product }: { product: Product }
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
                   <div>
                     <p className="text-lg font-bold text-[#163915]">{item.title}</p>
-                    <p className="mt-1 text-sm text-[#6d8464]">{item.subtitle}</p>
+                    <p className="mt-1 text-sm text-[#6d8464]">
+                      {item.description.split(/\r?\n/)[0]}
+                    </p>
                   </div>
                   <ChevronDown
                     className="text-[#5d7b56] transition group-open:rotate-180"
@@ -265,11 +265,15 @@ export default function ProductDetailsSections({ product }: { product: Product }
                 </summary>
 
                 <div className="mt-4 space-y-3 border-t border-[#e3edd7] pt-4">
-                  {item.content.map((line) => (
+                  {item.description
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line) => (
                     <p key={line} className="text-sm leading-7 text-[#58724f]">
                       {line}
                     </p>
-                  ))}
+                    ))}
                 </div>
               </details>
             ))}

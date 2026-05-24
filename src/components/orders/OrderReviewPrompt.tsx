@@ -16,7 +16,6 @@ type MyProductReview = {
   location: string;
   date: string;
   rating: number;
-  title: string;
   body: string;
   helpfulCount: number;
   verifiedBuyer: boolean;
@@ -76,6 +75,31 @@ function StarRow({
   );
 }
 
+function StaticStarRow({
+  rating,
+  size = 20,
+}: {
+  rating: number;
+  size?: number;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: 5 }).map((_, index) => {
+        const isActive = index < rating;
+
+        return (
+          <Star
+            key={index}
+            size={size}
+            className={isActive ? "text-[#f2ae35]" : "text-[#9f9f9f]"}
+            fill={isActive ? "currentColor" : "none"}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function ReviewStatusPill({ status }: { status: MyProductReview["status"] }) {
   const tone =
     status === "approved"
@@ -101,11 +125,9 @@ export default function OrderReviewPrompt({
   const [review, setReview] = useState<MyProductReview | null>(null);
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
-  const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [isExpandedDesktop, setIsExpandedDesktop] = useState(false);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
-  const [isLoadingReview, setIsLoadingReview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -114,8 +136,6 @@ export default function OrderReviewPrompt({
       return;
     }
 
-    setIsLoadingReview(true);
-
     try {
       const response = await fetchWithAuth<MyProductReviewResponse>(
         `/products/${encodeURIComponent(productId)}/reviews/mine`,
@@ -123,15 +143,12 @@ export default function OrderReviewPrompt({
       const nextReview = response.data.review;
       setReview(nextReview);
       setRating(nextReview?.rating || 0);
-      setTitle(nextReview?.title || "");
       setBody(nextReview?.body || "");
       setSubmitError(null);
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Unable to load your review.",
       );
-    } finally {
-      setIsLoadingReview(false);
     }
   }, [fetchWithAuth, isAuthenticated, isReady, productId]);
 
@@ -152,11 +169,10 @@ export default function OrderReviewPrompt({
   }, [isMobileSheetOpen]);
 
   const activeRating = hoveredRating || rating;
-  const canSubmit =
-    rating > 0 && title.trim().length > 2 && body.trim().length > 9;
+  const canSubmit = rating > 0 && body.trim().length > 9;
   const hasReview = Boolean(review);
   const reviewStatus = review?.status ?? null;
-  const cardHeading = hasReview ? "Your review" : "Rate this order";
+  const cardHeading = hasReview ? "Rate and Review us" : "Rate this order";
   const actionLabel = hasReview ? "Update review" : "Submit review";
   const compactSummary = useMemo(
     () => (hasReview ? `${rating}/5` : "Tap to rate"),
@@ -196,7 +212,6 @@ export default function OrderReviewPrompt({
           method: "POST",
           body: JSON.stringify({
             rating,
-            title: title.trim(),
             review: body.trim(),
           }),
         },
@@ -218,6 +233,15 @@ export default function OrderReviewPrompt({
   function renderFormContent(isMobile = false) {
     return (
       <form className="space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <p className="text-[1.05rem] font-semibold text-[#353535]">
+            {hasReview ? "Rate and Review us" : "Rate this order"}
+          </p>
+          {!isMobile ? (
+            <p className="mt-1 text-sm text-[#6e8664]">{productName}</p>
+          ) : null}
+        </div>
+
         <div className="flex items-center justify-between gap-3">
           <StarRow
             activeRating={activeRating}
@@ -228,13 +252,6 @@ export default function OrderReviewPrompt({
           />
           {reviewStatus ? <ReviewStatusPill status={reviewStatus} /> : null}
         </div>
-
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Review title"
-          className="w-full rounded-2xl border border-[#dce8ce] bg-white px-4 py-3 text-sm text-[#163915] outline-none transition placeholder:text-[#a0af97] focus:border-[#9dc07b] focus:ring-4 focus:ring-[#edf7e8]"
-        />
 
         <textarea
           value={body}
@@ -252,7 +269,7 @@ export default function OrderReviewPrompt({
           <button
             type="submit"
             disabled={!canSubmit || isSubmitting}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#214f14] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#173f10] disabled:cursor-not-allowed disabled:bg-[#cbd8c1]"
+            className="inline-flex items-center justify-center gap-2 rounded-[0.5rem] bg-[#4f8f5f] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#173f10] disabled:cursor-not-allowed disabled:bg-[#cbd8c1]"
           >
             {isSubmitting ? (
               <Loader2 size={16} className="animate-spin" />
@@ -269,7 +286,6 @@ export default function OrderReviewPrompt({
                 setSubmitError(null);
                 if (review) {
                   setRating(review.rating);
-                  setTitle(review.title);
                   setBody(review.body);
                 }
               }}
@@ -290,24 +306,38 @@ export default function OrderReviewPrompt({
   return (
     <>
       <section className="border-t border-gray-300 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-black text-[#163915]">{cardHeading}</p>
-            <p className="mt-1 line-clamp-1 text-xs font-medium text-[#6e8664]">
-              {productName}
-            </p>
-          </div>
-
-          {isLoadingReview ? (
-            <Loader2 size={16} className="animate-spin text-[#6e8664]" />
-          ) : reviewStatus ? (
-            <ReviewStatusPill status={reviewStatus} />
-          ) : null}
-        </div>
-
         <div className="mt-4 hidden md:block">
           {isExpandedDesktop ? (
             renderFormContent(false)
+          ) : hasReview ? (
+            <div className="rounded-[0.5rem] bg-white">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[1.05rem] font-semibold text-[#353535]">
+                    Your Review
+                  </p>
+                  <div className="mt-4 flex items-center gap-3">
+                    <span className="text-[1.05rem] font-medium text-[#555555]">
+                      {rating}/5
+                    </span>
+                    <StaticStarRow rating={rating} size={18} />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openEditorForDesktop()}
+                  className="inline-flex items-center gap-2 rounded-[0.45rem] bg-[#4f8f5f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#447c52]"
+                >
+                  <Pencil size={15} />
+                  Edit Review
+                </button>
+              </div>
+
+              <p className="mt-5 max-w-4xl text-[1.05rem] leading-7 text-[#4b4b4b]">
+                {review?.body || "Your review is saved."}
+              </p>
+            </div>
           ) : (
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -339,22 +369,33 @@ export default function OrderReviewPrompt({
           onClick={() => openEditorForMobile()}
           className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-[#dce8ce] bg-white px-4 py-3 text-left md:hidden"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <Star
-                  key={index}
-                  size={18}
-                  className={
-                    index < rating ? "text-[#f2be4f]" : "text-[#d1d8c7]"
-                  }
-                  fill={index < rating ? "currentColor" : "none"}
-                />
-              ))}
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                {hasReview ? (
+                  <StaticStarRow rating={rating} size={18} />
+                ) : (
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <Star
+                      key={index}
+                      size={18}
+                      className={
+                        index < rating ? "text-[#f2be4f]" : "text-[#d1d8c7]"
+                      }
+                      fill={index < rating ? "currentColor" : "none"}
+                    />
+                  ))
+                )}
+              </div>
+              <span className="text-sm font-semibold text-[#607657]">
+                {compactSummary}
+              </span>
             </div>
-            <span className="text-sm font-semibold text-[#607657]">
-              {compactSummary}
-            </span>
+            {hasReview ? (
+              <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#4b4b4b]">
+                {review?.body}
+              </p>
+            ) : null}
           </div>
           <Pencil size={16} className="text-[#214f14]" />
         </button>

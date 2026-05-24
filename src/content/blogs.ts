@@ -115,6 +115,26 @@ export const blogPosts: BlogPost[] = [
       },
     ],
   },
+  {
+    slug: "caring-for-your-new-carpet-grass-lawn",
+    title: "Caring for Your New Carpet Grass Lawn: Essential Tips for a Lush Green Yard",
+    excerpt:
+      "After installation, the right care routine helps your carpet grass lawn establish quickly and stay healthy for years.",
+    category: "Lawn Care",
+    readTime: "5 min read",
+    publishedAt: "April 6, 2026",
+    author: "Grass Green Nursery Team",
+    coverImage:
+      "https://images.unsplash.com/photo-1504805572947-34fad45aed93?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80",
+    sections: [
+      {
+        heading: "Watering Routine",
+        paragraphs: [
+          "In the first few weeks, keep the soil consistently moist but not waterlogged. Water early in the morning or late in the evening to reduce evaporation and help the roots absorb moisture effectively.",
+        ],
+      },
+    ],
+  }
 ];
 
 export function getAllBlogSlugs() {

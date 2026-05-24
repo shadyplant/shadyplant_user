@@ -34,6 +34,8 @@ type CartApiResponse = ApiResponse<{
   };
 }>;
 
+const GUEST_CART_STORAGE_KEY = "ggnGuestCart";
+
 const EMPTY_STATE: CartStoreState = {
   items: [],
   isLoading: false,
@@ -44,6 +46,7 @@ const EMPTY_STATE: CartStoreState = {
 
 let cartState: CartStoreState = EMPTY_STATE;
 let cartLoadPromise: Promise<CartItem[]> | null = null;
+let cartSyncPromise: Promise<CartItem[]> | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -72,6 +75,32 @@ function getSnapshot() {
 
 function getServerSnapshot() {
   return EMPTY_STATE;
+}
+
+function buildVariantId(
+  optionSelections?: CartItem["optionSelections"],
+  fallbackVariantId = "",
+) {
+  const normalizedSelections = Array.isArray(optionSelections)
+    ? optionSelections
+        .map((selection) => ({
+          groupKey: String(selection.groupKey || "").trim(),
+          optionKey: String(selection.optionKey || "").trim(),
+        }))
+        .filter((selection) => selection.groupKey && selection.optionKey)
+    : [];
+
+  if (normalizedSelections.length) {
+    return normalizedSelections
+      .map((selection) => `${selection.groupKey}~${selection.optionKey}`)
+      .join("|");
+  }
+
+  return String(fallbackVariantId || "").trim();
+}
+
+function buildCartLineId(productId: string, variantId = "") {
+  return `${productId}::${variantId || "default"}`;
 }
 
 function sanitizeCartItem(item: {
@@ -135,6 +164,59 @@ function sanitizeCartItem(item: {
   };
 }
 
+function readGuestCartItems() {
+  if (typeof window === "undefined") {
+    return [] as CartItem[];
+  }
+
+  try {
+    const rawItems = window.localStorage.getItem(GUEST_CART_STORAGE_KEY);
+
+    if (!rawItems) {
+      return [];
+    }
+
+    const parsedItems = JSON.parse(rawItems) as Array<{
+      id?: string;
+      productId?: string;
+      variantId?: string;
+      variantLabel?: string;
+      packLabel?: string;
+      unitPrice?: number | null;
+      unitMrp?: number | null;
+      optionSelections?: Array<{
+        groupKey?: string;
+        optionKey?: string;
+        label?: string;
+        groupTitle?: string;
+      }>;
+      quantity?: number;
+    }>;
+
+    return Array.isArray(parsedItems)
+      ? parsedItems.flatMap((item) => {
+          const sanitizedItem = sanitizeCartItem(item);
+          return sanitizedItem ? [sanitizedItem] : [];
+        })
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeGuestCartItems(items: CartItem[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!items.length) {
+    window.localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(GUEST_CART_STORAGE_KEY, JSON.stringify(items));
+}
+
 function normalizeCartItems(response: CartApiResponse): CartItem[] {
   return Array.isArray(response.data.cart.items)
     ? response.data.cart.items.flatMap((item) => {
@@ -181,15 +263,22 @@ function normalizeApiError(error: unknown, fallback: string) {
   return fallback;
 }
 
-function resetCartState() {
-  cartLoadPromise = null;
+function applyGuestCartState(items: CartItem[]) {
+  writeGuestCartItems(items);
   setCartState({
-    items: [],
+    items,
     isLoading: false,
     isReady: true,
     userId: null,
     errorMessage: null,
   });
+
+  return items;
+}
+
+function hydrateGuestCartState() {
+  cartLoadPromise = null;
+  return applyGuestCartState(readGuestCartItems());
 }
 
 async function fetchCart(
@@ -254,6 +343,80 @@ function applyCartResponse(userId: string, response: CartApiResponse) {
   return items;
 }
 
+async function syncGuestCartToAccount(
+  userId: string,
+  fetchWithAuth: <T>(path: string, init?: RequestInit) => Promise<T>,
+) {
+  if (cartSyncPromise && cartState.userId === userId) {
+    return cartSyncPromise;
+  }
+
+  const syncPromise = (async () => {
+    const serverItems =
+      cartState.userId === userId && cartState.isReady
+        ? cartState.items
+        : await fetchCart(userId, fetchWithAuth);
+    const guestItems = readGuestCartItems();
+
+    if (!guestItems.length) {
+      return serverItems;
+    }
+
+    let nextItems = serverItems;
+    const serverItemsById = new Map(serverItems.map((item) => [item.id, item]));
+
+    for (const guestItem of guestItems) {
+      const matchingServerItem = serverItemsById.get(guestItem.id);
+
+      if (!matchingServerItem) {
+        const response = await fetchWithAuth<CartApiResponse>("/cart/items", {
+          method: "POST",
+          body: JSON.stringify({
+            productId: guestItem.productId,
+            variantId: guestItem.variantId || "",
+            optionSelections: guestItem.optionSelections || [],
+            quantity: guestItem.quantity,
+          }),
+        });
+
+        nextItems = applyCartResponse(userId, response);
+        nextItems.forEach((item) => {
+          serverItemsById.set(item.id, item);
+        });
+        continue;
+      }
+
+      const mergedQuantity = Math.max(
+        matchingServerItem.quantity,
+        guestItem.quantity,
+      );
+
+      if (mergedQuantity !== matchingServerItem.quantity) {
+        const response = await fetchWithAuth<CartApiResponse>(
+          `/cart/items/${matchingServerItem.id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ quantity: mergedQuantity }),
+          },
+        );
+
+        nextItems = applyCartResponse(userId, response);
+        nextItems.forEach((item) => {
+          serverItemsById.set(item.id, item);
+        });
+      }
+    }
+
+    writeGuestCartItems([]);
+    return nextItems;
+  })().finally(() => {
+    cartSyncPromise = null;
+  });
+
+  cartSyncPromise = syncPromise;
+  return syncPromise;
+}
+
 export function useCartStore() {
   const { fetchWithAuth, isAuthenticated, isReady, user } = useAuth();
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -264,17 +427,19 @@ export function useCartStore() {
     }
 
     if (!isAuthenticated || !user?.id) {
-      resetCartState();
+      hydrateGuestCartState();
       return;
     }
 
-    if (state.userId === user.id && state.isReady) {
+    const hasGuestItems = readGuestCartItems().length > 0;
+
+    if (state.userId === user.id && state.isReady && !hasGuestItems) {
       return;
     }
 
-    void fetchCart(user.id, fetchWithAuth).catch((error) => {
+    void syncGuestCartToAccount(user.id, fetchWithAuth).catch((error) => {
       if (error instanceof ApiError && error.status === 401) {
-        resetCartState();
+        hydrateGuestCartState();
       }
     });
   }, [
@@ -295,7 +460,39 @@ export function useCartStore() {
     },
   ) {
     if (!isAuthenticated || !user?.id) {
-      throw new ApiError(401, "Please sign in to use your cart.", null);
+      const normalizedVariantId = buildVariantId(
+        variant?.optionSelections,
+        variant?.variantId || "",
+      );
+      const lineId = buildCartLineId(productId, normalizedVariantId);
+      const nextQuantity = Math.max(1, Math.floor(Number(quantity || 1)));
+      const existingItem = cartState.items.find((item) => item.id === lineId);
+
+      return applyGuestCartState(
+        existingItem
+          ? cartState.items.map((item) =>
+              item.id === lineId
+                ? { ...item, quantity: item.quantity + nextQuantity }
+                : item,
+            )
+          : [
+              ...cartState.items,
+              {
+                id: lineId,
+                productId,
+                variantId: normalizedVariantId,
+                variantLabel:
+                  Array.isArray(variant?.optionSelections) &&
+                  variant.optionSelections.length
+                    ? variant.optionSelections
+                        .map((selection) => selection.label || selection.optionKey)
+                        .join(" / ")
+                    : undefined,
+                optionSelections: variant?.optionSelections || undefined,
+                quantity: nextQuantity,
+              },
+            ],
+      );
     }
 
     const response = await fetchWithAuth<CartApiResponse>("/cart/items", {
@@ -313,7 +510,12 @@ export function useCartStore() {
 
   async function updateQuantity(itemId: string, quantity: number) {
     if (!isAuthenticated || !user?.id) {
-      throw new ApiError(401, "Please sign in to use your cart.", null);
+      const normalizedQuantity = Math.max(1, Math.floor(Number(quantity || 1)));
+      return applyGuestCartState(
+        cartState.items.map((item) =>
+          item.id === itemId ? { ...item, quantity: normalizedQuantity } : item,
+        ),
+      );
     }
 
     const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${itemId}`, {
@@ -326,7 +528,9 @@ export function useCartStore() {
 
   async function removeItem(itemId: string) {
     if (!isAuthenticated || !user?.id) {
-      throw new ApiError(401, "Please sign in to use your cart.", null);
+      return applyGuestCartState(
+        cartState.items.filter((item) => item.id !== itemId),
+      );
     }
 
     const response = await fetchWithAuth<CartApiResponse>(`/cart/items/${itemId}`, {
@@ -338,7 +542,7 @@ export function useCartStore() {
 
   async function clearItems() {
     if (!isAuthenticated || !user?.id) {
-      throw new ApiError(401, "Please sign in to use your cart.", null);
+      return applyGuestCartState([]);
     }
 
     const response = await fetchWithAuth<CartApiResponse>("/cart", {
@@ -350,11 +554,10 @@ export function useCartStore() {
 
   async function reload() {
     if (!isAuthenticated || !user?.id) {
-      resetCartState();
-      return [];
+      return hydrateGuestCartState();
     }
 
-    return fetchCart(user.id, fetchWithAuth);
+    return syncGuestCartToAccount(user.id, fetchWithAuth);
   }
 
   return {

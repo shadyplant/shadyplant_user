@@ -1,6 +1,6 @@
-import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 
-export const appSans = Plus_Jakarta_Sans({
+export const appSans = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-app-sans",

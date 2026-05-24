@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useId, useState } from "react";
 import { CheckCircle2, Leaf, Loader2, Send, Star, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { submitProductReview } from "@/lib/productReviews";
 
 type ReviewBottomSheetProps = {
@@ -19,13 +21,17 @@ export default function ReviewBottomSheet({
   triggerLabel = "Write a review",
   triggerClassName = "rounded-full border border-[#cfe0b5] px-5 py-3 text-sm font-bold text-[#214f14] transition hover:bg-[#f2f8ea]",
 }: ReviewBottomSheetProps) {
+  const router = useRouter();
+  const { fetchWithAuth, isAuthenticated, isReady } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
-  const [title, setTitle] = useState("");
   const [review, setReview] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingEligibility, setIsLoadingEligibility] = useState(false);
+  const [canReview, setCanReview] = useState(true);
+  const [eligibilityMessage, setEligibilityMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const titleId = useId();
 
@@ -49,11 +55,75 @@ export default function ReviewBottomSheet({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !isReady || !isAuthenticated) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadEligibility() {
+      setIsLoadingEligibility(true);
+      setEligibilityMessage(null);
+
+      try {
+        const response = await fetchWithAuth<{
+          data?: {
+            eligibility?: {
+              canReview?: boolean;
+              reason?: string | null;
+            };
+          };
+        }>(`/products/${encodeURIComponent(productId)}/reviews/mine`);
+        const eligibility = response?.data?.eligibility;
+
+        if (cancelled) {
+          return;
+        }
+
+        setCanReview(eligibility?.canReview !== false);
+        setEligibilityMessage(
+          eligibility?.canReview === false
+            ? eligibility.reason || "Only delivered orders are eligible for product reviews."
+            : null,
+        );
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setCanReview(true);
+        setEligibilityMessage(
+          error instanceof Error ? error.message : null,
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoadingEligibility(false);
+        }
+      }
+    }
+
+    void loadEligibility();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchWithAuth, isAuthenticated, isOpen, isReady, productId]);
+
   const activeRating = hoveredRating || rating;
-  const canSubmit = rating > 0 && title.trim().length > 2 && review.trim().length > 9;
+  const canSubmit = canReview && rating > 0 && review.trim().length > 9;
 
   function closeSheet() {
     setIsOpen(false);
+  }
+
+  function handleOpen() {
+    if (isReady && !isAuthenticated) {
+      router.push(`/auth?next=${encodeURIComponent(`/products/${productId}`)}`);
+      return;
+    }
+
+    setIsOpen(true);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -69,7 +139,6 @@ export default function ReviewBottomSheet({
     try {
       await submitProductReview(productId, {
         rating,
-        title: title.trim(),
         review: review.trim(),
       });
       setSubmitted(true);
@@ -87,7 +156,6 @@ export default function ReviewBottomSheet({
   function resetForm() {
     setRating(0);
     setHoveredRating(0);
-    setTitle("");
     setReview("");
     setSubmitted(false);
     setSubmitError(null);
@@ -96,7 +164,7 @@ export default function ReviewBottomSheet({
 
   return (
     <>
-      <button type="button" className={triggerClassName} onClick={() => setIsOpen(true)}>
+      <button type="button" className={triggerClassName} onClick={handleOpen}>
         {triggerLabel}
       </button>
 
@@ -170,6 +238,17 @@ export default function ReviewBottomSheet({
               </div>
             ) : (
               <form className="max-h-[78vh] overflow-y-auto px-5 py-5 md:px-7" onSubmit={handleSubmit}>
+                {isLoadingEligibility ? (
+                  <div className="mb-5 flex items-center gap-2 rounded-2xl bg-[#f6f8f3] px-4 py-3 text-sm font-medium text-[#52724f]">
+                    <Loader2 size={16} className="animate-spin" />
+                    Checking review eligibility...
+                  </div>
+                ) : eligibilityMessage ? (
+                  <div className="mb-5 rounded-2xl bg-[#f6f8f3] px-4 py-3 text-sm font-medium text-[#52724f]">
+                    {eligibilityMessage}
+                  </div>
+                ) : null}
+
                 <div>
                   <label className="text-sm font-bold text-[#163915]">Your rating</label>
                   <div className="mt-3 flex items-center gap-2">
@@ -181,6 +260,7 @@ export default function ReviewBottomSheet({
                         <button
                           key={label}
                           type="button"
+                          disabled={!canReview || isLoadingEligibility}
                           className="flex h-11 w-11 items-center justify-center rounded-full border border-[#dce8ce] bg-[#f9fcf5] text-[#bac8ad] transition hover:-translate-y-0.5 hover:border-[#efc86f] hover:text-[#f1bf4a] focus:outline-none focus:ring-2 focus:ring-[#9fc681]"
                           aria-label={`${value} star${value === 1 ? "" : "s"} - ${label}`}
                           onClick={() => setRating(value)}
@@ -203,22 +283,13 @@ export default function ReviewBottomSheet({
 
                 <div className="mt-5 grid gap-4">
                   <label className="block">
-                    <span className="text-sm font-bold text-[#163915]">Review title</span>
-                    <input
-                      value={title}
-                      onChange={(event) => setTitle(event.target.value)}
-                      placeholder="Healthy plant and neat packaging"
-                      className="mt-2 w-full rounded-2xl border border-[#dce8ce] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none transition placeholder:text-[#9aad90] focus:border-[#8bb86a] focus:ring-4 focus:ring-[#edf7e8]"
-                    />
-                  </label>
-
-                  <label className="block">
                     <span className="text-sm font-bold text-[#163915]">Your review</span>
                     <textarea
                       value={review}
                       onChange={(event) => setReview(event.target.value)}
                       placeholder="Tell others about delivery, plant health, size, and how it looks after settling."
                       rows={5}
+                      disabled={!canReview || isLoadingEligibility}
                       className="mt-2 w-full resize-none rounded-2xl border border-[#dce8ce] bg-[#fbfdf8] px-4 py-3 text-sm leading-6 text-[#163915] outline-none transition placeholder:text-[#9aad90] focus:border-[#8bb86a] focus:ring-4 focus:ring-[#edf7e8]"
                     />
                   </label>
@@ -231,7 +302,7 @@ export default function ReviewBottomSheet({
                   ) : null}
                   <button
                     type="submit"
-                    disabled={!canSubmit || isSubmitting}
+                    disabled={!canSubmit || isSubmitting || isLoadingEligibility}
                     className="flex w-full items-center justify-center gap-2 rounded-full bg-[#214f14] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#163915] disabled:cursor-not-allowed disabled:bg-[#c9d8bd] md:text-base"
                   >
                     {isSubmitting ? (
@@ -242,7 +313,7 @@ export default function ReviewBottomSheet({
                     {isSubmitting ? "Submitting..." : "Submit review"}
                   </button>
                   <p className="mt-2 text-center text-xs text-[#7b9270]">
-                    Rating, title, and a short review are required.
+                    Rating and a short review are required.
                   </p>
                 </div>
               </form>

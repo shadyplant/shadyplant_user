@@ -75,6 +75,23 @@ export type Order = {
   paymentStatus: string;
   paymentStatusLabel: string;
   paymentDetails?: Record<string, unknown>;
+  refundAccountDetails?: {
+    accountHolderName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+  } | null;
+  refundRequestStatus?:
+    | "pending_submission"
+    | "submitted"
+    | "resubmit_required"
+    | "refunded"
+    | null;
+  refundRequestNote?: string;
+  refundSubmittedAt?: string | null;
+  refundResubmitRequestedAt?: string | null;
+  cancelledAt?: string | null;
+  refundedAt?: string | null;
   currentStatus: string;
   trackingTimeline: TrackingStep[];
   pricing: {

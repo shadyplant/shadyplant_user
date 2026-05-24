@@ -18,7 +18,7 @@ export default function Navbar() {
   return (
     <div className="sticky inset-x-0 top-0 z-50 w-full px-3 pt-3 md:px-6 md:pt-5">
       {/* Main Navbar */}
-      <nav className="theme-panel-strong mx-auto flex max-w-6xl items-center justify-between rounded-[2rem] border border-white/30 bg-[rgba(255,255,255,0.78)] px-4 py-3 backdrop-blur-xl md:px-6 md:py-4">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between rounded-[2rem] border border-[rgba(36,54,27,0.08)] bg-[rgba(255,255,255,0.78)] px-4 py-3 shadow-[0_18px_44px_rgba(36,54,27,0.08)] backdrop-blur-xl md:px-6 md:py-4">
         {/* Logo Area */}
         <Link
           href="/"
@@ -48,7 +48,7 @@ export default function Navbar() {
         {/* Action Button */}
         <Link
           href="/checkout"
-          className="theme-button group relative hidden overflow-hidden rounded-full px-8 py-3 text-lg font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98] md:inline-flex cursor-pointer"
+          className="group relative hidden cursor-pointer overflow-hidden rounded-full bg-[linear-gradient(135deg,#24361b_0%,#365127_100%)] px-8 py-3 text-lg font-bold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)] hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98] md:inline-flex"
         >
           <span className="absolute inset-y-0 left-[-30%] w-16 -skew-x-12 bg-white/20 opacity-0 transition-all duration-500 group-hover:left-[110%] group-hover:opacity-100" />
           <span className="relative z-10">Checkout</span>
@@ -57,7 +57,7 @@ export default function Navbar() {
         <button
           type="button"
           onClick={() => setIsMenuOpen((open) => !open)}
-          className="theme-panel inline-flex items-center justify-center rounded-full p-3 text-[#1e4215] transition-colors hover:bg-[#f6fff1] md:hidden"
+          className="inline-flex items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface)] p-3 text-[#1e4215] shadow-[0_12px_30px_rgba(36,54,27,0.06)] backdrop-blur-[12px] transition-colors hover:bg-[#f6fff1] md:hidden"
           aria-expanded={isMenuOpen}
           aria-label={
             isMenuOpen ? "Close navigation menu" : "Open navigation menu"
@@ -68,7 +68,7 @@ export default function Navbar() {
       </nav>
 
       {isMenuOpen ? (
-        <div className="theme-panel-strong mx-auto mt-3 max-w-6xl rounded-[2rem] px-6 py-5 md:hidden">
+        <div className="mx-auto mt-3 max-w-6xl rounded-[2rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] px-6 py-5 shadow-[0_18px_44px_rgba(36,54,27,0.08)] backdrop-blur-[16px] md:hidden">
           <div className="flex flex-col items-center gap-4 text-center">
             {navItems.map((item) => (
               <Link
@@ -84,7 +84,7 @@ export default function Navbar() {
             <Link
               href="/checkout"
               onClick={() => setIsMenuOpen(false)}
-              className="theme-button group relative mt-2 w-full overflow-hidden rounded-full px-6 py-3 text-base font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98]"
+              className="group relative mt-2 w-full overflow-hidden rounded-full bg-[linear-gradient(135deg,#24361b_0%,#365127_100%)] px-6 py-3 text-base font-bold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)] hover:shadow-[0_22px_44px_rgba(33,79,20,0.28)] active:translate-y-0 active:scale-[0.98]"
             >
               <span className="absolute inset-y-0 left-[-30%] w-16 -skew-x-12 bg-white/20 opacity-0 transition-all duration-500 group-hover:left-[110%] group-hover:opacity-100" />
               <span className="relative z-10">Checkout</span>

@@ -2,7 +2,6 @@
 
 import { KeyboardEvent, useState } from "react";
 import { BellRing, Minus, Plus } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
 import { getCartQuantity, useCartStore } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProductStockAlertStore } from "@/components/productStockAlertStore";
@@ -83,10 +82,8 @@ export default function ProductCardCartControl({
 }: ProductCardCartControlProps) {
   const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
   const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
-  const router = useRouter();
-  const pathname = usePathname();
   const { isAuthenticated } = useAuth();
-  const { items, addItem, updateQuantity } = useCartStore();
+  const { items, addItem, updateQuantity, removeItem } = useCartStore();
   const { items: requestedAlertItems, requestAlert } =
     useProductStockAlertStore();
   const hasRequestedNotify = requestedAlertItems.includes(productId);
@@ -109,13 +106,8 @@ export default function ProductCardCartControl({
     event.stopPropagation();
   }
 
-  function redirectToAuth() {
-    router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
-  }
-
   async function requestProductNotify() {
     if (!isAuthenticated) {
-      redirectToAuth();
       return;
     }
 
@@ -137,25 +129,16 @@ export default function ProductCardCartControl({
       return;
     }
 
-    if (!isAuthenticated) {
-      redirectToAuth();
-      return;
-    }
-
     await addItem(productId, effectiveMinimumQuantity);
   }
 
   async function decreaseQuantity() {
-    if (!isAuthenticated) {
-      redirectToAuth();
-      return;
-    }
-
     if (quantity <= 0) {
       return;
     }
 
     if (quantity <= effectiveMinimumQuantity) {
+      await removeItem(defaultLineId);
       setDraftQuantity(null);
       return;
     }
@@ -172,11 +155,6 @@ export default function ProductCardCartControl({
       return;
     }
 
-    if (!isAuthenticated) {
-      redirectToAuth();
-      return;
-    }
-
     await updateQuantity(
       defaultLineId,
       quantity < effectiveMinimumQuantity
@@ -187,11 +165,6 @@ export default function ProductCardCartControl({
   }
 
   async function commitQuantity(value: string) {
-    if (!isAuthenticated) {
-      redirectToAuth();
-      return;
-    }
-
     const numericValue = Number(value);
 
     if (!Number.isFinite(numericValue)) {
@@ -253,7 +226,7 @@ export default function ProductCardCartControl({
         onMouseDown={swallowCardNavigation}
         onTouchStart={swallowCardNavigation}
         onClick={() => void addFirstItem()}
-        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#55ad35] px-3 text-base font-bold tracking-normal text-white transition hover:bg-[#469829] sm:h-12 sm:text-lg"
+        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#4C8B5D] px-3 text-base font-bold tracking-normal text-white transition hover:bg-[#3f744e] sm:h-12 sm:text-lg"
       >
         <span>Add to cart</span>
         <AddCartIcon />
@@ -262,14 +235,13 @@ export default function ProductCardCartControl({
   }
 
   return (
-    <div className="relative z-30 mt-4 grid h-11 w-full grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] overflow-hidden rounded-[0.5rem] bg-[#55ad35] text-white transition sm:h-12 sm:grid-cols-[3rem_minmax(0,1fr)_3rem]">
+    <div className="relative z-30 mt-4 grid h-11 w-full grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] overflow-hidden rounded-[0.5rem] border border-[#4c8d5b] bg-white text-[#0d9a55] transition sm:h-12 sm:grid-cols-[3rem_minmax(0,1fr)_3rem]">
       <button
         type="button"
         onMouseDown={swallowCardNavigation}
         onTouchStart={swallowCardNavigation}
         onClick={() => void decreaseQuantity()}
-        disabled={quantity <= effectiveMinimumQuantity}
-        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
+        className="touch-manipulation flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7]"
         aria-label="Decrease cart quantity"
       >
         <Minus size={19} strokeWidth={2.7} />
@@ -290,7 +262,7 @@ export default function ProductCardCartControl({
         onChange={(event) => setDraftQuantity(event.target.value)}
         onBlur={(event) => void commitQuantity(event.target.value)}
         onKeyDown={handleQuantityKeyDown}
-        className="min-w-0 border-x border-white/30 bg-transparent text-center text-lg font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="min-w-0 border-x border-[#d9eddc] bg-white text-center text-lg font-semibold text-[#0d9a55] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         aria-label="Cart quantity"
       />
 
@@ -300,7 +272,7 @@ export default function ProductCardCartControl({
         onTouchStart={swallowCardNavigation}
         onClick={() => void increaseQuantity()}
         disabled={quantity >= availableStock}
-        className="touch-manipulation flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
+        className="touch-manipulation flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Increase cart quantity"
       >
         <Plus size={21} strokeWidth={2.7} />

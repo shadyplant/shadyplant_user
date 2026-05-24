@@ -6,10 +6,14 @@ export type ProductReview = {
   location: string;
   date: string;
   rating: number;
-  title: string;
   body: string;
   helpfulCount: number;
   verifiedBuyer: boolean;
+  adminReply?: {
+    body: string;
+    authorName: string;
+    updatedAt?: string | null;
+  } | null;
 };
 
 export type ProductReviewSummary = {
@@ -26,7 +30,6 @@ export type ProductReviewsData = {
 
 export type SubmitProductReviewPayload = {
   rating: number;
-  title: string;
   review: string;
 };
 
@@ -156,7 +159,6 @@ function normalizeReview(review: unknown, index: number): ProductReview | null {
           : "",
     ).trim(),
     rating: normalizeRating("rating" in review ? review.rating : 0),
-    title: String("title" in review ? review.title : "").trim(),
     body,
     helpfulCount: normalizeCount(
       "helpfulCount" in review
@@ -167,6 +169,27 @@ function normalizeReview(review: unknown, index: number): ProductReview | null {
     ),
     verifiedBuyer:
       "verifiedBuyer" in review ? Boolean(review.verifiedBuyer) : true,
+    adminReply:
+      "adminReply" in review &&
+      review.adminReply &&
+      typeof review.adminReply === "object" &&
+      "body" in review.adminReply &&
+      String(review.adminReply.body || "").trim()
+        ? {
+            body: String(review.adminReply.body || "").trim(),
+            authorName:
+              String(
+                "authorName" in review.adminReply
+                  ? review.adminReply.authorName
+                  : "Store team",
+              ).trim() || "Store team",
+            updatedAt: String(
+              "updatedAt" in review.adminReply
+                ? review.adminReply.updatedAt || ""
+                : "",
+            ).trim() || null,
+          }
+        : null,
   };
 }
 

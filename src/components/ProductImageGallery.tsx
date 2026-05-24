@@ -2,16 +2,18 @@
 
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 type ProductImageGalleryProps = {
   images: string[];
   productName: string;
+  overlayContent?: ReactNode;
 };
 
 export default function ProductImageGallery({
   images,
   productName,
+  overlayContent,
 }: ProductImageGalleryProps) {
   const galleryImages = images.filter(Boolean);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -100,10 +102,12 @@ export default function ProductImageGallery({
               fill
               priority
               sizes="(max-width: 768px) 100vw, (max-width: 1280px) 52vw, 760px"
-              // Swapped object-contain to object-cover and removed padding
               className="object-cover"
             />
           </div>
+          {overlayContent ? (
+            <div className="absolute left-4 top-4 z-10">{overlayContent}</div>
+          ) : null}
 
           {hasMultipleImages ? (
             <>

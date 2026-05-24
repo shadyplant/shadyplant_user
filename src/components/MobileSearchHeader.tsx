@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartItems } from "@/components/cartStore";
 
 type MobileSearchHeaderProps = {
@@ -20,10 +19,10 @@ export default function MobileSearchHeader({
 }: MobileSearchHeaderProps) {
   const [searchInput, setSearchInput] = useState(initialQuery);
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
   const cartItems = useCartItems();
   const cartCount = getCartCount(cartItems);
-  const cartHref = isAuthenticated ? "/cart" : "/auth?next=/cart";
+  const displayCartCount = cartCount > 99 ? "99+" : String(cartCount);
+  const cartHref = "/cart";
 
   useEffect(() => {
     setSearchInput(initialQuery);
@@ -47,47 +46,47 @@ export default function MobileSearchHeader({
 
   return (
     <div
-      className={`border-b border-[#e7e7e7] bg-white md:hidden ${
+      className={`border-b border-[#e4ebdf] bg-white/95 backdrop-blur md:hidden ${
         sticky ? "sticky top-0 z-50" : ""
       }`}
     >
-      <div className="flex h-[56px] items-center gap-2 px-3">
+      <div className="flex min-h-[60px] items-center gap-2 px-3 py-2">
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex h-10 w-9 shrink-0 items-center justify-center text-[#111111]"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5f7f3] text-[#1f1f1f] transition hover:bg-[#edf3e9]"
           aria-label="Go back"
         >
-          <ArrowLeft size={25} strokeWidth={1.8} />
+          <ArrowLeft size={22} strokeWidth={1.9} />
         </button>
 
         <form
           onSubmit={submitSearch}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-[0.5rem] border border-[#a9a9a9] bg-white px-4 py-1.5"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-[#d9e4d3] bg-[#f8fbf6] px-4 py-2 shadow-[0_4px_14px_rgba(28,45,20,0.05)]"
         >
           <Search
-            size={24}
-            strokeWidth={1.7}
-            className="shrink-0 text-[#111111]"
+            size={18}
+            strokeWidth={2}
+            className="shrink-0 text-[#5f7157]"
           />
           <input
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search for  products"
-            className="min-w-0 flex-1 bg-transparent text-[15px] text-[#222222] outline-none placeholder:text-[#a1a1a1]"
+            placeholder="Search for products"
+            className="min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#222222] outline-none placeholder:text-[#95a08f]"
           />
         </form>
 
         <Link
           href={cartHref}
-          className="relative flex h-10 w-10 shrink-0 items-center justify-center text-[#111111]"
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5f7f3] text-[#1f1f1f] transition hover:bg-[#edf3e9]"
           aria-label="View cart"
         >
-          <ShoppingCart size={24} strokeWidth={1.8} />
+          <ShoppingCart size={21} strokeWidth={1.9} />
           {cartCount > 0 ? (
-            <span className="absolute right-0 top-0 h-4 min-w-4 rounded-full bg-[#111111] px-1 text-center text-[10px] leading-4 text-white">
-              {cartCount}
+            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#4c8d5b] px-1 text-center text-[10px] leading-4 text-white">
+              {displayCartCount}
             </span>
           ) : null}
         </Link>

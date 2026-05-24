@@ -4,80 +4,137 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { HomeSliderBanner } from "@/lib/homeSliderBanners";
 import { buildProductHref } from "@/lib/productUrls";
 
-const slides = [
+const fallbackSlides: HomeSliderBanner[] = [
   {
+    id: "fallback-areca-palm",
+    itemKey: "well-crafted-greenery",
     title: "Well-crafted greenery",
-    subtitle: "Shop now",
-    description:
-      "Fresh plants and lawn picks for homes, balconies, and garden corners.",
-    image:
-      "https://www.ugaoo.com/cdn/shop/files/1_1d02edd3-c551-4566-8adb-a8d83c389eb5.jpg?v=17745218870",
+    desktopImage:
+      "https://www.ugaoo.com/cdn/shop/files/Website_Banner-New.webp?v=1775469492&width=2000",
+    mobileImage:
+      "https://www.ugaoo.com/cdn/shop/files/Website_Banner-New.webp?v=1775469492&width=900",
     href: buildProductHref({ name: "Areca Palm", productId: "PRD386762349" }),
-    chip: "Best seller",
+    isActive: true,
+    sortOrder: 10,
   },
   {
+    id: "fallback-lawn-grass",
+    itemKey: "fresh-lawn-grass",
     title: "Fresh lawn grass",
-    subtitle: "Book today",
-    description:
-      "Soft Korean grass and durable doob grass delivered for residential projects.",
-    image:
-      "https://m.media-amazon.com/images/I/71Obx3bzatL._AC_UF1000,1000_QL80_.jpg",
+    desktopImage:
+      "https://www.ugaoo.com/cdn/shop/files/Desktop_3b72e57e-bcbe-416e-9b6a-79738d23892e.jpg?v=1778946988&width=2000",
+    mobileImage:
+      "https://www.ugaoo.com/cdn/shop/files/Desktop_3b72e57e-bcbe-416e-9b6a-79738d23892e.jpg?v=1778946988&width=900",
     href: "/checkout",
-    chip: "Lawn care",
+    isActive: true,
+    sortOrder: 20,
   },
   {
+    id: "fallback-snake-plant",
+    itemKey: "statement-indoor-plants",
     title: "Statement indoor plants",
-    subtitle: "Bring life home",
-    description:
-      "Low-maintenance greens that instantly lift living rooms, lobbies, and desks.",
-    image:
-      "https://unsolicitedplanttalks.com/cdn/shop/articles/indoor_plants.jpg?v=1750698299",
+    desktopImage:
+      "https://www.ugaoo.com/cdn/shop/files/New.webp?v=1774954211&width=2000",
+    mobileImage:
+      "https://www.ugaoo.com/cdn/shop/files/New.webp?v=1774954211&width=900",
     href: buildProductHref({
       name: "Snake Plant Laurentii",
       productId: "PRD753739678",
     }),
-    chip: "Indoor picks",
+    isActive: true,
+    sortOrder: 30,
   },
 ];
 
-export default function HomeSlider() {
+type HomeSliderProps = {
+  slides?: HomeSliderBanner[];
+};
+
+export default function HomeSlider({ slides = [] }: HomeSliderProps) {
+  const items = slides.length ? slides : fallbackSlides;
   const [activeIndex, setActiveIndex] = useState(0);
+  const currentIndex = activeIndex >= items.length ? 0 : activeIndex;
 
   useEffect(() => {
+    if (!items.length) {
+      return;
+    }
+
     const interval = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % slides.length);
+      setActiveIndex((current) => (current + 1) % items.length);
     }, 4500);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [items.length]);
+
+  if (!items.length) {
+    return null;
+  }
 
   const goToPrevious = () => {
-    setActiveIndex((current) => (current - 1 + slides.length) % slides.length);
+    setActiveIndex((current) => (current - 1 + items.length) % items.length);
   };
 
   const goToNext = () => {
-    setActiveIndex((current) => (current + 1) % slides.length);
+    setActiveIndex((current) => (current + 1) % items.length);
   };
 
   return (
     <section className="px-0 pt-0 md:px-0">
-      <div className="mx-auto max-w-7xl">
-        <div className="rounded-[0.5rem] px-2 md:p-0">
-          <div className="relative h-[200px] border border-[#d7e1d3] overflow-hidden rounded-[0.5rem] sm:h-[240px] md:h-[360px]">
+      <div className="w-full">
+        <div className=" px-0 md:p-0">
+          <div className="relative aspect-[390/210] w-full overflow-hidden border border-[#d7e1d3] bg-[#eef4ea] sm:aspect-[390/190] md:aspect-[2000/598]">
             <div
               className="flex h-full transition-transform duration-700 ease-in-out"
-              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+              style={{ transform: `translateX(-${currentIndex * 100}%)` }}
             >
-              {slides.map((slide, index) => (
+              {items.map((slide, index) => (
                 <div key={slide.title} className="relative h-full min-w-full">
-                  <Image
-                    src={slide.image}
-                    alt={slide.title}
-                    fill
-                    priority={index === 0}
-                    className="object-cover"
-                  />
+                  {slide.href ? (
+                    <Link
+                      href={slide.href}
+                      className="relative block h-full w-full"
+                      aria-label={slide.title}
+                    >
+                      <Image
+                        src={slide.mobileImage || slide.desktopImage}
+                        alt={slide.title}
+                        fill
+                        priority={index === 0}
+                        sizes="(max-width: 767px) 100vw, 0px"
+                        className="object-cover md:hidden"
+                      />
+                      <Image
+                        src={slide.desktopImage || slide.mobileImage}
+                        alt={slide.title}
+                        fill
+                        priority={index === 0}
+                        sizes="(max-width: 767px) 0px, 100vw"
+                        className="hidden object-cover md:block"
+                      />
+                    </Link>
+                  ) : (
+                    <>
+                      <Image
+                        src={slide.mobileImage || slide.desktopImage}
+                        alt={slide.title}
+                        fill
+                        priority={index === 0}
+                        sizes="(max-width: 767px) 100vw, 0px"
+                        className="object-cover md:hidden"
+                      />
+                      <Image
+                        src={slide.desktopImage || slide.mobileImage}
+                        alt={slide.title}
+                        fill
+                        priority={index === 0}
+                        sizes="(max-width: 767px) 0px, 100vw"
+                        className="hidden object-cover md:block"
+                      />
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -109,17 +166,17 @@ export default function HomeSlider() {
             </button>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 px-2 py-3 sm:py-4 md:gap-2">
-            {slides.map((slide, index) => (
+          <div className="flex items-center justify-center gap-1.5 px-2 py-1.5 sm:py-4 md:gap-2">
+            {items.map((slide, index) => (
               <button
                 key={slide.title}
                 type="button"
                 aria-label={`Go to slide ${index + 1}`}
                 onClick={() => setActiveIndex(index)}
                 className={`rounded-full transition-all duration-300 ${
-                  index === activeIndex
-                    ? "h-1.5 w-7 bg-[#ff7a22] sm:h-2 sm:w-8 md:h-2.5 md:w-10"
-                    : "h-1.5 w-1.5 bg-[#ffd0b2] sm:h-2 sm:w-2 md:h-2.5 md:w-2.5"
+                  index === currentIndex
+                    ? "h-1.2 w-7 bg-[#4c8b5d] sm:h-2 sm:w-8 md:h-2 md:w-7"
+                    : "h-1.2 w-1.2 bg-[#64825066] sm:h-2 sm:w-2 md:h-2 md:w-2"
                 }`}
               />
             ))}

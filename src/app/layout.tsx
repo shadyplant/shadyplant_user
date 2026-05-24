@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import SignInPromptModal from "@/components/auth/SignInPromptModal";
@@ -21,7 +22,9 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
-          <SignInPromptModal />
+          <Suspense fallback={null}>
+            <SignInPromptModal />
+          </Suspense>
         </AuthProvider>
       </body>
     </html>

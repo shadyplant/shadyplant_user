@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Mail } from "lucide-react";
+import { Eye, EyeOff, Mail } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { validateLoginForm } from "@/lib/validation";
@@ -75,6 +75,7 @@ export default function AuthLoginPanel({
   const router = useRouter();
   const { login, loginWithGoogle } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loginForm, setLoginForm] = useState<LoginForm>({
@@ -142,31 +143,14 @@ export default function AuthLoginPanel({
         </div>
       ) : null}
 
-      <button
-        type="button"
-        onClick={handleGoogleLogin}
-        disabled={isSubmitting}
-        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dbe8cd] bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
-      >
-        <GoogleMark />
-        Continue with Google
-      </button>
-
-      <div className="flex items-center gap-3 py-1">
-        <div className="h-px flex-1 bg-[#e6ecde]" />
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8aa07d]">
-          or
-        </span>
-        <div className="h-px flex-1 bg-[#e6ecde]" />
-      </div>
 
       <label className="block">
-        <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-          Email or phone number
+        <span className="mb-2 block text-lg font-semibold text-[#214f14]">
+          Enter email address
         </span>
         <div className="relative">
           <Mail
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
             size={18}
           />
           <input
@@ -178,8 +162,8 @@ export default function AuthLoginPanel({
                 identifier: event.target.value,
               }))
             }
-            className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
-            placeholder="user@example.com or +91 98765 43210"
+            className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-4 pr-11 text-sm text-[#163915] outline-none"
+            placeholder="abcd123@email.com"
           />
         </div>
         {errors.identifier ? (
@@ -190,16 +174,20 @@ export default function AuthLoginPanel({
       </label>
 
       <label className="block">
-        <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-          Password
+        <span className="mb-2 block text-lg font-semibold text-[#214f14]">
+          Enter password
         </span>
         <div className="relative">
-          <KeyRound
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
-            size={18}
-          />
+          <button
+            type="button"
+            onClick={() => setIsPasswordVisible((current) => !current)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
+            aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+          >
+            {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
           <input
-            type="password"
+            type={isPasswordVisible ? "text" : "password"}
             value={loginForm.password}
             onChange={(event) =>
               setLoginForm((current) => ({
@@ -207,8 +195,8 @@ export default function AuthLoginPanel({
                 password: event.target.value,
               }))
             }
-            className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
-            placeholder="Enter your password"
+            className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-4 pr-11 text-sm text-[#163915] outline-none"
+            placeholder="********"
           />
         </div>
         {errors.password ? (
@@ -218,38 +206,68 @@ export default function AuthLoginPanel({
         ) : null}
       </label>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-      >
-        {isSubmitting ? "Signing in..." : submitLabel}
-      </button>
-
-      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-[#edf2e7] pt-4 text-sm text-[#58724f]">
-        <span>New here?</span>
-        <button
-          type="button"
-          onClick={() => {
-            resetFeedback();
-            onRequestRegister?.();
-          }}
-          className="font-semibold text-[#214f14]"
-        >
-          Register
-        </button>
-        <span className="text-[#b7c5ad]">|</span>
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={() => {
             resetFeedback();
             onRequestForgotPassword?.();
           }}
-          className="font-semibold text-[#214f14]"
+          className="text-sm text-[#214f14]"
         >
           Forgot Password
         </button>
       </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="w-full rounded-[0.5rem] bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {isSubmitting ? "Signing in..." : submitLabel}
+      </button>
+
+
+
+
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 pt-2 text-sm text-[#58724f]">
+        <button
+          type="button"
+          onClick={() => {
+            resetFeedback();
+            onRequestRegister?.();
+          }}
+          className=" text-[#214f14]"
+        >
+          CREATE A NEW ACCOUNT
+        </button>
+        </div>
+
+
+       <div className="flex items-center gap-3 py-1">
+        <div className="h-px flex-1 bg-[#e6ecde]" />
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8aa07d]">
+          or
+        </span>
+        <div className="h-px flex-1 bg-[#e6ecde]" />
+      </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-[#58724f]">
+        <span>
+          Log in with
+        </span>
+        </div>
+
+       <button
+        type="button"
+        onClick={handleGoogleLogin}
+        disabled={isSubmitting}
+        className="flex w-full items-center justify-center gap-3 rounded-[0.5rem] border border-[#dbe8cd] bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
+      >
+        <GoogleMark />
+        Continue with Google
+      </button>
+
     </form>
   );
 }

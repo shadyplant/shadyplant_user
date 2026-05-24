@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Heart, Trash2 } from "lucide-react";
-import AddToCartButton from "@/components/AddToCartButton";
+import ProductCardCartControl from "@/components/ProductCardCartControl";
 import SiteShell from "@/components/SiteShell";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProductsStore } from "@/components/productsStore";
@@ -36,11 +36,11 @@ export default function WishlistPageClient() {
     return (
       <SiteShell>
         <section className="px-4 py-8 md:px-6 md:py-12">
-          <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
+          <div className="mx-auto max-w-3xl p-8 text-center md:p-10">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center text-[#214f14]">
               <Heart size={30} />
             </div>
-            <h2 className="mt-6 text-3xl font-black tracking-[-0.04em] text-[#163915]">
+            <h2 className="mt-6 text-3xl text-[#163915]">
               Sign in to view your wishlist
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
@@ -49,7 +49,7 @@ export default function WishlistPageClient() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/auth?next=/wishlist"
-                className="theme-button inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#24361b_0%,#365127_100%)] px-6 py-4 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
               >
                 Sign in
                 <ArrowRight size={16} />
@@ -76,7 +76,7 @@ export default function WishlistPageClient() {
               <button
                 type="button"
                 onClick={() => void clearItems()}
-                className="inline-flex h-fit items-center gap-2 self-start rounded-full border border-[#d6e6bd] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#f3f8ec]"
+                className="inline-flex h-fit items-center gap-2 self-start rounded-[0.5rem] border border-[#d6e6bd] bg-white px-5 py-3 text-sm text-[#214f14] transition-colors hover:bg-[#f3f8ec]"
               >
                 <Trash2 size={16} />
                 Clear wishlist
@@ -85,8 +85,8 @@ export default function WishlistPageClient() {
           </div>
 
           {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
-            <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
-              <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+            <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] backdrop-blur-[16px] md:p-10">
+              <h2 className="text-3xl text-[#163915]">
                 Loading your wishlist
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
@@ -94,11 +94,11 @@ export default function WishlistPageClient() {
               </p>
             </div>
           ) : !products.length ? (
-            <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
+            <div className=" mx-auto max-w-3xl p-6 text-center md:p-10">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
                 <Heart size={30} />
               </div>
-              <h2 className="mt-6 text-3xl font-black tracking-[-0.04em] text-[#163915]">
+              <h2 className="mt-6 text-3xl text-[#163915]">
                 Your wishlist is empty
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
@@ -108,7 +108,7 @@ export default function WishlistPageClient() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link
                   href="/"
-                  className="theme-button inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
+                  className="bg-[#4c8b5d] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
                 >
                   Explore products
                   <ArrowRight size={16} />
@@ -130,12 +130,12 @@ export default function WishlistPageClient() {
                   return (
                   <article
                     key={product.id}
-                    className="rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-4 shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-5"
+                    className="rounded-[0.5rem] bg-white p-4 md:p-5 shadow-[0_22px_60px_rgba(33,79,20,0.08)]"
                   >
                     <div className="flex flex-col gap-5 md:flex-row">
                       <Link
                         href={productHref}
-                        className="relative block aspect-square w-full overflow-hidden rounded-[1.5rem] bg-[#f4f8ef] md:w-[180px]"
+                        className="relative block aspect-square w-full overflow-hidden rounded-[0.5rem] bg-[#f4f8ef] md:w-[180px]"
                       >
                         <Image
                           src={product.image}
@@ -159,7 +159,7 @@ export default function WishlistPageClient() {
 
                           <Link
                             href={productHref}
-                            className="mt-3 block text-2xl font-black tracking-[-0.04em] text-[#163915] transition-colors hover:text-[#214f14]"
+                            className="mt-3 block text-2xltext-[#163915] transition-colors hover:text-[#214f14]"
                           >
                             {product.name}
                           </Link>
@@ -172,11 +172,11 @@ export default function WishlistPageClient() {
                         </div>
 
                         <div className="md:w-[250px]">
-                          <div className="rounded-[1.5rem] bg-[#f6faef] p-4">
+                          <div className="rounded-[0.5rem] p-4">
                             <p className="text-sm text-[#58724f]">
                               Current price
                             </p>
-                            <p className="mt-1 text-3xl font-black tracking-[-0.04em] text-[#214f14]">
+                            <p className="mt-1 text-3xl text-[#214f14]">
                               {formatCurrency(product.price)}
                             </p>
                             <p className="mt-1 text-sm text-[#58724f]">
@@ -184,16 +184,17 @@ export default function WishlistPageClient() {
                             </p>
 
                             <div className="mt-5 space-y-3">
-                              <AddToCartButton
+                              <div className="[&>div]:mt-0 [&>button]:mt-0">
+                                <ProductCardCartControl
                                 productId={product.id}
-                                availableStock={product.stock}
-                                minOrderQuantity={product.minOrderQuantity}
-                                className="flex w-full items-center justify-between rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#163915]"
-                              />
+                                  stock={product.stock}
+                                  minOrderQuantity={product.minOrderQuantity}
+                                />
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => void removeItem(product.id)}
-                                className="flex w-full items-center justify-center gap-2 rounded-full border border-[#d6e6bd] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#edf5e1]"
+                                className="flex w-full items-center justify-center gap-2 rounded-[0.5rem] border border-[#d6e6bd] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#edf5e1]"
                               >
                                 <Trash2 size={15} />
                                 Remove
@@ -208,8 +209,8 @@ export default function WishlistPageClient() {
                 })}
               </div>
 
-              <aside className="h-fit rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-6 shadow-[0_22px_60px_rgba(33,79,20,0.08)] lg:sticky lg:top-24">
-                <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+              <aside className="h-fit p-6 lg:sticky lg:top-24 shadow-[0_22px_60px_rgba(33,79,20,0.08)]">
+                <h2 className="text-3xl text-[#163915]">
                   Saved overview
                 </h2>
 
@@ -240,23 +241,19 @@ export default function WishlistPageClient() {
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-[1.5rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 text-sm text-[#46603d]">
-                  Keep your shortlist tidy by saving only the products you are
-                  seriously comparing. Move the best options into cart when you
-                  are ready to confirm quantities.
-                </div>
+
 
                 <div className="mt-5 space-y-3">
                   <Link
                     href="/"
-                    className="theme-button flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
+                    className="bg-[#4c8b5d] text-white flex w-full items-center justify-center gap-2 rounded-[0.5rem] px-6 py-4 text-sm font-semibold transition-colors hover:bg-[#163915]"
                   >
-                    Continue browsing
+                    Continue Shop
                     <ArrowRight size={16} />
                   </Link>
                   <Link
                     href="/cart"
-                    className="flex w-full items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
+                    className="flex w-full items-center justify-center rounded-[0.5rem] border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
                   >
                     Open cart
                   </Link>

@@ -719,7 +719,7 @@ export default function AuthPageClient() {
                 className="mt-6 space-y-5"
               >
                 <div className="rounded-[1.4rem] border border-[#e4edd9] bg-[#f9fbf6] p-4 text-sm text-[#58724f]">
-                  We sent a six-digit reset code to the email linked with this
+                  Enter the six-digit reset code if you received one for this
                   account.
                 </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
@@ -29,7 +29,11 @@ export default function SignInPromptModal() {
   const timeoutRef = useRef<number | null>(null);
 
   const nextPath = useMemo(
-    () => buildNextPath(pathname, new URLSearchParams(searchParams?.toString() || "")),
+    () =>
+      buildNextPath(
+        pathname,
+        new URLSearchParams(searchParams?.toString() || ""),
+      ),
     [pathname, searchParams],
   );
 
@@ -110,53 +114,51 @@ export default function SignInPromptModal() {
         onClick={closePrompt}
       />
 
-      <div className="relative z-[1] w-full max-w-[460px] rounded-[2rem] border border-[#dbe8cd] bg-white p-5 shadow-[0_30px_90px_rgba(0,0,0,0.22)] sm:p-6">
+      <div className="relative z-[1] grid w-full max-w-[860px] grid-cols-1 overflow-hidden rounded-[0.5rem] border border-[#dbe8cd] bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)] md:grid-cols-2">
         <button
           type="button"
           onClick={closePrompt}
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-[#dbe8cd] text-[#58724f]"
+          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#dbe8cd] bg-white text-[#58724f] hover:bg-neutral-50"
           aria-label="Close sign in prompt"
         >
           <X size={18} />
         </button>
 
-        <div className="pr-12">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b8b58]">
-            Welcome to Grass Green Nursery
-          </p>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#163915]">
-            Sign in to keep your cart, wishlist, and orders synced
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-[#58724f]">
-            Continue with your account to save items across devices and track
-            your orders more easily.
-          </p>
+        <div className="relative hidden h-full min-h-[400px] w-full md:block">
+          <Image
+            src="https://cdni.iconscout.com/illustration/premium/thumb/plant-nursery-illustration-svg-download-png-8318580.png"
+            alt="Sign In Visual"
+            fill
+            priority
+            className="object-cover"
+          />
         </div>
 
-        <AuthLoginPanel
-          nextPath={nextPath}
-          onSuccess={() => {
-            setIsOpen(false);
-          }}
-          onRequestRegister={() => {
-            closePrompt();
-            router.push(`/auth?step=register&next=${encodeURIComponent(nextPath)}`);
-          }}
-          onRequestForgotPassword={() => {
-            closePrompt();
-            router.push(`/auth?step=forgot&next=${encodeURIComponent(nextPath)}`);
-          }}
-        />
+        <div className="flex flex-col justify-center p-6 sm:p-8 md:p-10">
+          <div className="mb-6 pr-8">
+            <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+              Let&apos;s get started with ShadyPlant!
+            </h2>
+          </div>
 
-        <div className="mt-4 text-center text-sm text-[#6b7d63]">
-          Prefer full-page auth?{" "}
-          <Link
-            href={`/auth?next=${encodeURIComponent(nextPath)}`}
-            onClick={closePrompt}
-            className="font-semibold text-[#214f14]"
-          >
-            Open sign in page
-          </Link>
+          <AuthLoginPanel
+            nextPath={nextPath}
+            onSuccess={() => {
+              setIsOpen(false);
+            }}
+            onRequestRegister={() => {
+              closePrompt();
+              router.push(
+                `/auth?step=register&next=${encodeURIComponent(nextPath)}`,
+              );
+            }}
+            onRequestForgotPassword={() => {
+              closePrompt();
+              router.push(
+                `/auth?step=forgot&next=${encodeURIComponent(nextPath)}`,
+              );
+            }}
+          />
         </div>
       </div>
     </div>

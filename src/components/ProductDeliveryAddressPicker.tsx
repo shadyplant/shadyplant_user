@@ -23,6 +23,8 @@ import {
   sanitizeFormattedDeliveryAddress,
 } from "@/lib/deliveryAddress";
 
+const DELIVERY_ADDRESS_EVENT = "delivery-address-updated";
+
 const LIBRARIES: "places"[] = ["places"];
 const DEFAULT_LOCATION = {
   lat: 25.5138,
@@ -98,6 +100,18 @@ function HomeLocationIcon() {
         fill="#080341"
       />
     </svg>
+  );
+}
+
+function emitDeliveryAddressUpdate(address: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(DELIVERY_ADDRESS_EVENT, {
+      detail: { address },
+    }),
   );
 }
 
@@ -325,6 +339,7 @@ export default function ProductDeliveryAddressPicker({
     const clearedDeliveryAddress = buildDeliveryAddress("", undefined);
     setResolvedDeliveryAddress(clearedDeliveryAddress);
     onAddressChange?.("", undefined, clearedDeliveryAddress);
+    emitDeliveryAddressUpdate("");
     setStatusMessage("");
     addressInputRef.current?.focus();
   }
@@ -356,7 +371,7 @@ export default function ProductDeliveryAddressPicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex h-[38px] w-full items-center gap-2 rounded-md border border-[#d9dde4] bg-white px-3 text-left text-sm text-[#111827]"
+        className="flex h-[38px] w-full items-center gap-2 bg-white px-3 text-left text-sm text-[#111827]"
       >
         <MapPin size={16} className="shrink-0 text-[#1b3151]" />
         <span className="min-w-0 flex-1 truncate">{address || emptyLabel}</span>
@@ -366,7 +381,7 @@ export default function ProductDeliveryAddressPicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-[#233d1d] transition border border-[#d6d6d6] hover:bg-[#edf5e1] lg:inline-flex"
+        className="hidden items-center gap-2 border-b-1 border-[#cccccc] px-3 py-2 text-sm text-[#233d1d] transition hover:bg-[#edf5e1] lg:inline-flex"
       >
         <MapPin size={16} className="shrink-0 text-[#214f14]" />
         <span className="max-w-[170px] truncate">{address || emptyLabel}</span>
@@ -391,10 +406,10 @@ export default function ProductDeliveryAddressPicker({
         <ChevronRight size={16} className="shrink-0" />
       </button>
     ) : variant === "checkout-card" ? (
-      <div className="flex items-start gap-3 rounded-[18px] border border-[#C5D6B5] bg-[#E8F0E0] p-4">
+      <div className="flex items-start gap-3 rounded-[0.5rem] bg-[#E8F0E0] p-4">
         <MapPin size={20} className="mt-1 shrink-0 text-[#173d12]" />
         <div className="min-w-0 flex-1">
-          <p className="mb-1 text-sm font-extrabold text-black">Delivery To:</p>
+          <p className="mb-1 text-sm font-semibold ">Delivery To:</p>
           <button
             type="button"
             onClick={() => setIsOpen(true)}
@@ -411,35 +426,55 @@ export default function ProductDeliveryAddressPicker({
           Change
         </button>
       </div>
-    ) : (
+    ) : hasAddress ? (
       <section className="mt-5">
-        <h2 className="text-[14px] font-black text-[#111111]">
-          Delivery Address
+        <h2 className="text-[14px] font-semibold text-[#111111] md:text-[15px]">
+          Delivery Details
         </h2>
-        <div className="mt-2 flex h-12 items-center gap-2 rounded-md border border-[#8a8a8a] bg-white px-3">
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className="min-w-0 flex-1 truncate text-left text-[12px] font-medium text-[#171410]"
-          >
-            {address || emptyLabel}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#171410]"
-            aria-label="Choose delivery location"
-          >
-            <LocateFixed size={20} />
-          </button>
-        </div>
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="mt-1 block w-full pr-2 text-right text-xs font-medium text-[#135dff]"
+          className="mt-2 flex min-h-[50px] w-full items-center gap-3 rounded-[10px] border border-[#d5d5d5] bg-white px-3.5 py-3 text-left"
+          aria-label="Change delivery location"
         >
-          Change Address
+          <MapPin size={18} className="shrink-0 text-[#5a5a5a]" />
+          <span className="min-w-0 truncate text-[12px] font-medium text-[#303030] md:text-[13px]">
+            {address}
+          </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="mt-1.5 block w-full pr-1 text-right text-[11px] font-medium text-[#55ad35] md:text-xs"
+        >
+          Change your location.
+        </button>
+      </section>
+    ) : (
+      <section className="mt-5">
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="flex min-h-[48px] flex-1 items-center gap-3 rounded-[8px] border border-[#d9d9d9] bg-white px-3.5 text-left"
+            aria-label="Choose delivery location"
+          >
+            <MapPin size={18} className="shrink-0 text-[#6f6f6f]" />
+            <span className="min-w-0 truncate text-[12px] font-medium text-[#9a9a9a] md:text-[13px]">
+              Pin your location..
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="inline-flex h-12 min-w-[100px] items-center justify-center rounded-[6px] bg-[#5b9a63] px-5 text-[13px] font-semibold text-white"
+          >
+            Check
+          </button>
+        </div>
+        <p className="mt-2 max-w-[290px] text-[11px] leading-4 text-[#5e5e5e] md:text-xs">
+          Drop your location pin for faster, more accurate quick delivery.
+        </p>
       </section>
     );
 
@@ -469,7 +504,7 @@ export default function ProductDeliveryAddressPicker({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4f4f4] text-[#171410]"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center bg-[#f4f4f4] text-[#171410]"
                 aria-label="Close location picker"
               >
                 <X size={18} />
@@ -516,7 +551,7 @@ export default function ProductDeliveryAddressPicker({
                         <button
                           type="button"
                           onClick={clearAddress}
-                          className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#6b8b58] transition hover:bg-[#edf5e1] hover:text-[#214f14]"
+                          className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center text-[#6b8b58] transition hover:bg-[#edf5e1] hover:text-[#214f14]"
                           aria-label="Clear address"
                         >
                           <X size={16} />
@@ -594,6 +629,7 @@ export default function ProductDeliveryAddressPicker({
                     markerPos,
                     resolvedDeliveryAddress,
                   );
+                  emitDeliveryAddressUpdate(address);
                   onDone?.(address, markerPos, resolvedDeliveryAddress);
                   void persistSelectionToProfile(resolvedDeliveryAddress);
                   setIsOpen(false);
@@ -614,3 +650,5 @@ export default function ProductDeliveryAddressPicker({
     </>
   );
 }
+
+export { DELIVERY_ADDRESS_EVENT };

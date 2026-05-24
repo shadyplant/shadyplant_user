@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpDown,
@@ -119,8 +119,10 @@ export default function SearchResultsPageClient({
 }) {
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
+  const [isDesktopSortOpen, setIsDesktopSortOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const desktopSortRef = useRef<HTMLDivElement | null>(null);
   const categoryOptions = Array.from(
     new Set(products.map((product) => product.category)),
   );
@@ -133,6 +135,8 @@ export default function SearchResultsPageClient({
   const selectedBadges = searchParams?.getAll("badge") ?? [];
   const selectedPriceRanges = searchParams?.getAll("price") ?? [];
   const sort = (searchParams?.get("sort") as SortKey | null) ?? "relevance";
+  const activeSortOption =
+    sortOptions.find((option) => option.value === sort) || sortOptions[0];
   const normalizedQuery = query.trim().toLowerCase();
   const results = products
     .map((product, index) => ({
@@ -242,13 +246,39 @@ export default function SearchResultsPageClient({
     };
   }, [isFilterSheetOpen, isSortSheetOpen]);
 
+  useEffect(() => {
+    if (!isDesktopSortOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!desktopSortRef.current?.contains(event.target as Node)) {
+        setIsDesktopSortOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsDesktopSortOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDesktopSortOpen]);
+
   const filterGroups = (
     <div className="space-y-4">
       <details
         open
-        className="rounded-[1.4rem] border border-[#e3edd8] bg-[#fbfdf8] p-4"
+        className="rounded-[0.5rem] border border-[#e3edd8] p-4"
       >
-        <summary className="cursor-pointer list-none text-sm font-bold uppercase tracking-[0.18em] text-[#214f14]">
+        <summary className="cursor-pointer list-none text-sm text-[#214f14]">
           Category
         </summary>
         <div className="mt-4 space-y-3">
@@ -279,9 +309,9 @@ export default function SearchResultsPageClient({
 
       <details
         open
-        className="rounded-[1.4rem] border border-[#e3edd8] bg-[#fbfdf8] p-4"
+        className="rounded-[0.5rem] border border-[#e3edd8] p-4"
       >
-        <summary className="cursor-pointer list-none text-sm font-bold uppercase tracking-[0.18em] text-[#214f14]">
+        <summary className="cursor-pointer list-none text-sm text-[#214f14]">
           Care Tags
         </summary>
         <div className="mt-4 space-y-3">
@@ -312,9 +342,9 @@ export default function SearchResultsPageClient({
 
       <details
         open
-        className="rounded-[1.4rem] border border-[#e3edd8] bg-[#fbfdf8] p-4"
+        className="rounded-[0.5rem] border border-[#e3edd8] p-4"
       >
-        <summary className="cursor-pointer list-none text-sm font-bold uppercase tracking-[0.18em] text-[#214f14]">
+        <summary className="cursor-pointer list-none text-sm text-[#214f14]">
           Price
         </summary>
         <div className="mt-4 space-y-3">
@@ -377,14 +407,14 @@ export default function SearchResultsPageClient({
 
         <section className="px-4 py-5 md:px-6 md:py-12">
           <div className="mx-auto max-w-7xl">
-            <div className="grid gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
-              <aside className="hidden h-fit rounded-[1.9rem] border border-[#dbe8cd] bg-white/95 p-5 shadow-[0_18px_45px_rgba(33,79,20,0.06)] lg:sticky lg:top-24 lg:block">
+            <div className="grid gap-0 lg:grid-cols-[290px_minmax(0,1fr)] lg:items-start">
+              <aside className=" shadow-[0_22px_60px_rgba(33,79,20,0.08)] hidden p-5 lg:sticky lg:top-24 lg:block lg:self-start">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b8b58]">
+                    <p className="text-sm text-[#6b8b58]">
                       Filter By
                     </p>
-                    <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#163915]">
+                    <h2 className="mt-2 text-2xl text-[#163915]">
                       Refine results
                     </h2>
                   </div>
@@ -404,10 +434,10 @@ export default function SearchResultsPageClient({
                 <div className="mt-6">{filterGroups}</div>
               </aside>
 
-              <div>
-                <div className="mb-6 hidden flex-col gap-4 rounded-[1.8rem] border border-[#dbe8cd] bg-white/95 p-4 shadow-[0_18px_45px_rgba(33,79,20,0.06)] md:flex md:flex-row md:items-center md:justify-between">
+              <div className="shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:px-4">
+                <div className="mb-2 hidden flex-col gap-4 p-4  md:flex md:flex-row md:items-center md:justify-between">
                   {/* LEFT SIDE */}
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6b8b58]">
+                  <p className="text-sm text-[#6b8b58]">
                     Showing {resultProducts.length} result(s)
                     {query.trim() ? ` for "${query.trim()}"` : ""}
                   </p>
@@ -423,50 +453,65 @@ export default function SearchResultsPageClient({
                       Filter
                     </button>
 
-                    <label className="hidden items-center gap-2 whitespace-nowrap text-sm font-semibold text-[#214f14] md:inline-flex">
+                    <label className="hidden items-center gap-2 whitespace-nowrap text-sm text-[#214f14] md:inline-flex">
                       <ArrowUpDown size={16} />
                       Sort by
                     </label>
 
-                    <div className="relative min-w-0">
-                      <select
-                        value={sort}
-                        onChange={(event) =>
-                          pushSearchState({
-                            sort: event.target.value as SortKey,
-                          })
-                        }
-                        className="w-full rounded-full border border-[#d6e6bd] bg-[#f6faef] px-4 py-2.5 pr-10 text-sm font-semibold text-[#214f14] outline-none md:w-auto"
+                    <div
+                      ref={desktopSortRef}
+                      className="relative min-w-0 md:min-w-[240px]"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setIsDesktopSortOpen((open) => !open)}
+                        aria-haspopup="listbox"
+                        aria-expanded={isDesktopSortOpen}
+                        className="flex w-full items-center justify-between gap-3 rounded-[0.85rem] border border-[#d6e6bd] bg-white px-4 py-3 text-left text-sm font-normal text-[#214f14] shadow-[0_10px_24px_rgba(33,79,20,0.05)] outline-none transition hover:border-[#b8cca3] md:w-auto md:min-w-[240px]"
                       >
-                        {sortOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                        <span className="truncate">{activeSortOption.label}</span>
+                        <span className="flex items-center text-[#5c7752]">
+                          <SlidersHorizontal size={16} />
+                        </span>
+                      </button>
 
-                      <SlidersHorizontal
-                        size={16}
-                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5c7752]"
-                      />
+                      {isDesktopSortOpen ? (
+                        <div
+                          role="listbox"
+                          aria-label="Sort results"
+                          className="absolute right-0 top-[calc(100%+0.55rem)] z-30 w-full overflow-hidden rounded-[0.85rem] border border-[#d6e6bd] bg-white shadow-[0_18px_34px_rgba(33,79,20,0.12)]"
+                        >
+                          {sortOptions.map((option) => {
+                            const isActive = sort === option.value;
+
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                role="option"
+                                aria-selected={isActive}
+                                onClick={() => {
+                                  pushSearchState({ sort: option.value });
+                                  setIsDesktopSortOpen(false);
+                                }}
+                                className={`flex w-full items-center justify-between gap-3 border-b border-[#edf3e6] px-4 py-3 text-left text-sm transition last:border-b-0 ${
+                                  isActive
+                                    ? "bg-[#3d63be] text-white"
+                                    : "text-[#214f14] hover:bg-[#f6faef]"
+                                }`}
+                              >
+                                <span>{option.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
 
                 {hasActiveFilters ? (
                   <div className="mb-5 hidden flex-wrap gap-2 md:flex">
-                    {query.trim() ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          pushSearchState({ query: "" });
-                        }}
-                        className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
-                      >
-                        q: {query.trim()}
-                        <X size={14} />
-                      </button>
-                    ) : null}
 
                     {selectedCategories.map((category) => (
                       <button
@@ -555,7 +600,7 @@ export default function SearchResultsPageClient({
                         onClick={() => {
                           router.push("/search");
                         }}
-                        className="theme-button inline-flex items-center justify-center rounded-full px-6 py-4 text-sm font-semibold"
+                        className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(135deg,#24361b_0%,#365127_100%)] px-6 py-4 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
                       >
                         Clear all filters
                       </button>

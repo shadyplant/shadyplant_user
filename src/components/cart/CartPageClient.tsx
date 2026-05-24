@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgePercent,
+  MapPin,
   Minus,
   Plus,
   ShieldCheck,
@@ -151,7 +152,7 @@ function BillDetailsCard({
 
   return (
     <section className="rounded-b-md pt-2">
-      <h2 className="px-1 pb-3 text-[16px] font-black text-[#111111]">
+      <h2 className="px-1 pb-3 text-[16px] text-[#111111]">
         Bill details
       </h2>
       <div className="rounded-xl bg-white p-4 border border-[#d9d9d9] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
@@ -175,7 +176,7 @@ function BillDetailsCard({
             </span>
           </div>
           <div className="border-t border-[#eef0ee]" />
-          <div className="flex items-center justify-between gap-4 pt-1 font-black">
+          <div className="flex items-center justify-between gap-4 pt-1 font-semibold text-[#111111]">
             <span>Total Amount</span>
             <span>{totalValue}</span>
           </div>
@@ -239,7 +240,6 @@ export default function CartPageClient() {
   const {
     fetchWithAuth,
     isAuthenticated,
-    isReady: isAuthReady,
     updateProfile,
     user,
   } = useAuth();
@@ -256,6 +256,18 @@ export default function CartPageClient() {
     isReady: areProductsReady,
     products,
   } = useProductsStore();
+
+  useEffect(() => {
+    if (!showDeliveryAddressAlert) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowDeliveryAddressAlert(false);
+    }, 3600);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [showDeliveryAddressAlert]);
 
   const items = useMemo<DetailedCartItem[]>(
     () =>
@@ -409,7 +421,7 @@ export default function CartPageClient() {
         deliveryAddressDetails: nextDeliveryAddress || null,
         deliveryPosition: position,
       });
-      if (deliveryAddress) {
+      if (deliveryAddress && user) {
         void updateProfile({
           fullName: user?.fullName || "",
           phoneNumber: user?.phoneNumber || "",
@@ -505,6 +517,11 @@ export default function CartPageClient() {
   }
 
   function handleCheckoutClick() {
+    if (!isAuthenticated) {
+      router.push("/auth?next=/checkout");
+      return;
+    }
+
     if (!hasCheckoutAddress) {
       setShowDeliveryAddressAlert(true);
 
@@ -581,47 +598,11 @@ export default function CartPageClient() {
     router.push("/checkout");
   }
 
-  if (isAuthReady && !isAuthenticated) {
-    return (
-      <SiteShell>
-        <section className="px-4 py-8 md:px-6 md:py-12">
-          <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
-            <div className="mx-auto flex h-20 justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
-              <ShoppingCart size={30} />
-            </div>
-            <h2 className="mt-6 text-3xl font-black tracking-[-0.04em] text-[#163915]">
-              Sign in to view your cart
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
-              Your cart now lives on your account, so the same saved items
-              appear across devices after login.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Link
-                href="/auth?next=/cart"
-                className="theme-button inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
-              >
-                Sign in
-                <ArrowRight size={16} />
-              </Link>
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
-              >
-                Continue shopping
-              </Link>
-            </div>
-          </div>
-        </section>
-      </SiteShell>
-    );
-  }
-
   return (
     <SiteShell hideMobileHeader hideMobileBottomNav>
-      <section className="bg-white px-4 pb-6 pt-4 md:hidden">
+      <section className="bg-white px-4 pb-6 md:hidden">
         <div className="mx-auto w-full max-w-2xl">
-          <div className="flex h-10 items-center gap-3">
+          <div className="flex border-b border-[#e2e8dc] h-15 items-center gap-3">
             <button
               type="button"
               onClick={() => router.back()}
@@ -630,7 +611,7 @@ export default function CartPageClient() {
             >
               <ArrowLeft size={24} strokeWidth={2.2} />
             </button>
-            <h1 className="text-[16px] font-black text-[#111111]">
+            <h1 className="text-lg text-[#111111]">
               Shopping Cart
             </h1>
           </div>
@@ -652,11 +633,6 @@ export default function CartPageClient() {
               onAddressChange={handleDeliveryAddressChange}
               onDone={handleDeliveryAddressDone}
             />
-            {showDeliveryAddressAlert ? (
-              <p className="mt-2 px-1 text-xs font-semibold text-[#b42318]">
-                Enter your delivery address before checkout.
-              </p>
-            ) : null}
             {!showDeliveryAddressAlert &&
             hasCheckoutAddress &&
             !hasDeliveryCoordinates ? (
@@ -676,16 +652,16 @@ export default function CartPageClient() {
               </p>
             </div>
           ) : !items.length ? (
-            <div className="mt-8 rounded-lg border border-[#e2e8dc] bg-[#fbfdf8] p-5 text-center">
-              <ShoppingCart className="mx-auto text-[#214f14]" size={28} />
-              <p className="mt-3 text-sm font-bold text-[#111111]">
+            <div className="mt-30 p-5 text-center">
+                <p className="mt-3 text-sm text-[#909090]">
                 Your cart is empty
               </p>
-              <Link
+              <ShoppingCart className="mx-auto my-4 text-[#909090]" size={28} />
+                        <Link
                 href="/"
-                className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-[#214f14] px-5 text-sm font-bold text-white"
+                className=" inline-flex h-12 items-center justify-center rounded-full bg-[#4c8d5b] px-5 text-sm font-bold text-white"
               >
-                Start shopping
+                Start shopping 
               </Link>
             </div>
           ) : (
@@ -870,7 +846,7 @@ export default function CartPageClient() {
               <button
                 type="button"
                 onClick={() => void clearItems()}
-                className="inline-flex h-fit items-center gap-2 self-start rounded-full border border-[#d6e6bd] bg-white px-5 py-3 text-sm font-semibold text-[#214f14] transition-colors hover:bg-[#f3f8ec]"
+                className="inline-flex h-fit items-center gap-2 self-start rounded-[0.5rem] border border-[#d6e6bd] bg-white px-5 py-3 text-sm text-[#214f14] transition-colors hover:bg-[#f3f8ec]"
               >
                 <Trash2 size={16} />
                 Clear cart
@@ -895,11 +871,6 @@ export default function CartPageClient() {
               onAddressChange={handleDeliveryAddressChange}
               onDone={handleDeliveryAddressDone}
             />
-            {showDeliveryAddressAlert ? (
-              <p className="mt-2 px-1 text-sm font-semibold text-[#b42318]">
-                Enter your delivery address before checkout.
-              </p>
-            ) : null}
             {!showDeliveryAddressAlert &&
             hasCheckoutAddress &&
             !hasDeliveryCoordinates ? (
@@ -910,8 +881,8 @@ export default function CartPageClient() {
           </div>
 
           {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
-            <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
-              <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+            <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] backdrop-blur-[16px] md:p-10">
+              <h2 className="text-3xl  text-[#163915]">
                 Loading your cart
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
@@ -919,11 +890,11 @@ export default function CartPageClient() {
               </p>
             </div>
           ) : !items.length ? (
-            <div className="theme-panel-strong mx-auto max-w-3xl rounded-[2.3rem] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:p-10">
+            <div className="mx-auto max-w-3xl rounded-[0.5rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] backdrop-blur-[16px] md:p-10">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
                 <ShoppingCart size={30} />
               </div>
-              <h2 className="mt-6 text-3xl font-black tracking-[-0.04em] text-[#163915]">
+              <h2 className="mt-6 text-3xl  text-[#163915]">
                 Your cart is empty
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
@@ -933,7 +904,7 @@ export default function CartPageClient() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link
                   href="/"
-                  className="theme-button inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold"
+                  className="bg-[#4c8d5b] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
                 >
                   Start shopping
                   <ArrowRight size={16} />
@@ -955,7 +926,7 @@ export default function CartPageClient() {
                   return (
                     <article
                       key={item.id}
-                      className="rounded-md border border-[#d9d9d9] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                      className="rounded-md bg-[#ffffff] p-4 shadow-[0_22px_60px_rgba(33,79,20,0.08)]"
                     >
                       <div className="grid grid-cols-[140px_minmax(0,1fr)_auto] gap-4">
                         <Link
@@ -974,7 +945,7 @@ export default function CartPageClient() {
                         <div className="min-w-0">
                           <Link
                             href={productHref}
-                            className="line-clamp-1 text-2xl font-semibold leading-8 text-[#111827]"
+                            className="line-clamp-1 text-xl leading-8 text-[#111827]"
                           >
                             {item.product.name}
                           </Link>
@@ -983,7 +954,7 @@ export default function CartPageClient() {
                               {item.variantLabel || item.packLabel}
                             </p>
                           ) : null}
-                          <p className="mt-1 text-3xl font-black leading-none tracking-[-0.02em] text-[#111111]">
+                          <p className="mt-1 text-2xl font-semibold leading-none text-[#111111]">
                             {formatCurrency(item.subtotal)}
                           </p>
                           <p className="mt-3 text-sm font-medium text-[#202020]">
@@ -1026,7 +997,7 @@ export default function CartPageClient() {
                           </button>
                         </div>
 
-                        <div className="grid h-12 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[14px] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b] shadow-[3px_4px_0_rgba(22,57,21,0.18)]">
+                        <div className="grid h-12 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[0.2rem] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b]">
                           <button
                             type="button"
                             aria-label={`Decrease quantity for ${item.product.name}`}
@@ -1043,7 +1014,7 @@ export default function CartPageClient() {
                             }
                             className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <Minus size={24} strokeWidth={2.6} />
+                            <Minus size={24} strokeWidth={2.6} className="cursor-pointer"/>
                           </button>
                           <button
                             type="button"
@@ -1067,7 +1038,7 @@ export default function CartPageClient() {
                             disabled={item.quantity >= item.availableStock}
                             className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <Plus size={27} strokeWidth={2.6} />
+                            <Plus size={27} strokeWidth={2.6} className="cursor-pointer" />
                           </button>
                         </div>
                       </div>
@@ -1088,12 +1059,12 @@ export default function CartPageClient() {
                 </div>
               </div>
 
-              <aside className="h-fit rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-6 shadow-[0_22px_60px_rgba(33,79,20,0.08)] lg:sticky lg:top-24">
-                <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
+              <aside className="h-fit rounded-[0.5rem] bg-white/95 p-6 shadow-[0_22px_60px_rgba(33,79,20,0.08)] lg:sticky lg:top-24">
+                <h2 className="text-3xl  text-[#163915]">
                   Order summary
                 </h2>
 
-                <div className="mt-6 rounded-[1.6rem] bg-[#f6faef] p-5">
+                <div className="mt-6 rounded-[0.5rem] bg-[#f6faef] p-5">
                   <div className="space-y-4 text-sm text-[#46603d]">
                     <div className="flex items-center justify-between">
                       <span>Items in cart</span>
@@ -1125,50 +1096,34 @@ export default function CartPageClient() {
                   </div>
 
                   <div className="mt-5 border-t border-[#dbe8cd] pt-5">
-                    <div className="flex items-center justify-between text-xl font-black text-[#163915]">
+                    <div className="flex items-center justify-between text-xl font-semibold text-[#163915]">
                       <span>Total payable</span>
                       <span>
                         {total === null ? "---" : formatCurrency(total)}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-[#58724f]">
-                      Taxes included where applicable. Final confirmation
-                      happens at checkout.
-                    </p>
+                 
                   </div>
-                </div>
-
-                <div className="mt-5 rounded-[1.5rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 text-sm text-[#46603d]">
-                  <p className="font-semibold text-[#214f14]">
-                    {deliveryFee === null
-                      ? "Select a delivery address to calculate transport charge."
-                      : "Delivery charge is calculated from your selected location."}
-                  </p>
-                  <p className="mt-2">
-                    {checkoutPreview
-                      ? `Current estimate uses ${checkoutPreview.summary.totalWeightKg} kg total product weight over ${checkoutPreview.pricing.distanceKm.toFixed(2)} km.`
-                      : "Dispatch support, healthy plant handling, and delivery coordination are included in the order workflow."}
-                  </p>
                 </div>
 
                 <div className="mt-5 space-y-3">
                   <button
                     type="button"
                     onClick={handleCheckoutClick}
-                    className={`flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold transition ${
+                    className={`flex w-full items-center justify-center gap-2 rounded-[0.5rem] px-6 py-4 text-sm font-semibold transition ${
                       canProceedToCheckout
-                        ? "theme-button"
-                        : "border border-[#d6e6bd] bg-white text-[#214f14] hover:bg-[#f4fbf2]"
+                        ? "bg-[#4c8b5d] text-white hover:bg-[#41744d]"
+                        : "bg-[#4c8b5d] text-white hover:bg-[#41744d]"
                     }`}
                   >
-                    Proceed to checkout
+                    Order Now
                     <ArrowRight size={16} />
                   </button>
                   <Link
                     href="/"
-                    className="flex w-full items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
+                    className="flex w-full items-center justify-center rounded-[0.5rem] border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
                   >
-                    Continue shopping
+                    Explore more products
                   </Link>
                 </div>
 
@@ -1187,6 +1142,29 @@ export default function CartPageClient() {
           )}
         </div>
       </section>
+
+      <div
+        className={`pointer-events-none fixed left-4 right-4 top-20 z-[90] transition-all duration-300 sm:left-auto sm:w-[360px] ${
+          showDeliveryAddressAlert
+            ? "translate-x-0 opacity-100"
+            : "translate-x-[120%] opacity-0"
+        }`}
+        aria-live="polite"
+      >
+        <div className="ml-auto flex items-start gap-3 rounded-2xl border border-[#f3b3ad] bg-white px-4 py-3 shadow-[0_22px_60px_rgba(0,0,0,0.16)]">
+          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff1ef] text-[#d93025]">
+            <MapPin size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[#7a271a]">
+              Set delivery location
+            </p>
+            <p className="mt-1 text-sm leading-5 text-[#9a3412]">
+              Select your location from the cart before placing the order.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {quantityEditor ? (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/35 px-4 pb-6 sm:items-center sm:pb-0">

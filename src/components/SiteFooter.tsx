@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Headset, Mail, MapPin, Phone, ShieldCheck, Sprout, Truck } from "lucide-react";
 import Image from "next/image";
 
 const shopLinks = [
@@ -44,6 +44,25 @@ const legalLinks = [
   },
 ];
 
+const trustHighlights = [
+  {
+    title: "24x7 Customer Support",
+    icon: Headset,
+  },
+  {
+    title: "Care & planting guidance included",
+    icon: Sprout,
+  },
+  {
+    title: "Secure payments",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Order tracking available",
+    icon: Truck,
+  },
+];
+
 function FooterLinkList({
   title,
   links,
@@ -74,6 +93,26 @@ function FooterLinkList({
 export default function SiteFooter() {
   return (
     <footer className="border-t border-[#dde6d8] bg-[#f1f2f0] text-[#173d12]">
+      <div className="bg-[#4c8b5d] text-white">
+        <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            {trustHighlights.map(({ title, icon: Icon }) => (
+              <div
+                key={title}
+                className="flex min-h-[150px] flex-col items-center justify-start gap-4 pt-2 text-center"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/12 text-white">
+                  <Icon className="h-7 w-7" strokeWidth={2.1} />
+                </div>
+                <p className="max-w-[220px] text-base font-medium leading-8 text-white/96">
+                  {title}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="mx-auto max-w-7xl px-4 py-14 md:px-6">
         <div className="grid gap-10 lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.95fr]">
           <div>

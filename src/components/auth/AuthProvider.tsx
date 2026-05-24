@@ -41,6 +41,12 @@ export type AuthUser = {
   };
   profileImage: string | null;
   isVerified: boolean;
+  isVip: boolean;
+  paymentAccess: {
+    cashOnDelivery: boolean;
+    onlinePayment: boolean;
+    emi: boolean;
+  };
   deliveryAddress: DeliveryAddress;
   billingDetails: BillingDetailsDraft;
   createdAt: string;
@@ -123,6 +129,19 @@ function normalizeUser(user: Partial<AuthUser>) {
     profileImage:
       typeof user.profileImage === "string" ? user.profileImage : null,
     isVerified: Boolean(user.isVerified),
+    isVip: Boolean(user.isVip),
+    paymentAccess:
+      typeof user.paymentAccess === "object" && user.paymentAccess
+        ? {
+            cashOnDelivery: Boolean(user.paymentAccess.cashOnDelivery),
+            onlinePayment: Boolean(user.paymentAccess.onlinePayment),
+            emi: Boolean(user.paymentAccess.emi),
+          }
+        : {
+            cashOnDelivery: true,
+            onlinePayment: true,
+            emi: false,
+          },
     deliveryAddress: normalizeDeliveryAddress(user.deliveryAddress),
     billingDetails: normalizeBillingDetailsDraft(
       user.billingDetails || EMPTY_BILLING_DETAILS,

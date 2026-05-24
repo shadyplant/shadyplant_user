@@ -3,22 +3,22 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Loader2, ShoppingCart } from "lucide-react";
+import { ArrowLeft, BadgePercent, Check, Loader2, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCartStore } from "@/components/cartStore";
+import CheckoutPageFooter from "@/components/checkout/CheckoutPageFooter";
 import SiteShell from "@/components/SiteShell";
 import { useProductsStore } from "@/components/productsStore";
 import type { ApiResponse } from "@/lib/api";
 import {
-  cleanupCashfreeReturnUrl,
-  clearCashfreeCheckoutSession,
-  getCashfreeReturnState,
-  loadCashfreeSdk,
-  openCashfreeCheckout,
-  readCashfreeCheckoutSession,
-  writeCashfreeCheckoutSession,
-  type CashfreeMode,
-} from "@/lib/cashfreeCheckout";
+  cleanupPaymentGatewayReturnUrl,
+  clearPaymentGatewayCheckoutSession,
+  getPaymentGatewayReturnState,
+  openPaymentGatewayCheckout,
+  readPaymentGatewayCheckoutSession,
+  writePaymentGatewayCheckoutSession,
+  type PaymentGatewayMode,
+} from "@/lib/paymentGatewayCheckout";
 import {
   buildCheckoutDeliveryAddressPayload,
   formatDeliveryAddress,
@@ -35,8 +35,15 @@ type Step = 1 | 2 | 3;
 type CheckoutPreview = {
   pricing: {
     itemsSubtotal: number;
+    itemsSubtotalAfterCoupon?: number;
     deliveryCharge: number;
+    totalBeforeCoupon?: number;
     total: number;
+    couponCode?: string;
+    couponType?: string;
+    couponDiscountValue?: number;
+    couponAdjustAmount?: number;
+    couponDiscountPercent?: number;
     currency: string;
     distanceKm: number;
     deliveryRate: number;
@@ -54,14 +61,24 @@ type CheckoutPreview = {
     rate: number;
     units: number | null;
   };
+  appliedCoupon?: {
+    id: string;
+    code: string;
+    type: "adjust" | "discount";
+    adjustAmount: number;
+    discountPercent: number;
+    discountValue: number;
+  } | null;
   suggestedDeliveryDate: string;
 };
 
-type CashfreeCheckout = {
+type PaymentGatewayCheckout = {
   paymentAttemptId: string;
-  paymentSessionId: string;
-  orderId: string;
-  cfOrderId: string;
+  provider: string;
+  merchantOrderId: string;
+  gatewayOrderId: string;
+  redirectUrl: string;
+  paymentSessionId?: string;
   amount: number;
   currency: string;
   businessName: string;
@@ -71,10 +88,11 @@ type CashfreeCheckout = {
     email?: string;
     contact?: string;
   };
-  mode: CashfreeMode;
+  mode: PaymentGatewayMode;
   returnUrl: string;
-  shouldSimulateWebhook: boolean;
 };
+
+type CheckoutPaymentMethod = "cash_on_delivery" | "online_payment" | "emi";
 
 type PaymentAttemptStatus = {
   id: string;
@@ -120,9 +138,14 @@ export default function OrderSummaryClient() {
   const [currentStep] = useState<Step>(2);
   const [preview, setPreview] = useState<CheckoutPreview | null>(null);
   const [previewError, setPreviewError] = useState("");
+  const [couponDraft, setCouponDraft] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  const [couponFeedback, setCouponFeedback] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [persistCouponError, setPersistCouponError] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasHandledCashfreeReturn, setHasHandledCashfreeReturn] = useState(false);
+  const [hasHandledGatewayReturn, setHasHandledGatewayReturn] = useState(false);
   const [checkoutDraft] = useState(() => readCheckoutDraft());
   const [billingDetailsDraft] = useState(() => readBillingDetailsDraft());
   const { fetchWithAuth, isAuthenticated, isReady: isAuthReady, user } = useAuth();
@@ -193,20 +216,20 @@ export default function OrderSummaryClient() {
     async (paymentAttemptId: string) => {
       for (let attempt = 0; attempt < 10; attempt += 1) {
         const response = await fetchWithAuth<ApiResponse<{ paymentAttempt: PaymentAttemptStatus }>>(
-          `/payments/cashfree/attempts/${paymentAttemptId}`,
+          `/payments/attempts/${paymentAttemptId}`,
         );
         const paymentAttempt = response.data.paymentAttempt;
 
         if (paymentAttempt.status === "completed" && paymentAttempt.orderId) {
-          clearCashfreeCheckoutSession();
-          cleanupCashfreeReturnUrl();
-          router.push("/order");
+          clearPaymentGatewayCheckoutSession();
+          cleanupPaymentGatewayReturnUrl();
+          router.replace(`/order-success/${encodeURIComponent(paymentAttempt.orderId)}`);
           return true;
         }
 
         if (paymentAttempt.status === "failed") {
-          clearCashfreeCheckoutSession();
-          cleanupCashfreeReturnUrl();
+          clearPaymentGatewayCheckoutSession();
+          cleanupPaymentGatewayReturnUrl();
           setStatusMessage("Payment failed before order confirmation. Please try again.");
           return false;
         }
@@ -223,12 +246,12 @@ export default function OrderSummaryClient() {
   );
 
   useEffect(() => {
-    if (!isAuthReady || !isAuthenticated || hasHandledCashfreeReturn) {
+    if (!isAuthReady || !isAuthenticated || hasHandledGatewayReturn) {
       return;
     }
 
-    const returnState = getCashfreeReturnState();
-    const persistedCheckout = readCashfreeCheckoutSession();
+    const returnState = getPaymentGatewayReturnState();
+    const persistedCheckout = readPaymentGatewayCheckoutSession();
     const paymentAttemptId =
       returnState.paymentAttemptId || persistedCheckout?.paymentAttemptId || "";
 
@@ -238,30 +261,10 @@ export default function OrderSummaryClient() {
 
     let isActive = true;
     setIsSubmitting(true);
-    setStatusMessage("Confirming your payment securely...");
+    setStatusMessage("Waiting for secure payment verification from the server...");
 
     void (async () => {
       try {
-        if (
-          persistedCheckout?.paymentAttemptId === paymentAttemptId &&
-          persistedCheckout.shouldSimulateWebhook
-        ) {
-          await fetchWithAuth(`/payments/cashfree/test-webhook/${paymentAttemptId}`, {
-            method: "POST",
-          });
-        } else {
-          await fetchWithAuth<ApiResponse<{ paymentAttempt: PaymentAttemptStatus }>>(
-            `/payments/cashfree/attempts/${paymentAttemptId}/verify`,
-            {
-              method: "POST",
-            },
-          );
-        }
-
-        if (!isActive) {
-          return;
-        }
-
         await pollPaymentAttempt(paymentAttemptId);
       } catch (error) {
         if (!isActive) {
@@ -278,9 +281,9 @@ export default function OrderSummaryClient() {
           return;
         }
 
-        cleanupCashfreeReturnUrl();
+        cleanupPaymentGatewayReturnUrl();
         setIsSubmitting(false);
-        setHasHandledCashfreeReturn(true);
+        setHasHandledGatewayReturn(true);
       }
     })();
 
@@ -289,7 +292,7 @@ export default function OrderSummaryClient() {
     };
   }, [
     fetchWithAuth,
-    hasHandledCashfreeReturn,
+    hasHandledGatewayReturn,
     isAuthReady,
     isAuthenticated,
     pollPaymentAttempt,
@@ -305,6 +308,7 @@ export default function OrderSummaryClient() {
 
     let isActive = true;
     setStatusMessage("");
+    setPreviewError("");
 
     void fetchWithAuth<ApiResponse<{ preview: CheckoutPreview }>>("/checkout/preview", {
       method: "POST",
@@ -315,21 +319,47 @@ export default function OrderSummaryClient() {
           user?.deliveryAddress,
         ),
         deliveryLocation: deliveryPosition,
+        couponCode: appliedCouponCode || undefined,
       }),
     })
       .then((response) => {
         if (isActive) {
           setPreview(response.data.preview);
+          const appliedCouponCodeFromResponse =
+            response.data.preview.appliedCoupon?.code || "";
+          const hasAppliedCouponInResponse = Boolean(appliedCouponCodeFromResponse);
+          if (hasAppliedCouponInResponse || !persistCouponError) {
+            setCouponError("");
+          }
+          if (hasAppliedCouponInResponse) {
+            setPersistCouponError(false);
+          }
+          setCouponFeedback(
+            hasAppliedCouponInResponse
+              ? `Coupon ${appliedCouponCodeFromResponse} applied successfully.`
+              : appliedCouponCode
+                ? "Coupon removed."
+                : "",
+          );
         }
       })
       .catch((error) => {
         if (isActive) {
-          setPreview(null);
-          setPreviewError(
+          setCouponFeedback("");
+          const message =
             error instanceof Error
               ? error.message
-              : "Unable to load the latest checkout summary.",
-          );
+              : "Unable to load the latest checkout summary.";
+
+          if (appliedCouponCode) {
+            setCouponError(message);
+            setPersistCouponError(true);
+            setAppliedCouponCode("");
+            return;
+          }
+
+          setPreview(null);
+          setPreviewError(message);
         }
       });
 
@@ -344,12 +374,14 @@ export default function OrderSummaryClient() {
     fetchWithAuth,
     isAuthenticated,
     items.length,
+    appliedCouponCode,
+    persistCouponError,
     user?.deliveryAddress,
   ]);
 
   const effectivePreview = canRequestPreview ? preview : null;
 
-  async function handleContinue() {
+  async function handleContinue(paymentMethod: CheckoutPaymentMethod) {
     if (!effectivePreview || !hasPosition(deliveryPosition) || !deliveryAddress) {
       router.push("/cart");
       return;
@@ -368,39 +400,49 @@ export default function OrderSummaryClient() {
       billingDetails,
       deliveryDate: effectivePreview.suggestedDeliveryDate,
       returnPath: "/order-summary",
+      couponCode: appliedCouponCode || undefined,
+      paymentMethod,
     };
 
     try {
-      const scriptLoaded = await loadCashfreeSdk();
-      if (!scriptLoaded || !window.Cashfree) {
-        throw new Error("Cashfree checkout failed to load.");
-      }
-
-      const response = await fetchWithAuth<ApiResponse<{ checkout: CashfreeCheckout }>>(
-        "/checkout/online",
-        {
+      if (paymentMethod === "cash_on_delivery") {
+        const response = await fetchWithAuth<ApiResponse<{ order: { id: string } }>>("/checkout/cod", {
           method: "POST",
           body: JSON.stringify(payload),
-        },
-      );
+        });
+        router.replace(`/order-success/${encodeURIComponent(response.data.order.id)}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const response =
+        await fetchWithAuth<ApiResponse<{ checkout: PaymentGatewayCheckout }>>(
+          "/checkout/online",
+          {
+            method: "POST",
+            body: JSON.stringify(payload),
+          },
+        );
 
       const checkout = response.data.checkout;
-      writeCashfreeCheckoutSession({
+      writePaymentGatewayCheckoutSession({
         paymentAttemptId: checkout.paymentAttemptId,
-        shouldSimulateWebhook: checkout.shouldSimulateWebhook,
         returnPath: "/order-summary",
       });
 
-      await openCashfreeCheckout({
-        mode: checkout.mode,
+      await openPaymentGatewayCheckout({
+        provider: checkout.provider,
+        redirectUrl: checkout.redirectUrl,
         paymentSessionId: checkout.paymentSessionId,
+        mode: checkout.mode,
+        returnUrl: checkout.returnUrl,
       });
 
       setIsSubmitting(false);
       return;
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Unable to continue with Cashfree checkout.",
+        error instanceof Error ? error.message : "Unable to continue with online payment.",
       );
     }
 
@@ -411,25 +453,56 @@ export default function OrderSummaryClient() {
     return null;
   }
 
-  return (
-    <SiteShell hideMobileHeader hideMobileBottomNav>
-      <div className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-[#eeeeee] bg-white px-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="flex h-9 w-7 items-center justify-center text-[#111111]"
-          aria-label="Go back"
-        >
-          <ArrowLeft size={21} strokeWidth={1.8} />
-        </button>
-        <h1 className="text-[15px] font-semibold text-[#111111]">
-          Order summary
-        </h1>
-      </div>
+  const couponDiscountValue = Math.max(
+    0,
+    Number(effectivePreview?.pricing.couponDiscountValue || 0),
+  );
+  const hasAppliedCoupon = Boolean(effectivePreview?.appliedCoupon?.code);
+  const itemsSubtotal = Number(effectivePreview?.pricing.itemsSubtotal || 0);
+  const itemsSubtotalAfterCoupon = Number(
+    effectivePreview?.pricing.itemsSubtotalAfterCoupon ?? itemsSubtotal,
+  );
+  const totalBeforeCoupon = Number(
+    effectivePreview?.pricing.totalBeforeCoupon ?? effectivePreview?.pricing.total ?? 0,
+  );
+  const totalAfterCoupon = Number(effectivePreview?.pricing.total || 0);
+  const savingsAmount = Math.max(
+    couponDiscountValue,
+    totalBeforeCoupon > 0 ? totalBeforeCoupon - totalAfterCoupon : 0,
+  );
+  const hasProductSubtotalDiscount = itemsSubtotalAfterCoupon < itemsSubtotal;
+  const paymentAccess = user?.paymentAccess || {
+    cashOnDelivery: true,
+    onlinePayment: true,
+    emi: false,
+  };
+  const preferredPaymentMethod: CheckoutPaymentMethod | null =
+    paymentAccess.onlinePayment
+      ? "online_payment"
+      : paymentAccess.emi
+        ? "emi"
+        : null;
 
-      <section className="min-h-screen bg-white px-4 pb-28 pt-6 sm:px-6 md:py-8">
-        <div className="mx-auto w-full max-w-[520px]">
-          <div className="mx-auto flex max-w-2xl items-start px-1 pb-7 pt-2 sm:px-6 md:pt-6">
+  return (
+    <SiteShell hideHeader hideMobileBottomNav>
+      <section className="min-h-screen bg-white px-4 pb-28 pt-[5.5rem] sm:px-6 sm:pt-24 md:px-6 md:pb-10 md:pt-28">
+        <div className="fixed inset-x-0 top-0 z-40 border-b border-[#e8ece3] bg-white/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 md:px-6">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#E8F0E0] text-[#173d12] transition hover:bg-[#dcead2]"
+              aria-label="Go back"
+            >
+              <ArrowLeft size={21} />
+            </button>
+            <h1 className="text-lg font-semibold text-[#173d12] sm:text-xl">
+              Order Summary
+            </h1>
+          </div>
+        </div>
+        <div className="mx-auto w-full max-w-[660px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] md:px-6">
+          <div className="mx-auto flex max-w-2xl items-start px-4 pb-7 pt-2 sm:px-6 md:px-8 md:pt-6">
             {steps.map((step, index) => {
               const active = step.id === currentStep;
               const done = step.id < currentStep;
@@ -437,15 +510,15 @@ export default function OrderSummaryClient() {
               return (
                 <div key={step.id} className="flex flex-1 items-start last:flex-none">
                   <div className="flex min-w-[54px] flex-col items-center gap-2 sm:min-w-[60px]">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-[#C5D6B5] bg-[#2f6427] text-white shadow-[0_0_0_2px_rgba(47,100,39,0.18)]" : done ? "bg-[#6B9E3E] text-white" : "bg-[#E8F0E0] text-[#1A1F14]"}`}>
-                      {done ? <CheckCircle2 size={18} /> : step.id}
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-[#C5D6B5] bg-[#4c8b5d] text-white shadow-[0_0_0_2px_rgba(76,139,93,0.18)]" : done ? "bg-[#4c8b5d] text-white" : "bg-[#E8F0E0] text-[#1A1F14]"}`}>
+                      {done ? <Check size={18} strokeWidth={3} /> : step.id}
                     </div>
-                    <span className={`text-center text-[10px] leading-tight md:text-xs ${active ? "font-semibold text-[#14721c]" : "font-medium text-[#1A1F14]"}`}>
+                    <span className={`text-center text-[10px] leading-tight md:text-xs ${active ? "font-semibold text-[#4c8b5d]" : done ? "font-medium text-[#4c8b5d]" : "font-medium text-[#1A1F14]"}`}>
                       {step.label}
                     </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#6B9E3E]" : "bg-[#D8DDD0]"}`} />
+                    <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#4c8b5d]" : "bg-[#D8DDD0]"}`} />
                   )}
                 </div>
               );
@@ -462,7 +535,7 @@ export default function OrderSummaryClient() {
           ) : !items.length ? (
             <div className="border border-[#dddddd] bg-white p-8 text-center">
               <ShoppingCart className="mx-auto text-[#214f14]" size={32} />
-              <h2 className="mt-4 text-xl font-black text-[#163915]">
+              <h2 className="mt-4 text-xl font-semibold text-[#163915]">
                 Your cart is empty
               </h2>
               <Link
@@ -475,8 +548,8 @@ export default function OrderSummaryClient() {
           ) : (
             <>
               <section className="overflow-hidden rounded-t-lg border border-[#e3e3e3] bg-white">
-                <div className="bg-[#f0f0f0] px-3 py-2">
-                  <h2 className="text-[18px] font-black leading-5 text-black">
+                <div className="bg-[#f0f0f080] px-3 py-2">
+                  <h2 className="text-[18px] font-semibold leading-5 text-black">
                     Bill to :
                   </h2>
                 </div>
@@ -491,8 +564,8 @@ export default function OrderSummaryClient() {
                   {user?.email ? <p>Email - {user.email}</p> : null}
                 </div>
 
-                <div className="bg-[#f0f0f0] px-3 py-2">
-                  <h2 className="text-[18px] font-black leading-5 text-black">
+                <div className="bg-[#f0f0f080] px-3 py-2">
+                  <h2 className="text-[18px] font-semibold leading-5 text-black">
                     Ship to :
                   </h2>
                 </div>
@@ -502,7 +575,7 @@ export default function OrderSummaryClient() {
               </section>
 
               <section className="mt-4 overflow-hidden rounded-b-lg border border-[#e3e3e3] bg-white">
-                <div className="grid grid-cols-[minmax(0,1fr)_88px_96px] bg-[#f0f0f0] px-3 py-2 text-[14px] font-black text-black">
+                <div className="grid grid-cols-[minmax(0,1fr)_88px_96px] bg-[#f0f0f080] px-3 py-2 text-[14px] font-semibold text-black">
                   <span>Items</span>
                   <span className="text-center">Quantity</span>
                   <span className="text-right">Amount</span>
@@ -532,40 +605,123 @@ export default function OrderSummaryClient() {
                   ))}
                 </div>
 
-                <div className="bg-[#fafafa] px-3 pt-8">
+                <div className=" px-3 pt-8">
+                  <div className="border-b border-[#bfbfbf] pb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm md:text-sm font-semibold leading-5 text-[#3c63b5]">
+                        Have a coupon?
+                      </p>
+                      {hasAppliedCoupon ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedCouponCode("");
+                            setCouponDraft("");
+                            setCouponFeedback("Coupon removed.");
+                          }}
+                          className="text-[12px] font-bold text-[#214f14]"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <input
+                        type="text"
+                        value={couponDraft}
+                        onChange={(event) => {
+                          setCouponDraft(event.target.value.toUpperCase());
+                          setCouponError("");
+                          setPersistCouponError(false);
+                        }}
+                        placeholder="Enter coupon code"
+                        className="h-11 flex-1 rounded-md border border-[#d7d7d7] px-3 text-[13px] font-medium text-black outline-none focus:border-[#214f14]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedCouponCode(couponDraft.trim().toUpperCase());
+                          setCouponFeedback("");
+                          setCouponError("");
+                          setPersistCouponError(false);
+                          setPreviewError("");
+                        }}
+                        disabled={!couponDraft.trim()}
+                        className="h-11 rounded-md bg-[#4c8b5d] px-4 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {couponFeedback ? (
+                      <p className="mt-2 text-[11px] font-semibold text-[#214f14]">
+                        {couponFeedback}
+                      </p>
+                    ) : null}
+                    {couponError ? (
+                      <p className="mt-2 text-[11px] font-semibold text-[#b42318]">
+                        {couponError}
+                      </p>
+                    ) : null}
+                  </div>
+
                   <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
-                    <span className="font-black">Sub total</span>
-                    <span>{formatInvoiceAmount(effectivePreview?.pricing.itemsSubtotal || 0)}</span>
+                    <span className="font-semibold">Sub total</span>
+                    <span>{formatInvoiceAmount(itemsSubtotal)}</span>
                   </div>
                   <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
-                    <span className="font-black">Tax</span>
+                    <span className="font-semibold">Tax</span>
                     <span>{formatInvoiceAmount(0)}</span>
                   </div>
                   <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
-                    <span className="font-black">Delivery charge</span>
+                    <span className="font-semibold">Delivery charge</span>
                     <span>
                       {effectivePreview
                         ? formatInvoiceAmount(effectivePreview.pricing.deliveryCharge)
                         : "Required"}
                     </span>
                   </div>
+                  {hasAppliedCoupon ? (
+                    <>
+                      <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                        <span className="font-semibold">Total amount</span>
+                        <span>{formatInvoiceAmount(totalBeforeCoupon)}</span>
+                      </div>
+                      <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-[#214f14]">
+                        <span className="font-semibold">Coupon Discount</span>
+                        <span>-{formatInvoiceAmount(couponDiscountValue)}</span>
+                      </div>
+                      {hasProductSubtotalDiscount ? (
+                        <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                          <span className="font-semibold">Sub total after coupon</span>
+                          <span>{formatInvoiceAmount(itemsSubtotalAfterCoupon)}</span>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
                 </div>
 
-                <div className="flex justify-between gap-4 bg-[#e8e8e8] px-3 py-4 text-[14px] font-black text-black">
+                <div className="flex justify-between gap-4 bg-[#e8e8e870] px-3 py-4 text-[14px] font-semibold text-black">
                   <span>Payable amount</span>
                   <span>
-                    {effectivePreview
-                      ? formatInvoiceAmount(effectivePreview.pricing.total)
-                      : "---"}
+                    {effectivePreview ? formatInvoiceAmount(totalAfterCoupon) : "---"}
                   </span>
                 </div>
               </section>
+
+              {hasAppliedCoupon && savingsAmount > 0 ? (
+                <div className="mt-3 text-center text-[#1f8a3b]">
+                  <p className="inline-flex items-center gap-1.5 text-[13px] font-semibold">
+                    <BadgePercent size={14} strokeWidth={2.2} />
+                    <span>You saved {formatInvoiceAmount(savingsAmount)}</span>
+                  </p>
+                </div>
+              ) : null}
 
               {!hasPosition(deliveryPosition) ? (
                 <div className="px-2 py-4 text-center">
                   <Link
                     href="/cart"
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#d6e6bd] bg-white px-5 text-xs font-black text-[#214f14]"
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#d6e6bd] bg-white px-5 text-xs font-semibold text-[#214f14]"
                   >
                     Select delivery location in cart
                   </Link>
@@ -578,47 +734,84 @@ export default function OrderSummaryClient() {
                 </p>
               ) : null}
 
-              {effectivePreview ? (
-                <p className="mx-auto mt-4 max-w-[360px] text-center text-[11px] leading-5 text-[#666666]">
-                  Delivery distance {effectivePreview.pricing.distanceKm.toFixed(2)} km.
-                  {` `}
-                  Chargeable weight {effectivePreview.summary.totalWeightKg} kg.
-                  {` `}
-                  Server pricing is recalculated at payment time, so the frontend cannot override totals.
-                </p>
-              ) : null}
-
               {statusMessage ? (
                 <p className="mx-auto mt-3 max-w-[360px] rounded-lg bg-[#f4fbf2] px-3 py-2 text-center text-xs font-semibold leading-5 text-[#214f14]">
                   {statusMessage}
                 </p>
               ) : null}
 
-              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e3e3] bg-white px-3 py-2 shadow-[0_-10px_28px_rgba(36,54,27,0.12)] sm:static sm:mt-5 sm:border-t-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-                <div className="mx-auto grid w-full max-w-[520px] grid-cols-[minmax(0,1fr)_140px] gap-3">
+              {!preferredPaymentMethod ? (
+                <p className="mx-auto mt-3 max-w-[360px] rounded-lg bg-[#fff6f5] px-3 py-2 text-center text-xs font-semibold leading-5 text-[#b42318]">
+                  Online checkout is not enabled for this account right now. Please contact support.
+                </p>
+              ) : null}
+
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e3e3] bg-white px-3 py-3 md:px-0 shadow-[0_-10px_28px_rgba(36,54,27,0.12)] sm:static sm:mt-5 sm:border-t-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+                <div className="mx-auto grid w-full max-w-full grid-cols-[minmax(0,1fr)] gap-4 md:pb-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-center">
                   <div className="min-w-0 py-1">
-                    <span className="block text-[11px] font-normal text-[#8a8a8a]">
+                    <span className="block text-sm font-medium text-[#4c8b5d]">
                       Total payable
                     </span>
-                    <span className="block break-all text-[25px] font-black leading-tight text-[#263a22]">
-                      {effectivePreview
-                        ? formatInvoiceAmount(effectivePreview.pricing.total)
-                        : "---"}
+                    <span className="block break-all text-[2.2rem] font-medium leading-none text-[#4c8b5d] sm:text-2xl">
+                      {effectivePreview ? formatInvoiceAmount(totalAfterCoupon) : "---"}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleContinue()}
-                    disabled={!effectivePreview || isSubmitting}
-                    className="flex h-[54px] items-center justify-center rounded-lg bg-[#397519] px-3 text-[20px] font-black text-white transition hover:bg-[#2d5f12] disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {isSubmitting ? "Processing..." : "Continue"}
-                  </button>
+                  {preferredPaymentMethod ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleContinue(preferredPaymentMethod)}
+                      disabled={!effectivePreview || isSubmitting}
+                      className="inline-flex h-[52px] items-center justify-center rounded-[0.85rem] bg-[#4c8b5d] px-6 text-[1.2rem] font-medium text-white transition hover:bg-[#427a50] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[60px] sm:text-[1.35rem]"
+                    >
+                      {isSubmitting ? "Processing..." : "Continue"}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </>
           )}
         </div>
+        <footer className="hidden">
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#1f2a18]">
+            We Accept
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            {["Visa", "Mastercard", "Amex", "Discover", "PayPal"].map(
+              (paymentMethod) => (
+                <span
+                  key={paymentMethod}
+                  className="inline-flex min-w-[88px] items-center justify-center rounded-lg border border-[#d7dccf] bg-white px-4 py-2 text-sm font-semibold text-[#304624] shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+                >
+                  {paymentMethod}
+                </span>
+              ),
+            )}
+          </div>
+          <p className="mt-4 pb-6 text-xs font-medium tracking-[0.08em] text-[#5a6550]">
+            Copyright © ShadyPlant. All rights reserved.
+          </p>
+        </footer>
+        <footer className="hidden">
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#1f2a18]">
+            We Accept
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            {["Visa", "Mastercard", "Amex", "Discover", "PayPal"].map(
+              (paymentMethod) => (
+                <span
+                  key={paymentMethod}
+                  className="inline-flex min-w-[88px] items-center justify-center rounded-lg border border-[#d7dccf] bg-white px-4 py-2 text-sm font-semibold text-[#304624] shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+                >
+                  {paymentMethod}
+                </span>
+              ),
+            )}
+          </div>
+          <p className="mt-4 pb-6 text-xs font-medium tracking-[0.08em] text-[#5a6550]">
+            Copyright {"\u00A9"} ShadyPlant. All rights reserved.
+          </p>
+        </footer>
+        <CheckoutPageFooter />
       </section>
     </SiteShell>
   );

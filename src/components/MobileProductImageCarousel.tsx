@@ -62,7 +62,7 @@ export default function MobileProductImageCarousel({
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[1.25rem] border border-[#eeeeee] bg-[#f7f8f5] shadow-[0_10px_28px_rgba(23,20,16,0.06)]">
+    <section className="relative overflow-hidden bg-[#f7f8f5]">
       <div
         ref={scrollerRef}
         onScroll={handleScroll}

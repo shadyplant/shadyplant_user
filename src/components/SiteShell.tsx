@@ -5,6 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 
 type SiteShellProps = {
   children: ReactNode;
+  hideHeader?: boolean;
   hideMobileHeader?: boolean;
   hideMobileBottomNav?: boolean;
   showFooter?: boolean;
@@ -13,16 +14,19 @@ type SiteShellProps = {
 
 export default function SiteShell({
   children,
+  hideHeader = false,
   hideMobileHeader = false,
   hideMobileBottomNav = false,
   showFooter = false,
   headerInitialAddress = "",
 }: SiteShellProps) {
   return (
-    <div className="theme-shell min-h-screen">
-      <div className={hideMobileHeader ? "hidden md:block" : ""}>
-        <EcomHeader initialDeliveryAddress={headerInitialAddress} />
-      </div>
+    <div className="relative min-h-screen">
+      {!hideHeader ? (
+        <div className={hideMobileHeader ? "hidden md:block" : ""}>
+          <EcomHeader initialDeliveryAddress={headerInitialAddress} />
+        </div>
+      ) : null}
       <main>{children}</main>
       {showFooter ? <SiteFooter /> : null}
       <div className={hideMobileBottomNav ? "hidden md:block" : ""}>

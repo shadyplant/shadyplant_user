@@ -6,8 +6,6 @@ import { getApiBaseUrl, type ApiResponse } from "@/lib/api";
 import { normalizeDeliveryAddress, type DeliveryAddress } from "@/lib/validation";
 
 type RefreshPayload = {
-  accessToken: string;
-  expiresIn: string;
   user?: {
     deliveryAddress?: Partial<DeliveryAddress> | null;
   } | null;
@@ -22,8 +20,8 @@ export async function getServerSavedDeliveryAddress() {
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
-      method: "POST",
+    const response = await fetch(`${getApiBaseUrl()}/auth/session-user`, {
+      method: "GET",
       cache: "no-store",
       headers: {
         Accept: "application/json",

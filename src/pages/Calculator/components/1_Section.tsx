@@ -27,15 +27,14 @@ import { useRouter } from "next/navigation";
 import { requestJson } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
-  cleanupCashfreeReturnUrl,
-  clearCashfreeCheckoutSession,
-  getCashfreeReturnState,
-  loadCashfreeSdk,
-  openCashfreeCheckout,
-  readCashfreeCheckoutSession,
-  writeCashfreeCheckoutSession,
-  type CashfreeMode,
-} from "@/lib/cashfreeCheckout";
+  cleanupPaymentGatewayReturnUrl,
+  clearPaymentGatewayCheckoutSession,
+  getPaymentGatewayReturnState,
+  openPaymentGatewayCheckout,
+  readPaymentGatewayCheckoutSession,
+  writePaymentGatewayCheckoutSession,
+  type PaymentGatewayMode,
+} from "@/lib/paymentGatewayCheckout";
 import {
   hasCompleteDeliveryAddress,
   validateCheckoutForm,
@@ -71,11 +70,13 @@ type CheckoutState = {
   warning: string | null;
 };
 
-type CashfreeCheckout = {
+type PaymentGatewayCheckout = {
   paymentAttemptId: string;
-  paymentSessionId: string;
-  orderId: string;
-  cfOrderId: string;
+  provider: string;
+  merchantOrderId: string;
+  gatewayOrderId: string;
+  redirectUrl: string;
+  paymentSessionId?: string;
   amount: number;
   currency: string;
   businessName: string;
@@ -85,9 +86,8 @@ type CashfreeCheckout = {
     email?: string;
     contact?: string;
   };
-  mode: CashfreeMode;
+  mode: PaymentGatewayMode;
   returnUrl: string;
-  shouldSimulateWebhook: boolean;
 };
 
 type PaymentAttemptStatus = {
@@ -101,6 +101,8 @@ type PaymentAttemptStatus = {
   createdAt: string;
   updatedAt: string;
 };
+
+type CheckoutPaymentMethod = "cash_on_delivery" | "online_payment" | "emi";
 
 function getVehicle(vehicleId: string) {
   return VEHICLES.find((vehicle) => vehicle.id === vehicleId) || VEHICLES[0];
@@ -233,7 +235,7 @@ export default function GrassCalculator() {
     }
   }
 
-  function buildOrderPayload(paymentMethod: "cash_on_delivery" | "online_payment") {
+  function buildOrderPayload(paymentMethod: CheckoutPaymentMethod) {
     const validation = validateCheckoutForm({
       sqft: formData.sqft,
       deliveryDate: formData.date,
@@ -268,19 +270,19 @@ export default function GrassCalculator() {
         const response = await fetchWithAuth<{
           message: string;
           data: { paymentAttempt: PaymentAttemptStatus };
-        }>(`/payments/cashfree/attempts/${paymentAttemptId}`);
+        }>(`/payments/attempts/${paymentAttemptId}`);
         const paymentAttempt = response.data.paymentAttempt;
 
         if (paymentAttempt.status === "completed" && paymentAttempt.orderId) {
-          clearCashfreeCheckoutSession();
-          cleanupCashfreeReturnUrl();
+          clearPaymentGatewayCheckoutSession();
+          cleanupPaymentGatewayReturnUrl();
           router.push("/order");
           return true;
         }
 
         if (paymentAttempt.status === "failed") {
-          clearCashfreeCheckoutSession();
-          cleanupCashfreeReturnUrl();
+          clearPaymentGatewayCheckoutSession();
+          cleanupPaymentGatewayReturnUrl();
           setStatusMessage("Payment failed before order confirmation. Please try again.");
           return false;
         }
@@ -303,8 +305,8 @@ export default function GrassCalculator() {
       return;
     }
 
-    const returnState = getCashfreeReturnState();
-    const persistedCheckout = readCashfreeCheckoutSession();
+    const returnState = getPaymentGatewayReturnState();
+    const persistedCheckout = readPaymentGatewayCheckoutSession();
     const paymentAttemptId =
       returnState.paymentAttemptId || persistedCheckout?.paymentAttemptId || "";
 
@@ -314,30 +316,10 @@ export default function GrassCalculator() {
 
     let isActive = true;
     setIsProcessing(true);
-    setStatusMessage("Confirming your payment securely...");
+    setStatusMessage("Waiting for secure payment verification from the server...");
 
     void (async () => {
       try {
-        if (
-          persistedCheckout?.paymentAttemptId === paymentAttemptId &&
-          persistedCheckout.shouldSimulateWebhook
-        ) {
-          await fetchWithAuth(`/payments/cashfree/test-webhook/${paymentAttemptId}`, {
-            method: "POST",
-          });
-        } else {
-          await fetchWithAuth<{
-            message: string;
-            data: { paymentAttempt: PaymentAttemptStatus };
-          }>(`/payments/cashfree/attempts/${paymentAttemptId}/verify`, {
-            method: "POST",
-          });
-        }
-
-        if (!isActive) {
-          return;
-        }
-
         await pollPaymentAttempt(paymentAttemptId);
       } catch (error) {
         if (!isActive) {
@@ -355,7 +337,7 @@ export default function GrassCalculator() {
           return;
         }
 
-        cleanupCashfreeReturnUrl();
+        cleanupPaymentGatewayReturnUrl();
         setIsProcessing(false);
       }
     })();
@@ -422,35 +404,72 @@ export default function GrassCalculator() {
     setStatusMessage(null);
 
     try {
-      const scriptLoaded = await loadCashfreeSdk();
-      if (!scriptLoaded) {
-        throw new Error("Cashfree checkout failed to load.");
-      }
-
       const response = await fetchWithAuth<{
         message: string;
-        data: { checkout: CashfreeCheckout };
-      }>("/payments/cashfree/create-order", {
+        data: { checkout: PaymentGatewayCheckout };
+      }>("/payments/checkout", {
         method: "POST",
         body: JSON.stringify(buildOrderPayload("online_payment")),
       });
 
       const checkout = response.data.checkout;
 
-      writeCashfreeCheckoutSession({
+      writePaymentGatewayCheckoutSession({
         paymentAttemptId: checkout.paymentAttemptId,
-        shouldSimulateWebhook: checkout.shouldSimulateWebhook,
         returnPath: "/checkout",
       });
 
-      await openCashfreeCheckout({
-        mode: checkout.mode,
+      await openPaymentGatewayCheckout({
+        provider: checkout.provider,
+        redirectUrl: checkout.redirectUrl,
         paymentSessionId: checkout.paymentSessionId,
+        mode: checkout.mode,
+        returnUrl: checkout.returnUrl,
       });
 
       setIsProcessing(false);
     } catch (error) {
-      setStatusMessage(getErrorMessage(error, "Unable to start Cashfree payment."));
+      setStatusMessage(getErrorMessage(error, "Unable to start online payment."));
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleEmiPayment() {
+    if (!isAuthenticated) {
+      router.push("/auth?next=/checkout");
+      return;
+    }
+
+    setIsProcessing(true);
+    setStatusMessage(null);
+
+    try {
+      const response = await fetchWithAuth<{
+        message: string;
+        data: { checkout: PaymentGatewayCheckout };
+      }>("/payments/checkout", {
+        method: "POST",
+        body: JSON.stringify(buildOrderPayload("emi")),
+      });
+
+      const checkout = response.data.checkout;
+
+      writePaymentGatewayCheckoutSession({
+        paymentAttemptId: checkout.paymentAttemptId,
+        returnPath: "/checkout",
+      });
+
+      await openPaymentGatewayCheckout({
+        provider: checkout.provider,
+        redirectUrl: checkout.redirectUrl,
+        paymentSessionId: checkout.paymentSessionId,
+        mode: checkout.mode,
+        returnUrl: checkout.returnUrl,
+      });
+
+      setIsProcessing(false);
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error, "Unable to start EMI checkout."));
       setIsProcessing(false);
     }
   }
@@ -461,20 +480,25 @@ export default function GrassCalculator() {
       (user.phoneNumber || formData.whatsapp) &&
       hasCompleteDeliveryAddress(user.deliveryAddress),
   );
+  const paymentAccess = user?.paymentAccess || {
+    cashOnDelivery: true,
+    onlinePayment: true,
+    emi: false,
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 font-sans md:p-8">
-      <div className="theme-panel-strong grid w-full max-w-6xl grid-cols-1 overflow-hidden rounded-[2rem] lg:grid-cols-12">
+      <div className="grid w-full max-w-6xl grid-cols-1 overflow-hidden rounded-[2rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] shadow-[0_18px_44px_rgba(36,54,27,0.08)] backdrop-blur-[16px] lg:grid-cols-12">
         <div className="space-y-10 p-6 md:p-12 lg:col-span-7">
           <div>
-            <div className="theme-chip mb-4 inline-flex px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em]">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-[999px] border border-[rgba(36,54,27,0.08)] bg-[rgba(173,204,128,0.18)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#24361b] shadow-[0_8px_18px_rgba(36,54,27,0.05)]">
               <Leaf size={14} />
               Assisted checkout
             </div>
-            <h1 className="theme-section-title text-3xl font-semibold">
+            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#173419]">
               Lawn Grass Checkout
             </h1>
-            <p className="theme-muted mt-2">
+            <p className="mt-2 text-[#52724f]">
               Confirm delivery, pricing, and payment in one guided checkout flow for lawn grass orders.
             </p>
           </div>
@@ -560,12 +584,12 @@ export default function GrassCalculator() {
                         placeholder="Search area or pin on map..."
                         value={address}
                         onChange={(event) => setAddress(event.target.value)}
-                        className="theme-input w-full rounded-2xl py-3 pl-12 pr-4 text-lg"
+                        className="w-full rounded-2xl border border-[rgba(36,54,27,0.12)] bg-[rgba(255,255,255,0.96)] py-3 pl-12 pr-4 text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] outline-none focus:border-[rgba(237,122,56,0.55)] focus:shadow-[0_0_0_3px_rgba(237,122,56,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]"
                       />
                     </div>
                   </Autocomplete>
 
-                  <div className="theme-panel h-56 w-full overflow-hidden rounded-[1.5rem] p-2">
+                  <div className="h-56 w-full overflow-hidden rounded-[1.5rem] border border-[var(--border-soft)] bg-[var(--surface)] p-2 shadow-[0_12px_30px_rgba(36,54,27,0.06)] backdrop-blur-[12px]">
                     <GoogleMap
                       mapContainerStyle={{ width: "100%", height: "100%" }}
                       center={markerPos}
@@ -610,7 +634,7 @@ export default function GrassCalculator() {
                     className={`rounded-[1.5rem] border p-4 text-left transition-all ${
                       formData.vehicleId === vehicle.id
                         ? "border-[#214f14] bg-[linear-gradient(135deg,#173d12_0%,#2b6b1f_100%)] text-white shadow-[0_18px_35px_rgba(33,79,20,0.25)]"
-                        : "theme-panel text-zinc-700 hover:border-[#98c25a]"
+                        : "border border-[var(--border-soft)] bg-[var(--surface)] text-zinc-700 shadow-[0_12px_30px_rgba(36,54,27,0.06)] backdrop-blur-[12px] hover:border-[#98c25a]"
                     }`}
                   >
                     <Truck
@@ -658,7 +682,7 @@ export default function GrassCalculator() {
                           sqft: event.target.value,
                         }))
                       }
-                      className="theme-input w-full rounded-2xl py-3 pl-10 pr-28"
+                      className="w-full rounded-2xl border border-[rgba(36,54,27,0.12)] bg-[rgba(255,255,255,0.96)] py-3 pl-10 pr-28 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] outline-none focus:border-[rgba(237,122,56,0.55)] focus:shadow-[0_0_0_3px_rgba(237,122,56,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]"
                     />
                     <div className="absolute right-3 top-3 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-700">
                       INR {GRASS_PRICE_PER_SQFT} / SQFT
@@ -684,7 +708,7 @@ export default function GrassCalculator() {
                           date: event.target.value,
                         }))
                       }
-                      className="theme-input w-full rounded-2xl py-3 pl-10 pr-4 text-zinc-700"
+                      className="w-full rounded-2xl border border-[rgba(36,54,27,0.12)] bg-[rgba(255,255,255,0.96)] py-3 pl-10 pr-4 text-zinc-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] outline-none focus:border-[rgba(237,122,56,0.55)] focus:shadow-[0_0_0_3px_rgba(237,122,56,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]"
                     />
                   </div>
                   {errors.deliveryDate ? (
@@ -708,7 +732,7 @@ export default function GrassCalculator() {
                           whatsapp: event.target.value,
                         }))
                       }
-                      className="theme-input w-full rounded-2xl py-3 pl-10 pr-4"
+                      className="w-full rounded-2xl border border-[rgba(36,54,27,0.12)] bg-[rgba(255,255,255,0.96)] py-3 pl-10 pr-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] outline-none focus:border-[rgba(237,122,56,0.55)] focus:shadow-[0_0_0_3px_rgba(237,122,56,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]"
                     />
                   </div>
                   {errors.whatsapp ? (
@@ -722,7 +746,7 @@ export default function GrassCalculator() {
               type="button"
               onClick={calculateFinal}
               disabled={isCalculating}
-              className="theme-button w-full rounded-2xl py-4 font-semibold transition-all active:scale-[0.98] disabled:bg-zinc-300 disabled:shadow-none"
+              className="w-full rounded-2xl bg-[linear-gradient(135deg,#24361b_0%,#365127_100%)] py-4 font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition-all hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)] active:scale-[0.98] disabled:bg-zinc-300 disabled:shadow-none"
             >
               {isCalculating ? "Calculating..." : "Review Checkout Total"}
             </button>
@@ -751,7 +775,7 @@ export default function GrassCalculator() {
                 >
                   <div
                     ref={receiptRef}
-                    className="theme-panel-strong space-y-4 rounded-[1.75rem] p-6"
+                    className="space-y-4 rounded-[1.75rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] p-6 shadow-[0_18px_44px_rgba(36,54,27,0.08)] backdrop-blur-[16px]"
                   >
                     <div className="mb-2 border-b border-zinc-100 pb-4 text-center">
                       <h3 className="text-lg font-bold text-zinc-900">
@@ -819,23 +843,46 @@ export default function GrassCalculator() {
                   </div>
 
                   <div className="space-y-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={handleOnlinePayment}
-                      disabled={isProcessing || !profileReady}
-                      className="w-full rounded-2xl bg-emerald-600 py-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300"
-                    >
-                      {isProcessing ? "Processing..." : `Pay INR ${result.total.toLocaleString()}`}
-                    </button>
+                    {paymentAccess.onlinePayment ? (
+                      <button
+                        type="button"
+                        onClick={handleOnlinePayment}
+                        disabled={isProcessing || !profileReady}
+                        className="w-full rounded-2xl bg-emerald-600 py-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300"
+                      >
+                        {isProcessing ? "Processing..." : `Pay INR ${result.total.toLocaleString()}`}
+                      </button>
+                    ) : null}
 
-                    <button
-                      type="button"
-                      onClick={handleCashOnDelivery}
-                      disabled={isProcessing || !profileReady}
-                      className="w-full rounded-2xl border border-[#214f14] bg-white py-4 font-semibold text-[#214f14] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Place Cash on Delivery Order
-                    </button>
+                    {paymentAccess.emi ? (
+                      <button
+                        type="button"
+                        onClick={handleEmiPayment}
+                        disabled={isProcessing || !profileReady}
+                        className="w-full rounded-2xl bg-[#163915] py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isProcessing ? "Processing..." : "Continue with EMI"}
+                      </button>
+                    ) : null}
+
+                    {paymentAccess.cashOnDelivery ? (
+                      <button
+                        type="button"
+                        onClick={handleCashOnDelivery}
+                        disabled={isProcessing || !profileReady}
+                        className="w-full rounded-2xl border border-[#214f14] bg-white py-4 font-semibold text-[#214f14] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Place Cash on Delivery Order
+                      </button>
+                    ) : null}
+
+                    {!paymentAccess.cashOnDelivery &&
+                    !paymentAccess.onlinePayment &&
+                    !paymentAccess.emi ? (
+                      <div className="rounded-[1.4rem] border border-[#f2d6d1] bg-[#fff7f5] px-4 py-3 text-sm font-medium text-[#a14a3b]">
+                        No payment method is enabled for this account right now.
+                      </div>
+                    ) : null}
 
                     {formData.whatsapp ? (
                       <a
@@ -853,7 +900,7 @@ export default function GrassCalculator() {
                     <button
                       type="button"
                       onClick={downloadPDF}
-                      className="theme-panel flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-semibold text-zinc-700 transition-colors"
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] py-4 font-semibold text-zinc-700 shadow-[0_12px_30px_rgba(36,54,27,0.06)] backdrop-blur-[12px] transition-colors"
                     >
                       <Download size={18} /> Download PDF Receipt
                     </button>
@@ -864,7 +911,7 @@ export default function GrassCalculator() {
                   key="empty"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="theme-panel flex h-64 flex-col items-center justify-center rounded-[1.75rem] border-2 border-dashed border-zinc-300 bg-zinc-50/50 p-6 text-center text-zinc-400"
+                  className="flex h-64 flex-col items-center justify-center rounded-[1.75rem] border-2 border-dashed border-zinc-300 bg-zinc-50/50 p-6 text-center text-zinc-400 shadow-[0_12px_30px_rgba(36,54,27,0.06)] backdrop-blur-[12px]"
                 >
                   <MapPin size={32} className="mb-3 text-zinc-300" />
                   <p className="font-medium text-zinc-500">Awaiting Details</p>

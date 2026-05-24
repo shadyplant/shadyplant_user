@@ -2,13 +2,11 @@
 
 import { Minus, Plus } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import {
   getCartQuantity,
   getCartQuantityByLineId,
   useCartStore,
 } from "@/components/cartStore";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
 
 type AddToCartButtonProps = {
@@ -21,6 +19,7 @@ type AddToCartButtonProps = {
   compact?: boolean;
   showQuantityBadge?: boolean;
   label?: string;
+  showInlineInCartLabel?: boolean;
   children?: ReactNode;
 };
 
@@ -158,12 +157,10 @@ export default function AddToCartButton({
   compact = false,
   showQuantityBadge = true,
   label = "Add to cart",
+  showInlineInCartLabel = false,
   children,
 }: AddToCartButtonProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
-  const { items: cartItems, addItem, updateQuantity } = useCartStore();
+  const { items: cartItems, addItem, updateQuantity, removeItem } = useCartStore();
   const selectedOptionContext = useOptionalProductOptionSelection();
   const activeProductId = selectedOptionContext?.product.id || productId;
   const activeLineId =
@@ -208,11 +205,6 @@ export default function AddToCartButton({
       return;
     }
 
-    if (!isAuthenticated) {
-      router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
-      return;
-    }
-
     await addItem(
       activeProductId,
       Math.max(quantity, effectiveMinimumQuantity),
@@ -233,12 +225,8 @@ export default function AddToCartButton({
     event.preventDefault();
     event.stopPropagation();
 
-    if (!isAuthenticated) {
-      router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
-      return;
-    }
-
     if (quantityInCart <= effectiveMinimumQuantity) {
+      await removeItem(activeLineId);
       return;
     }
 
@@ -255,11 +243,6 @@ export default function AddToCartButton({
     event.stopPropagation();
 
     if (isOutOfStock || hasReachedStockLimit) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.push(`/auth?next=${encodeURIComponent(pathname || "/")}`);
       return;
     }
 
@@ -304,9 +287,9 @@ export default function AddToCartButton({
       >
         <div className="relative inline-flex items-center justify-center">
           {justAdded ? (
-            <AddedToCartIcon className="h-6 w-6 text-white" />
+            <AddedToCartIcon className="h-6 w-6" />
           ) : (
-            <AddToCartIcon className="h-6 w-6 text-white" />
+            <AddToCartIcon className="h-6 w-6" />
           )}
 
           {showQuantityBadge && quantityInCart > 0 ? (
@@ -322,21 +305,20 @@ export default function AddToCartButton({
   if (showQuantityControls && quantityInCart > 0 && !isOutOfStock) {
     return (
       <div
-        className={`grid h-11 w-full grid-cols-[3rem_minmax(0,1fr)_3rem] overflow-hidden rounded-[0.5rem] bg-[#55ad35] text-white ${className}`.trim()}
+        className={`grid h-11 w-full grid-cols-3 overflow-hidden rounded-[0.5rem] border border-[#4c8d5b] bg-white text-[#0d9a55] ${className}`.trim()}
       >
         <button
           type="button"
           onMouseDown={stopNestedNavigation}
           onTouchStart={stopNestedNavigation}
           onClick={(event) => void handleDecreaseQuantity(event)}
-          disabled={quantityInCart <= effectiveMinimumQuantity}
-          className="flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7]"
           aria-label="Decrease cart quantity"
         >
           <Minus size={20} strokeWidth={2.6} />
         </button>
 
-        <div className="flex min-w-0 items-center justify-center border-x border-white/30 text-lg font-black">
+        <div className="flex min-w-0 items-center justify-center border-x border-[#d9eddc] bg-white px-4 text-center text-lg font-black text-[#0d9a55]">
           {displayQuantity}
         </div>
 
@@ -346,7 +328,7 @@ export default function AddToCartButton({
           onTouchStart={stopNestedNavigation}
           onClick={(event) => void handleIncreaseQuantity(event)}
           disabled={hasReachedStockLimit}
-          className="flex items-center justify-center transition hover:bg-[#469829] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Increase cart quantity"
         >
           <Plus size={20} strokeWidth={2.6} />
@@ -367,18 +349,20 @@ export default function AddToCartButton({
     >
       <span className="inline-flex items-center gap-2">
         {justAdded ? (
-          <AddedToCartIcon className="h-6 w-6 text-white" />
+          <AddedToCartIcon className="h-6 w-6 shrink-0" />
         ) : (
-          <AddToCartIcon className="h-6 w-6 text-white" />
+          <AddToCartIcon className="h-6 w-6 shrink-0" />
         )}
         <span>
           {justAdded
-              ? "Added to cart"
+            ? "Added to cart"
+            : showInlineInCartLabel && quantityInCart > 0
+              ? `Added ${quantityInCart} in cart`
               : children ?? label}
         </span>
       </span>
 
-      {quantityInCart > 0 ? (
+      {quantityInCart > 0 && !showInlineInCartLabel ? (
         <span className="rounded-full bg-[#214f14] px-3 py-1 text-xs font-bold text-white">
           {quantityInCart} in cart
         </span>

@@ -38,7 +38,13 @@ function getInvoiceFileName(order: Order) {
   return `invoice-${safeOrderNumber}.pdf`;
 }
 
-export default function OrderInvoiceDownloadButton({ order }: { order: Order }) {
+export default function OrderInvoiceDownloadButton({
+  order,
+  className = "",
+}: {
+  order: Order;
+  className?: string;
+}) {
   const invoiceRef = useRef<HTMLDivElement | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -79,9 +85,13 @@ export default function OrderInvoiceDownloadButton({ order }: { order: Order }) 
         type="button"
         onClick={handleDownload}
         disabled={isGenerating}
-        className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#dbe8cd] bg-white px-4 py-2 text-sm font-semibold text-[#214f14] transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-70"
+        className={`inline-flex min-w-[190px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.5rem] border border-[#dbe8cd] bg-white px-4 py-2 text-[0.9rem] font-semibold text-[#214f14] transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-70 md:text-[0.95rem] ${className}`.trim()}
       >
-        {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+        {isGenerating ? (
+          <Loader2 size={20} className="h-5 w-5 shrink-0 animate-spin" />
+        ) : (
+          <Download size={20} className="h-5 w-5 shrink-0" />
+        )}
         {isGenerating ? "Preparing invoice..." : "Download invoice"}
       </button>
 

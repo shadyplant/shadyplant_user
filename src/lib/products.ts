@@ -9,6 +9,9 @@ export type Product = {
   productId: string;
   name: string;
   category: string;
+  variety: string;
+  containerSize: string;
+  height: string;
   price: number;
   mrp: number;
   weight: number;
@@ -26,6 +29,13 @@ export type Product = {
   tags: string[];
   videoClips: ProductVideoClip[];
   optionGroups: ProductOptionGroup[];
+  detailSections: ProductDetailSection[];
+};
+
+export type ProductDetailSection = {
+  title: string;
+  description: string;
+  sortOrder: number;
 };
 
 export type ProductOption = {
@@ -56,6 +66,39 @@ type ProductApi = Omit<Product, "image" | "images" | "videoClips"> & {
   images?: string[];
   videoClips?: Array<Partial<ProductVideoClip> & { image?: string }>;
 };
+
+function normalizeProductDetailSections(
+  detailSections: unknown,
+): ProductDetailSection[] {
+  if (!Array.isArray(detailSections)) {
+    return [];
+  }
+
+  return detailSections
+    .map((section, index) => {
+      if (!section || typeof section !== "object") {
+        return null;
+      }
+
+      const rawSection = section as Partial<ProductDetailSection>;
+      const title = String(rawSection.title || "").trim();
+      const description = String(rawSection.description || "").trim();
+
+      if (!title || !description) {
+        return null;
+      }
+
+      return {
+        title,
+        description,
+        sortOrder: Number.isFinite(Number(rawSection.sortOrder))
+          ? Math.max(0, Math.floor(Number(rawSection.sortOrder)))
+          : index,
+      };
+    })
+    .filter((section): section is ProductDetailSection => Boolean(section))
+    .sort((left, right) => left.sortOrder - right.sortOrder);
+}
 
 function normalizeOptionValue(value: unknown) {
   const parsedValue = Number(value);
@@ -208,6 +251,9 @@ function normalizeProduct(product: ProductApi): Product {
   return {
     ...product,
     productId: String(product.productId || product.id || "").trim(),
+    variety: String(product.variety || "").trim(),
+    containerSize: String(product.containerSize || "").trim(),
+    height: String(product.height || "").trim(),
     mrp: Math.max(Number(product.mrp || 0), Number(product.price || 0)),
     weight: Number(product.weight) > 0 ? Number(product.weight) : 0,
     offer: String(product.offer || "").trim(),
@@ -220,6 +266,7 @@ function normalizeProduct(product: ProductApi): Product {
     images,
     tags,
     optionGroups: normalizeProductOptionGroups(product.optionGroups),
+    detailSections: normalizeProductDetailSections(product.detailSections),
     videoClips: resolveProductVideoClips({
       id: String(product.id || "").trim(),
       productId: String(product.productId || product.id || "").trim(),

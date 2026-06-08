@@ -12,8 +12,17 @@ function getFirebaseConfig() {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   };
 
+  const isPlaceholderValue = (value: unknown) => {
+    const normalizedValue = String(value || "").trim().toLowerCase();
+
+    return (
+      !normalizedValue ||
+      normalizedValue.startsWith("replace-with-")
+    );
+  };
+
   const missingKeys = Object.entries(config)
-    .filter(([, value]) => !value || String(value).startsWith("replace-with-"))
+    .filter(([, value]) => isPlaceholderValue(value))
     .map(([key]) => key);
 
   if (missingKeys.length) {

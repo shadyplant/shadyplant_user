@@ -25,8 +25,11 @@ import {
 import { getFirebaseAuth } from "@/lib/firebase";
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithPopup,
+  signInWithRedirect,
   signOut as signOutFromFirebase,
+  type UserCredential,
 } from "firebase/auth";
 
 export type AuthUser = {
@@ -78,7 +81,7 @@ type AuthContextValue = {
   errorMessage: string | null;
   clearError: () => void;
   login: (input: { identifier: string; password: string }) => Promise<AuthUser>;
-  loginWithGoogle: () => Promise<AuthUser>;
+  loginWithGoogle: () => Promise<AuthUser | null>;
   register: (input: {
     fullName: string;
     email: string;
@@ -111,6 +114,34 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+const GOOGLE_POPUP_FALLBACK_ERROR_CODES = new Set([
+  "auth/popup-blocked",
+  "auth/popup-closed-by-user",
+  "auth/cancelled-popup-request",
+]);
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function isGooglePopupFallbackError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return GOOGLE_POPUP_FALLBACK_ERROR_CODES.has(
+    String((error as { code?: string }).code || "").trim(),
+  );
+}
 
 function normalizeUser(user: Partial<AuthUser>) {
   return {
@@ -196,9 +227,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refreshPromise = (async () => {
       try {
-        const response = await requestJson<AuthResponse>("/auth/refresh", {
+        const response = await requestJson<
+          ApiResponse<AuthSessionData | null>
+        >("/auth/refresh", {
           method: "POST",
         });
+
+        if (!response.data) {
+          clearSession();
+          return null;
+        }
+
         return applySession(response.data);
       } catch {
         clearSession();
@@ -211,6 +250,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshPromiseRef.current = refreshPromise;
     return refreshPromise;
   }, [applySession, clearSession]);
+
+  const completeGoogleLogin = useCallback(
+    async (credential: UserCredential) => {
+      const idToken = await credential.user.getIdToken();
+      const response = await requestJson<AuthResponse>("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ idToken }),
+      });
+
+      return applySession(response.data);
+    },
+    [applySession],
+  );
 
   const fetchWithAuth = useCallback(async <T,>(
     path: string,
@@ -258,6 +310,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshSession]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const processGoogleRedirect = async () => {
+      let auth;
+
+      try {
+        auth = getFirebaseAuth();
+      } catch {
+        return;
+      }
+
+      try {
+        const credential = await getRedirectResult(auth);
+
+        if (!isActive || !credential) {
+          return;
+        }
+
+        if (!credential) {
+          return;
+        }
+
+        await completeGoogleLogin(credential);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setErrorMessage(
+          getErrorMessage(error, "Unable to complete Google sign-in."),
+        );
+      } finally {
+        await signOutFromFirebase(auth).catch(() => undefined);
+      }
+    };
+
+    void processGoogleRedirect();
+
+    return () => {
+      isActive = false;
+    };
+  }, [completeGoogleLogin]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -283,17 +379,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           prompt: "select_account",
         });
 
+        let shouldSignOut = true;
+
         try {
           const result = await signInWithPopup(auth, provider);
-          const idToken = await result.user.getIdToken();
-          const response = await requestJson<AuthResponse>("/auth/google", {
-            method: "POST",
-            body: JSON.stringify({ idToken }),
-          });
+          return await completeGoogleLogin(result);
+        } catch (error) {
+          if (isGooglePopupFallbackError(error)) {
+            shouldSignOut = false;
+            await signInWithRedirect(auth, provider);
+            return null;
+          }
 
-          return applySession(response.data);
+          throw error;
         } finally {
-          await signOutFromFirebase(auth).catch(() => undefined);
+          if (shouldSignOut) {
+            await signOutFromFirebase(auth).catch(() => undefined);
+          }
         }
       },
       async register(input) {
@@ -385,6 +487,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       applySession,
       clearSession,
       fetchWithAuth,
+      completeGoogleLogin,
       refreshSession,
     ],
   );

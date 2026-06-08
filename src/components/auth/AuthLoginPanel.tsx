@@ -73,7 +73,7 @@ export default function AuthLoginPanel({
   submitLabel = "Sign In",
 }: AuthLoginPanelProps) {
   const router = useRouter();
-  const { login, loginWithGoogle } = useAuth();
+  const { clearError, login, loginWithGoogle } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -93,6 +93,7 @@ export default function AuthLoginPanel({
   function resetFeedback() {
     setStatusMessage(null);
     setErrors({});
+    clearError();
   }
 
   async function handleLoginSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -123,9 +124,12 @@ export default function AuthLoginPanel({
     setIsSubmitting(true);
 
     try {
-      await loginWithGoogle();
-      onSuccess?.();
-      router.replace(nextPath);
+      const user = await loginWithGoogle();
+
+      if (user) {
+        onSuccess?.();
+        router.replace(nextPath);
+      }
     } catch (error) {
       setStatusMessage(
         getApiErrorMessage(error, "Unable to sign in with Google."),
@@ -143,9 +147,15 @@ export default function AuthLoginPanel({
         </div>
       ) : null}
 
+      <div className="space-y-1 text-center mb-8">
+        <h2 className="text-2xl font-bold text-[#214f14]">Welcome back</h2>
+        <p className="text-sm text-[#58724f]">
+          Please enter your details to sign in to your account.
+        </p>
+      </div>
 
       <label className="block">
-        <span className="mb-2 block text-lg font-semibold text-[#214f14]">
+        <span className="mb-2 block text-sm font-semibold text-[#214f14]">
           Enter email address
         </span>
         <div className="relative">
@@ -174,7 +184,7 @@ export default function AuthLoginPanel({
       </label>
 
       <label className="block">
-        <span className="mb-2 block text-lg font-semibold text-[#214f14]">
+        <span className="mb-2 block text-sm font-semibold text-[#214f14]">
           Enter password
         </span>
         <div className="relative">
@@ -215,7 +225,7 @@ export default function AuthLoginPanel({
           }}
           className="text-sm text-[#214f14]"
         >
-          Forgot Password
+          Forgot Password?
         </button>
       </div>
 
@@ -244,19 +254,13 @@ export default function AuthLoginPanel({
         </div>
 
 
-       <div className="flex items-center gap-3 py-1">
+       <div className="flex items-center gap-3 py-4">
         <div className="h-px flex-1 bg-[#e6ecde]" />
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8aa07d]">
-          or
+        <span className="text-xs uppercase text-[#8aa07d]">
+          or login with
         </span>
         <div className="h-px flex-1 bg-[#e6ecde]" />
       </div>
-
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-[#58724f]">
-        <span>
-          Log in with
-        </span>
-        </div>
 
        <button
         type="button"

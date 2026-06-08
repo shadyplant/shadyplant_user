@@ -17,7 +17,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://accounts.google.com https://apis.google.com https://www.gstatic.com",
   "connect-src 'self' https: http://localhost:8080 http://127.0.0.1:8080 ws://localhost:* ws://127.0.0.1:* https://maps.googleapis.com https://maps.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.googleapis.com",
-  "frame-src 'self' https://accounts.google.com",
+  "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://*.web.app",
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -56,6 +56,10 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(self)",
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
           },
           {
             key: "Strict-Transport-Security",

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { Phone, UserRound } from "lucide-react";
 import AuthLoginPanel from "@/components/auth/AuthLoginPanel";
+import TopBar from "@/components/TopBar";
 import SiteShell from "@/components/SiteShell";
 import { ApiError } from "@/lib/api";
 import {
@@ -61,7 +62,7 @@ function readNextPath(
   searchParams: { get: (name: string) => string | null } | null,
 ) {
   const next = searchParams?.get("next");
-  return next?.startsWith("/") ? next : "/profile";
+  return next?.startsWith("/") ? next : "/";
 }
 
 function OtpInputGroup({
@@ -182,6 +183,8 @@ export default function AuthPageClient() {
   const searchParams = useSearchParams();
   const nextPath = readNextPath(searchParams);
   const {
+    clearError,
+    errorMessage,
     isAuthenticated,
     isReady,
     loginWithGoogle,
@@ -233,6 +236,7 @@ export default function AuthPageClient() {
     setStatusMessage(null);
     setStatusTone("success");
     setErrors({});
+    clearError();
   }
 
   async function handleRegisterSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -270,8 +274,11 @@ export default function AuthPageClient() {
     setIsSubmitting(true);
 
     try {
-      await loginWithGoogle();
-      router.replace(nextPath);
+      const user = await loginWithGoogle();
+
+      if (user) {
+        router.replace(nextPath);
+      }
     } catch (error) {
       setStatusTone("error");
       setStatusMessage(
@@ -425,9 +432,10 @@ export default function AuthPageClient() {
   ) : null;
 
   return (
-    <SiteShell hideMobileBottomNav>
-      <section className="px-4 py-8 md:px-6 md:py-12">
-        <div className="border border-[#dbe8cd] rounded-[1rem] overflow-hidden mx-auto grid max-w-6xl gap-0 lg:grid-cols-[0.95fr_1.05fr]">
+    <SiteShell hideHeader hideMobileBottomNav>
+      <TopBar />
+      <section className="px-4 pb-8 pt-4 md:px-6 md:pb-12 md:pt-6">
+        <div className="md:border md:border-[#dbe8cd] md:rounded-[1rem] overflow-hidden mx-auto grid max-w-5xl gap-0 lg:grid-cols-[0.95fr_1.05fr]">
           <div
             className="hidden justify-center items-center lg:flex"
             style={{
@@ -435,24 +443,25 @@ export default function AuthPageClient() {
                 "linear-gradient(160deg, #fcfff7 0%, #fdfff8 40%, #fafdf4 100%)",
             }}
           >
-            <PlantHeroPanel
-              name="Monstera Deliciosa"
-              subtitle="Swiss Cheese Plant"
-              eyebrow="Featured plant"
-              imageUrl="/hero_image.png"
-              badges={[
-                { label: "Low light ok", type: "light" },
-                { label: "Pet caution", type: "pet" },
-                { label: "Easy care", type: "care" },
-              ]}
+            <img
+              className="w-full h-full object-cover"
+              src="https://cdn.shopify.com/s/files/1/0692/4415/8245/files/fiddle-leaf-fig_480x480.jpg?v=1706131785"
+              alt="Monstera Deliciosa"
+             
             />
           </div>
           {/* Haramisala */}
 
           {/* ----------- */}
 
-          <div className="bg-white p-6 md:p-8">
-            <div>{renderFeedback}</div>
+          <div className="bg-white p-6 md:px-0">
+            <div className="mx-auto w-full max-w-sm">
+              <div>{renderFeedback}</div>
+            {errorMessage ? (
+              <div className="mt-4 rounded-[1.25rem] border border-[#f0c8c8] bg-[#fff5f5] p-4 text-sm text-[#8f2f2f]">
+                <p className="font-semibold">{errorMessage}</p>
+              </div>
+            ) : null}
 
             {step === "login" ? (
               <AuthLoginPanel
@@ -847,12 +856,7 @@ export default function AuthPageClient() {
                 </button>
               </form>
             ) : null}
-
-            <div className="mt-6 text-sm text-[#58724f]">
-              <Link href="/" className="font-semibold text-[#214f14]">
-                Back to storefront
-              </Link>
-            </div>
+          </div>
           </div>
         </div>
       </section>
@@ -930,8 +934,10 @@ function PlantHeroPanel({
           alt={name}
           width={240}
           height={320}
-          className="w-60 h-auto object-contain"
+          className="object-contain"
           style={{
+            width: "240px",
+            height: "auto",
             filter: "drop-shadow(0 20px 30px rgba(40,100,10,0.18))",
             animation: "floatPlant 5s ease-in-out infinite",
           }}

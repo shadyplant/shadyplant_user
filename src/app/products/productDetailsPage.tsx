@@ -20,6 +20,7 @@ import {
   SelectedProductStockNotice,
 } from "@/components/ProductOptionSelectionContext";
 import SiteShell from "@/components/SiteShell";
+import MaintenanceNotice from "@/components/MaintenanceNotice";
 import WishlistButton from "@/components/WishlistButton";
 import {
   fetchProductById,
@@ -48,7 +49,18 @@ export async function renderProductDetailsPage({
   productLookupId: string;
   requestedProductName?: string;
 }) {
-  const product = await fetchProductById(productLookupId);
+  let product: Awaited<ReturnType<typeof fetchProductById>> | null = null;
+  let shouldShowMaintenance = false;
+
+  try {
+    product = await fetchProductById(productLookupId);
+  } catch {
+    shouldShowMaintenance = true;
+  }
+
+  if (shouldShowMaintenance) {
+    return <MaintenanceNotice />;
+  }
 
   if (!product) {
     notFound();
@@ -61,14 +73,28 @@ export async function renderProductDetailsPage({
     redirect(canonicalHref);
   }
 
-  const [relatedProducts, reviewData] = await Promise.all([
-    fetchProducts({
-      category: product.category,
-      excludeId: product.id,
-      limit: 3,
-    }),
-    fetchProductReviews(product.id),
-  ]);
+  let relatedProducts: Awaited<ReturnType<typeof fetchProducts>> | null = null;
+  let reviewData: Awaited<ReturnType<typeof fetchProductReviews>> | null = null;
+
+  try {
+    [relatedProducts, reviewData] = await Promise.all([
+      fetchProducts({
+        category: product.category,
+        excludeId: product.id,
+        limit: 3,
+      }),
+      fetchProductReviews(product.id),
+    ]);
+  } catch {
+    shouldShowMaintenance = true;
+  }
+
+  if (shouldShowMaintenance) {
+    return <MaintenanceNotice />;
+  }
+  if (!reviewData || !relatedProducts) {
+    return <MaintenanceNotice />;
+  }
   const productExperience = getProductExperience(product);
   const productOptionGroups = product.optionGroups;
   const hasRatings = reviewData.summary.totalRatings > 0;

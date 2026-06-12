@@ -226,7 +226,7 @@ export default function ProductCardCartControl({
         onMouseDown={swallowCardNavigation}
         onTouchStart={swallowCardNavigation}
         onClick={() => void addFirstItem()}
-        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#4C8B5D] px-3 text-base font-bold tracking-normal text-white transition hover:bg-[#3f744e] sm:h-12 sm:text-lg"
+        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#4C8B5D] px-3 text-white transition hover:bg-[#3f744e] sm:h-12 sm:text-lg"
       >
         <span>Add to cart</span>
         <AddCartIcon />

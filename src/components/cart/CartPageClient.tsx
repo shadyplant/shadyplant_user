@@ -392,6 +392,7 @@ export default function CartPageClient() {
     hasCheckoutAddress,
     isAuthenticated,
     items.length,
+    cartItems,
     selectedDeliveryAddressDetails,
     selectedDeliveryPosition,
     user?.deliveryAddress,

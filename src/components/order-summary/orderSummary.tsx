@@ -374,6 +374,7 @@ export default function OrderSummaryClient() {
     fetchWithAuth,
     isAuthenticated,
     items.length,
+    cartItems,
     appliedCouponCode,
     persistCouponError,
     user?.deliveryAddress,

@@ -201,7 +201,7 @@ export async function renderProductDetailsPage({
 
                 <SeeInActionCarousel
                   key={`${product.id}-mobile-real-view`}
-                  clips={product.videoClips}
+                  images={product.usesImages}
                   productName={product.name}
                 />
 
@@ -389,7 +389,7 @@ export async function renderProductDetailsPage({
 
             <SeeInActionCarousel
               key={`${product.id}-desktop-real-view`}
-              clips={product.videoClips}
+              images={product.usesImages}
               productName={product.name}
             />
 

@@ -17,10 +17,14 @@ import {
 } from "lucide-react";
 import SiteShell from "@/components/SiteShell";
 import { useAuth } from "@/components/auth/AuthProvider";
+import ProductDeliveryAddressPicker, {
+  DELIVERY_ADDRESS_EVENT,
+} from "@/components/ProductDeliveryAddressPicker";
 import {
   normalizeBillingDetailsDraft,
   type BillingDetailsDraft,
 } from "@/lib/checkoutSession";
+import { formatDeliveryAddress } from "@/lib/deliveryAddress";
 import {
   isValidPhoneNumber,
   isValidPostalCode,
@@ -84,6 +88,38 @@ export default function ProfilePageClient() {
       );
     }
   }, [user]);
+
+  useEffect(() => {
+    function handleDeliveryAddressUpdate(event: Event) {
+      if (!(event instanceof CustomEvent)) {
+        return;
+      }
+
+      const nextDeliveryAddress =
+        event.detail?.deliveryAddress &&
+        typeof event.detail.deliveryAddress === "object"
+          ? normalizeDeliveryAddress(event.detail.deliveryAddress)
+          : null;
+
+      if (!nextDeliveryAddress) {
+        return;
+      }
+
+      setForm((current) => ({
+        ...current,
+        deliveryAddress: nextDeliveryAddress,
+      }));
+    }
+
+    window.addEventListener(DELIVERY_ADDRESS_EVENT, handleDeliveryAddressUpdate);
+
+    return () => {
+      window.removeEventListener(
+        DELIVERY_ADDRESS_EVENT,
+        handleDeliveryAddressUpdate,
+      );
+    };
+  }, []);
 
   function resetFormFromUser() {
     if (!user) {
@@ -295,6 +331,55 @@ export default function ProfilePageClient() {
     resetFormFromUser();
   }
 
+  function handleDeliveryAddressChange(
+    address: string,
+    _position?: { lat: number; lng: number },
+    deliveryAddress?: DeliveryAddress,
+  ) {
+    setFeedback(null);
+    setForm((current) => ({
+      ...current,
+      deliveryAddress: deliveryAddress
+        ? normalizeDeliveryAddress(deliveryAddress)
+        : {
+            ...current.deliveryAddress,
+            formattedAddress: String(address || "").trim(),
+          },
+    }));
+  }
+
+  async function handleDeliveryAddressDone(
+    _address: string,
+    _position: { lat: number; lng: number },
+    deliveryAddress: DeliveryAddress,
+  ) {
+    const normalizedDeliveryAddress = normalizeDeliveryAddress(deliveryAddress);
+    setForm((current) => ({
+      ...current,
+      deliveryAddress: normalizedDeliveryAddress,
+    }));
+    setFeedback(null);
+    setIsSaving(true);
+
+    try {
+      await updateProfile({
+        fullName: user?.fullName || form.fullName.trim(),
+        phoneNumber: user?.phoneNumber || form.phoneNumber.trim(),
+        deliveryAddress: normalizedDeliveryAddress,
+        billingDetails: normalizeBillingDetailsDraft(user?.billingDetails),
+      });
+      setFeedback("Delivery address updated successfully.");
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Unable to update delivery address.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleLogout() {
     await logout();
     router.replace("/auth");
@@ -326,6 +411,14 @@ export default function ProfilePageClient() {
 
         {currentSection === "addresses" ? (
           <div className="mt-6 space-y-5">
+            <ProductDeliveryAddressPicker
+              variant="checkout-card"
+              initialAddress={formatDeliveryAddress(form.deliveryAddress)}
+              persistToProfile={false}
+              onAddressChange={handleDeliveryAddressChange}
+              onDone={handleDeliveryAddressDone}
+            />
+
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">

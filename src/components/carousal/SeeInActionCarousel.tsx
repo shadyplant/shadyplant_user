@@ -2,18 +2,19 @@
 
 import Image from "next/image";
 import React from "react";
-import type { ProductVideoClip } from "@/lib/productMedia";
 
 type SeeInActionCarouselProps = {
-  clips: ProductVideoClip[];
+  images: string[];
   productName: string;
 };
 
 export default function SeeInActionCarousel({
-  clips,
+  images,
   productName,
 }: SeeInActionCarouselProps) {
-  if (!clips.length) {
+  const galleryImages = images.filter(Boolean);
+
+  if (!galleryImages.length) {
     return null;
   }
 
@@ -32,35 +33,20 @@ export default function SeeInActionCarousel({
       {/* Full Width Horizontal Scroll Container */}
       <div className="w-full">
         <div className="flex w-full snap-x snap-mandatory gap-3 overflow-x-auto px-2 pb-2 md:px-4 md:gap-4 scrollbar-hide">
-          {clips.map((item) => {
-            const mediaAlt = item.title || `${productName} showcase clip`;
-
+          {galleryImages.map((image, index) => {
             return (
               <div
-                key={item.id}
+                key={`${image}-${index}`}
                 className="relative h-[360px] w-[230px] shrink-0 snap-start select-none overflow-hidden rounded-2xl shadow-sm md:h-[500px] md:w-[300px]"
               >
-                {item.src ? (
-                  <video
-                    src={item.src}
-                    poster={item.poster}
-                    className="h-full w-full object-cover"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    preload="metadata"
-                  />
-                ) : (
-                  <Image
-                    src={item.poster}
-                    alt={mediaAlt}
-                    fill
-                    sizes="(max-width: 768px) 230px, 300px"
-                    className="pointer-events-none object-cover"
-                    unoptimized
-                  />
-                )}
+                <Image
+                  src={image}
+                  alt={`${productName} real life view ${index + 1}`}
+                  fill
+                  sizes="(max-width: 768px) 230px, 300px"
+                  className="pointer-events-none object-cover"
+                  unoptimized
+                />
 
               
 

@@ -456,7 +456,7 @@ export default function AuthPageClient() {
 
           <div className="bg-white p-6 md:px-0">
             <div className="mx-auto w-full max-w-sm">
-              <div>{renderFeedback}</div>
+              {/* <div>{renderFeedback}</div> */}
             {errorMessage ? (
               <div className="mt-4 rounded-[1.25rem] border border-[#f0c8c8] bg-[#fff5f5] p-4 text-sm text-[#8f2f2f]">
                 <p className="font-semibold">{errorMessage}</p>
@@ -465,6 +465,7 @@ export default function AuthPageClient() {
 
             {step === "login" ? (
               <AuthLoginPanel
+                msgTitle="Welcome back!"
                 key={loginPrefillIdentifier || "login"}
                 nextPath={nextPath}
                 initialIdentifier={loginPrefillIdentifier}
@@ -484,23 +485,12 @@ export default function AuthPageClient() {
 
             {step === "register" ? (
               <form onSubmit={handleRegisterSubmit} className="mt-6 space-y-4">
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isSubmitting}
-                  className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dbe8cd] bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
-                >
-                  <GoogleMark />
-                  Continue with Google
-                </button>
-
-                <div className="flex items-center gap-3 py-1">
-                  <div className="h-px flex-1 bg-[#e6ecde]" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8aa07d]">
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-[#e6ecde]" />
-                </div>
+                
+                  <div className="mb-6 pr-8">
+            <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+              Let&apos;s get started with ShadyPlant!
+            </h2>
+          </div>
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-semibold text-[#214f14]">
@@ -520,7 +510,7 @@ export default function AuthPageClient() {
                           fullName: event.target.value,
                         }))
                       }
-                      className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
+                      className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
                       placeholder="Your full name"
                     />
                   </div>
@@ -544,7 +534,7 @@ export default function AuthPageClient() {
                         email: event.target.value,
                       }))
                     }
-                    className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                     placeholder="user@example.com"
                   />
                   {errors.email ? (
@@ -572,7 +562,7 @@ export default function AuthPageClient() {
                           phoneNumber: event.target.value,
                         }))
                       }
-                      className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
+                      className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
                       placeholder="+91 98765 43210"
                     />
                   </div>
@@ -596,7 +586,7 @@ export default function AuthPageClient() {
                         password: event.target.value,
                       }))
                     }
-                    className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                     placeholder="Create a strong password"
                   />
                   {errors.password ? (
@@ -605,7 +595,7 @@ export default function AuthPageClient() {
                     </span>
                   ) : (
                     <span className="mt-2 block text-xs text-[#6f8167]">
-                      8+ characters, uppercase, lowercase, number, and symbol.
+                      {/* Must be at least 8 characters */}
                     </span>
                   )}
                 </label>
@@ -613,10 +603,30 @@ export default function AuthPageClient() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {isSubmitting ? "Creating account..." : "Create Account"}
                 </button>
+
+                     <div className="flex items-center gap-3 py-1">
+                  <div className="h-px flex-1 bg-[#e6ecde]" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8aa07d]">
+                    or
+                  </span>
+                  <div className="h-px flex-1 bg-[#e6ecde]" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isSubmitting}
+                  className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dbe8cd] bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
+                >
+                  <GoogleMark />
+                  Continue with Google
+                </button>
+
+           
 
                 <div className="border-t border-[#edf2e7] pt-4 text-center text-sm text-[#58724f]">
                   Already have an account?{" "}
@@ -649,7 +659,7 @@ export default function AuthPageClient() {
                         identifier: event.target.value,
                       }))
                     }
-                    className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                   />
                   {errors.identifier ? (
                     <span className="mt-2 block text-xs text-[#c54b4b]">
@@ -702,7 +712,7 @@ export default function AuthPageClient() {
                         identifier: event.target.value,
                       })
                     }
-                    className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                     placeholder="user@example.com or +91 98765 43210"
                   />
                   {errors.identifier ? (
@@ -715,7 +725,7 @@ export default function AuthPageClient() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {isSubmitting ? "Sending OTP..." : "Send Reset OTP"}
                 </button>
@@ -727,11 +737,6 @@ export default function AuthPageClient() {
                 onSubmit={handleForgotVerifySubmit}
                 className="mt-6 space-y-5"
               >
-                <div className="rounded-[1.4rem] border border-[#e4edd9] bg-[#f9fbf6] p-4 text-sm text-[#58724f]">
-                  Enter the six-digit reset code if you received one for this
-                  account.
-                </div>
-
                 <label className="block">
                   <span className="mb-2 block text-sm font-semibold text-[#214f14]">
                     Email or phone number
@@ -745,7 +750,7 @@ export default function AuthPageClient() {
                         identifier: event.target.value,
                       }))
                     }
-                    className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                   />
                   {errors.identifier ? (
                     <span className="mt-2 block text-xs text-[#c54b4b]">
@@ -767,9 +772,6 @@ export default function AuthPageClient() {
                       }))
                     }
                   />
-                  <span className="mt-2 block text-xs text-[#6f8167]">
-                    Enter the 6-digit code from your email before continuing.
-                  </span>
                   {errors.otp ? (
                     <span className="mt-2 block text-xs text-[#c54b4b]">
                       {errors.otp}
@@ -780,7 +782,7 @@ export default function AuthPageClient() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {isSubmitting ? "Verifying OTP..." : "Verify OTP"}
                 </button>
@@ -789,7 +791,7 @@ export default function AuthPageClient() {
 
             {step === "reset" ? (
               <form onSubmit={handleResetSubmit} className="mt-6 space-y-4">
-                <div className="rounded-[1.4rem] border border-[#e4edd9] bg-[#f9fbf6] p-4 text-sm text-[#58724f]">
+                <div className="p-4 text-sm text-[#58724f]">
                   OTP verified for{" "}
                   <span className="font-semibold text-[#214f14]">
                     {verifiedResetIdentifier}
@@ -810,7 +812,7 @@ export default function AuthPageClient() {
                         newPassword: event.target.value,
                       }))
                     }
-                    className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                   />
                   {errors.newPassword ? (
                     <span className="mt-2 block text-xs text-[#c54b4b]">
@@ -832,7 +834,7 @@ export default function AuthPageClient() {
                         confirmPassword: event.target.value,
                       }))
                     }
-                    className="w-full rounded-[1.2rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
+                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
                   />
                   {errors.confirmPassword ? (
                     <span className="mt-2 block text-xs text-[#c54b4b]">
@@ -850,7 +852,7 @@ export default function AuthPageClient() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {isSubmitting ? "Updating password..." : "Reset Password"}
                 </button>

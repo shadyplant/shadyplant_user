@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Headset, Mail, MapPin, Phone, ShieldCheck, Sprout, Truck } from "lucide-react";
+import { ChevronDown, Headset, Mail, MapPin, Phone, ShieldCheck, Sprout, Truck } from "lucide-react";
 import Image from "next/image";
 
 const shopLinks = [
@@ -28,7 +28,7 @@ const supportLinks = [
 const legalLinks = [
   {
     label: "Privacy Policy",
-    href: "mailto:nurserygrassgreen@gmail.com?subject=Privacy%20Policy%20Request",
+    href: "/privacy-policy",
   },
   {
     label: "Terms & Conditions",
@@ -72,7 +72,7 @@ function FooterLinkList({
 }) {
   return (
     <div>
-      <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-[#2e5623]">
+      <h3 className="text-sm font-bold uppercase text-[#2e5623]">
         {title}
       </h3>
       <div className="mt-4 flex flex-col gap-3 text-sm">
@@ -90,12 +90,45 @@ function FooterLinkList({
   );
 }
 
+function MobileFooterAccordion({
+  title,
+  links,
+}: {
+  title: string;
+  links: Array<{ label: string; href: string }>;
+}) {
+  return (
+    <details className="group border-b border-[#dbe3d6] py-4 last:border-b-0">
+      <summary className="flex list-none items-center justify-between gap-3">
+        <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-[#2e5623]">
+          {title}
+        </h3>
+        <ChevronDown
+          size={18}
+          className="shrink-0 text-[#2e5623] transition-transform group-open:rotate-180"
+        />
+      </summary>
+      <div className="mt-4 flex flex-col gap-3 text-sm">
+        {links.map((link) => (
+          <Link
+            key={`${title}-${link.label}`}
+            href={link.href}
+            className="text-[#355f2a] transition hover:text-[#173d12]"
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 export default function SiteFooter() {
   return (
     <footer className="border-t border-[#dde6d8] bg-[#f1f2f0] text-[#173d12]">
       <div className="bg-[#4c8b5d] text-white">
         <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="hidden gap-6 md:grid sm:grid-cols-2 xl:grid-cols-4">
             {trustHighlights.map(({ title, icon: Icon }) => (
               <div
                 key={title}
@@ -110,11 +143,27 @@ export default function SiteFooter() {
               </div>
             ))}
           </div>
+
+          <div className="grid gap-3 md:hidden">
+            {trustHighlights.map(({ title, icon: Icon }) => (
+              <div
+                key={title}
+                className="flex items-center gap-3 rounded-2xl px-4 py-2"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/12 text-white">
+                  <Icon className="h-6 w-6" strokeWidth={2.1} />
+                </div>
+                <p className="text-left text-sm font-medium leading-6 text-white/96">
+                  {title}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-14 md:px-6">
-        <div className="grid gap-10 lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.95fr]">
+        <div className="hidden gap-10 md:grid lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.95fr]">
           <div>
             <div className="inline-flex items-center gap-3  px-4 py-3">
               <span className="rounded-xl p-2 text-[#173d12]">
@@ -153,23 +202,47 @@ export default function SiteFooter() {
 
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-1">
             <FooterLinkList title="Support" links={supportLinks} />
+            <FooterLinkList title="Legal" links={legalLinks} />
+          </div>
+        </div>
 
-            <div>
-              <h3 className="text-sm font-bold uppercase tracking-[0.22em] text-[#2e5623]">
-                Legal
-              </h3>
-              <div className="mt-4 flex flex-col gap-3 text-sm">
-                {legalLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    href={link.href}
-                    className="text-[#355f2a] transition hover:text-[#173d12]"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
+        <div className="md:hidden">
+          <div className="inline-flex items-center gap-3 px-4 py-3">
+            <span className="rounded-xl p-2 text-[#173d12]">
+              <Image
+                src="/ggn-logo2.svg"
+                alt="Grass Green Nursery"
+                width={188}
+                height={54}
+                priority
+                className="h-10 w-auto"
+              />
+            </span>
+          </div>
+
+          <p className="mt-4 text-sm leading-7 text-[#4f6847]">
+            Plant-focused e-commerce storefront for indoor plants, outdoor
+            plants, lawn grass, ferns, and nursery essentials with
+            delivery-friendly ordering and support.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-full bg-[#e7eee2] px-3 py-1.5 text-xs font-semibold text-[#355f2a]">
+              Secure checkout
+            </span>
+            <span className="rounded-full bg-[#e7eee2] px-3 py-1.5 text-xs font-semibold text-[#355f2a]">
+              Order tracking
+            </span>
+            <span className="rounded-full bg-[#e7eee2] px-3 py-1.5 text-xs font-semibold text-[#355f2a]">
+              Nursery support
+            </span>
+          </div>
+
+          <div className="mt-8 border-t border-[#dbe3d6]">
+            <MobileFooterAccordion title="Shop" links={shopLinks} />
+            <MobileFooterAccordion title="Company" links={companyLinks} />
+            <MobileFooterAccordion title="Support" links={supportLinks} />
+            <MobileFooterAccordion title="Legal" links={legalLinks} />
           </div>
         </div>
 

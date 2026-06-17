@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import MaintenanceNotice from "@/components/MaintenanceNotice";
+import ChatbaseWidget from "@/components/chat/ChatbaseWidget";
 import SignInPromptModal from "@/components/auth/SignInPromptModal";
 import { appMono, appSans } from "@/lib/fonts";
 import { isMaintenanceModeEnabled } from "@/lib/siteMode";
@@ -36,6 +37,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
+          <ChatbaseWidget />
           <Suspense fallback={null}>
             <SignInPromptModal />
           </Suspense>

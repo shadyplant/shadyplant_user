@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import SiteShell from "@/components/SiteShell";
-import ProductDeliveryAddressPicker from "@/components/ProductDeliveryAddressPicker";
+import ProductDeliveryAddressPicker, {
+  DELIVERY_ADDRESS_EVENT,
+} from "@/components/ProductDeliveryAddressPicker";
 import { getCartCount, useCartStore } from "@/components/cartStore";
 import type { ApiResponse } from "@/lib/api";
 import {
@@ -94,7 +96,6 @@ type BillDetailsCardProps = {
   savings: number | null;
   total: number | null;
   deliveryErrorMessage?: string | null;
-  isDeliveryLoading?: boolean;
 };
 
 function resolveCartItemAvailableStock(
@@ -136,18 +137,10 @@ function BillDetailsCard({
   deliveryFee,
   deliveryErrorMessage,
   discount,
-  isDeliveryLoading,
   mrpSubtotal,
   savings,
   total,
 }: BillDetailsCardProps) {
-  const deliveryValue = isDeliveryLoading
-    ? "Calculating..."
-    : deliveryFee === null
-      ? "---"
-      : deliveryFee
-        ? formatCurrency(deliveryFee)
-        : "Free";
   const totalValue = total === null ? "---" : formatCurrency(total);
 
   return (
@@ -166,7 +159,15 @@ function BillDetailsCard({
           <div className="border-t border-dashed border-[#e5e7eb]" />
           <div className="flex items-center justify-between gap-4">
             <span>Delivery Charge</span>
-            <span className="font-semibold">{deliveryValue}</span>
+            <span className="inline-flex min-w-[5.75rem] justify-end font-semibold tabular-nums">
+              {deliveryFee === null ? (
+                "---"
+              ) : deliveryFee ? (
+                formatCurrency(deliveryFee)
+              ) : (
+                "Free"
+              )}
+            </span>
           </div>
           <div className="border-t border-dashed border-[#e5e7eb]" />
           <div className="flex items-center justify-between gap-4">
@@ -269,6 +270,51 @@ export default function CartPageClient() {
     return () => window.clearTimeout(timeoutId);
   }, [showDeliveryAddressAlert]);
 
+  useEffect(() => {
+    function handleDeliveryAddressUpdate(event: Event) {
+      if (!(event instanceof CustomEvent)) {
+        return;
+      }
+
+      const nextAddress =
+        typeof event.detail?.address === "string"
+          ? event.detail.address
+          : "";
+      const nextPosition =
+        event.detail?.position &&
+        Number.isFinite(Number(event.detail.position.lat)) &&
+        Number.isFinite(Number(event.detail.position.lng))
+          ? {
+              lat: Number(event.detail.position.lat),
+              lng: Number(event.detail.position.lng),
+            }
+          : null;
+      const nextDeliveryAddress =
+        event.detail?.deliveryAddress &&
+        typeof event.detail.deliveryAddress === "object"
+          ? normalizeDeliveryAddress(event.detail.deliveryAddress)
+          : null;
+
+      setSelectedDeliveryAddress(sanitizeFormattedDeliveryAddress(nextAddress));
+      setSelectedDeliveryPosition(nextPosition);
+      setSelectedDeliveryAddressDetails(nextDeliveryAddress);
+      writeCheckoutDraft({
+        deliveryAddress: nextAddress,
+        deliveryAddressDetails: nextDeliveryAddress,
+        deliveryPosition: nextPosition,
+      });
+    }
+
+    window.addEventListener(DELIVERY_ADDRESS_EVENT, handleDeliveryAddressUpdate);
+
+    return () => {
+      window.removeEventListener(
+        DELIVERY_ADDRESS_EVENT,
+        handleDeliveryAddressUpdate,
+      );
+    };
+  }, []);
+
   const items = useMemo<DetailedCartItem[]>(
     () =>
       cartItems.flatMap((item) => {
@@ -346,17 +392,20 @@ export default function CartPageClient() {
       setDeliveryQuoteError(null);
 
       try {
+        const deliveryAddressPayload = buildCheckoutDeliveryAddressPayload(
+          deliveryAddressForPicker,
+          selectedDeliveryAddressDetails,
+          user?.deliveryAddress,
+        );
+
         const response = await fetchWithAuth<
           ApiResponse<{ preview: CheckoutPreview }>
         >("/checkout/preview", {
           method: "POST",
           body: JSON.stringify({
-            deliveryAddress: buildCheckoutDeliveryAddressPayload(
-              deliveryAddressForPicker,
-              selectedDeliveryAddressDetails,
-              user?.deliveryAddress,
-            ),
+            deliveryAddress: deliveryAddressPayload,
             deliveryLocation: selectedDeliveryPosition,
+            state: deliveryAddressPayload.state,
           }),
           signal: controller.signal,
         });
@@ -751,7 +800,7 @@ export default function CartPageClient() {
                           </button>
                         </div>
 
-                        <div className="grid h-10 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[0.5rem] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b] min-[390px]:h-12 min-[390px]:rounded-[14px]">
+                        <div className="grid h-11 w-full shrink-0 grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center overflow-hidden rounded-[0.5rem] border border-[#4c8d5b] bg-white text-[#0d9a55] min-[390px]:h-12 min-[390px]:grid-cols-[3rem_minmax(0,1fr)_3rem]">
                           <button
                             type="button"
                             aria-label={`Decrease quantity for ${item.product.name}`}
@@ -766,14 +815,14 @@ export default function CartPageClient() {
                                 ),
                               )
                             }
-                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-full items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <Minus size={22} strokeWidth={2.6} />
+                            <Minus size={19} strokeWidth={2.7} />
                           </button>
                           <button
                             type="button"
                             onClick={() => openQuantityEditor(item)}
-                            className="min-w-0 text-center text-[16px] font-black leading-none transition hover:bg-[#e8f8ee] min-[390px]:text-[18px]"
+                            className="min-w-0 border-x border-[#d9eddc] bg-white text-center text-[16px] font-semibold leading-none text-[#0d9a55] transition hover:bg-[#f4fbf2] min-[390px]:text-[18px]"
                             aria-label={`Edit quantity for ${item.product.name}`}
                           >
                             {item.quantity}
@@ -790,9 +839,9 @@ export default function CartPageClient() {
                                 : undefined
                             }
                             disabled={item.quantity >= item.availableStock}
-                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-full items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <Plus size={24} strokeWidth={2.6} />
+                            <Plus size={21} strokeWidth={2.7} />
                           </button>
                         </div>
                       </div>
@@ -806,7 +855,6 @@ export default function CartPageClient() {
                   deliveryFee={deliveryFee}
                   deliveryErrorMessage={deliveryQuoteError}
                   discount={discount}
-                  isDeliveryLoading={isDeliveryQuoteLoading}
                   mrpSubtotal={mrpSubtotal}
                   savings={savings}
                   total={total}
@@ -998,7 +1046,7 @@ export default function CartPageClient() {
                           </button>
                         </div>
 
-                        <div className="grid h-12 w-full shrink-0 grid-cols-3 items-center overflow-hidden rounded-[0.2rem] border-2 border-[#18a957] bg-[#f6fff8] text-[#0aa14b]">
+                        <div className="grid h-11 w-full shrink-0 grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center overflow-hidden rounded-[0.5rem] border border-[#4c8d5b] bg-white text-[#0d9a55] sm:h-12 sm:grid-cols-[3rem_minmax(0,1fr)_3rem]">
                           <button
                             type="button"
                             aria-label={`Decrease quantity for ${item.product.name}`}
@@ -1013,14 +1061,14 @@ export default function CartPageClient() {
                                 ),
                               )
                             }
-                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-full items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <Minus size={24} strokeWidth={2.6} className="cursor-pointer"/>
+                            <Minus size={19} strokeWidth={2.7} />
                           </button>
                           <button
                             type="button"
                             onClick={() => openQuantityEditor(item)}
-                            className="min-w-0 text-center text-[18px] font-black leading-none transition hover:bg-[#e8f8ee]"
+                            className="min-w-0 border-x border-[#d9eddc] bg-white text-center text-[16px] font-semibold leading-none text-[#0d9a55] transition hover:bg-[#f4fbf2] sm:text-[18px]"
                             aria-label={`Edit quantity for ${item.product.name}`}
                           >
                             {item.quantity}
@@ -1037,9 +1085,9 @@ export default function CartPageClient() {
                                 : undefined
                             }
                             disabled={item.quantity >= item.availableStock}
-                            className="flex h-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-full items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            <Plus size={27} strokeWidth={2.6} className="cursor-pointer" />
+                            <Plus size={21} strokeWidth={2.7} />
                           </button>
                         </div>
                       </div>
@@ -1052,7 +1100,6 @@ export default function CartPageClient() {
                     deliveryFee={deliveryFee}
                     deliveryErrorMessage={deliveryQuoteError}
                     discount={discount}
-                    isDeliveryLoading={isDeliveryQuoteLoading}
                     mrpSubtotal={mrpSubtotal}
                     savings={savings}
                     total={total}
@@ -1084,14 +1131,14 @@ export default function CartPageClient() {
                         <Truck size={15} />
                         Delivery
                       </span>
-                      <span className="font-semibold text-[#214f14]">
-                        {isDeliveryQuoteLoading
-                          ? "Calculating..."
-                          : deliveryFee === null
-                            ? "---"
-                            : deliveryFee === 0
-                              ? "Free"
-                              : formatCurrency(deliveryFee)}
+                      <span className="inline-flex min-w-[5.75rem] justify-end font-semibold tabular-nums text-[#214f14]">
+                        {deliveryFee === null ? (
+                          "---"
+                        ) : deliveryFee === 0 ? (
+                          "Free"
+                        ) : (
+                          formatCurrency(deliveryFee)
+                        )}
                       </span>
                     </div>
                   </div>
@@ -1099,7 +1146,7 @@ export default function CartPageClient() {
                   <div className="mt-5 border-t border-[#dbe8cd] pt-5">
                     <div className="flex items-center justify-between text-xl font-semibold text-[#163915]">
                       <span>Total payable</span>
-                      <span>
+                      <span className="inline-flex min-w-[7rem] justify-end tabular-nums">
                         {total === null ? "---" : formatCurrency(total)}
                       </span>
                     </div>

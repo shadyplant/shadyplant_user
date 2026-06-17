@@ -22,13 +22,14 @@ import {
   formatDeliveryAddress,
   sanitizeFormattedDeliveryAddress,
 } from "@/lib/deliveryAddress";
+import { writeCheckoutDraft } from "@/lib/checkoutSession";
 
 const DELIVERY_ADDRESS_EVENT = "delivery-address-updated";
 
 const LIBRARIES: "places"[] = ["places"];
 const DEFAULT_LOCATION = {
-  lat: 25.5138,
-  lng: 90.2142,
+  lat: Number(process.env.NEXT_PUBLIC_DELIVERY_ORIGIN_LAT || 25.5138),
+  lng: Number(process.env.NEXT_PUBLIC_DELIVERY_ORIGIN_LNG || 90.2142),
 };
 
 type Position = {
@@ -103,14 +104,22 @@ function HomeLocationIcon() {
   );
 }
 
-function emitDeliveryAddressUpdate(address: string) {
+function emitDeliveryAddressUpdate(payload: {
+  address: string;
+  position?: Position | null;
+  deliveryAddress?: DeliveryAddress | null;
+}) {
   if (typeof window === "undefined") {
     return;
   }
 
   window.dispatchEvent(
     new CustomEvent(DELIVERY_ADDRESS_EVENT, {
-      detail: { address },
+      detail: {
+        address: payload.address,
+        position: payload.position || null,
+        deliveryAddress: payload.deliveryAddress || null,
+      },
     }),
   );
 }
@@ -207,6 +216,11 @@ export default function ProductDeliveryAddressPicker({
     setMarkerPos(nextPosition);
     setAddress(displayAddress);
     setResolvedDeliveryAddress(normalizedDeliveryAddress);
+    emitDeliveryAddressUpdate({
+      address: displayAddress,
+      position: nextPosition,
+      deliveryAddress: normalizedDeliveryAddress,
+    });
     onAddressChange?.(displayAddress, nextPosition, normalizedDeliveryAddress);
     mapRef.current?.panTo(nextPosition);
     setStatusMessage("Delivery point selected.");
@@ -339,7 +353,16 @@ export default function ProductDeliveryAddressPicker({
     const clearedDeliveryAddress = buildDeliveryAddress("", undefined);
     setResolvedDeliveryAddress(clearedDeliveryAddress);
     onAddressChange?.("", undefined, clearedDeliveryAddress);
-    emitDeliveryAddressUpdate("");
+    emitDeliveryAddressUpdate({
+      address: "",
+      position: null,
+      deliveryAddress: clearedDeliveryAddress,
+    });
+    writeCheckoutDraft({
+      deliveryAddress: "",
+      deliveryAddressDetails: null,
+      deliveryPosition: null,
+    });
     setStatusMessage("");
     addressInputRef.current?.focus();
   }
@@ -491,7 +514,7 @@ export default function ProductDeliveryAddressPicker({
             aria-label="Close location picker"
           />
 
-          <section className="relative flex max-h-[92vh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-w-3xl sm:rounded-3xl">
+          <section className="relative flex max-h-[92vh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-w-3xl sm:rounded-xl">
             <div className="flex items-start justify-between gap-4 border-b border-[#ececec] px-5 py-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6b8b58]">
@@ -501,14 +524,16 @@ export default function ProductDeliveryAddressPicker({
                   Search or pin location
                 </h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center bg-[#f4f4f4] text-[#171410]"
-                aria-label="Close location picker"
-              >
-                <X size={18} />
-              </button>
+           
+
+                <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          className="absolute right-4 top-4 z-10 cursor-pointer flex h-10 w-10 items-center justify-center rounded-full border border-[#dbe8cd] bg-white text-[#58724f] hover:bg-neutral-50"
+          aria-label="Close sign in prompt"
+        >
+          <X size={18} />
+        </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5">
@@ -545,7 +570,7 @@ export default function ProductDeliveryAddressPicker({
                           setStatusMessage("");
                         }}
                         placeholder="Type address, locality, or landmark"
-                        className="h-12 w-full rounded-2xl border border-[#dce8ce] bg-[#fbfdf8] pl-11 pr-12 text-sm text-[#171410] outline-none focus:border-[#aac58d] focus:ring-2 focus:ring-[#dce8ce]"
+                        className="h-12 w-full rounded-xl border border-[#dce8ce] bg-[#fbfdf8] pl-11 pr-12 text-sm text-[#171410] outline-none focus:border-[#aac58d] focus:ring-2 focus:ring-[#dce8ce]"
                       />
                       {hasAddress ? (
                         <button
@@ -563,7 +588,7 @@ export default function ProductDeliveryAddressPicker({
                   <button
                     type="button"
                     onClick={useCurrentLocation}
-                    className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#edf5e1] text-sm font-semibold text-[#214f14]"
+                    className="mt-3 flex h-11 w-full items-center cursor-pointer justify-center gap-2 rounded-xl bg-[#edf5e1] text-sm font-semibold text-[#214f14]"
                   >
                     <LocateFixed size={17} />
                     {isLocating
@@ -613,7 +638,7 @@ export default function ProductDeliveryAddressPicker({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="h-12 rounded-2xl border border-[#dce8ce] text-sm font-semibold text-[#214f14]"
+                className="h-12 rounded-xl border border-[#dce8ce] text-sm font-semibold text-[#214f14]"
               >
                 Cancel
               </button>
@@ -629,13 +654,22 @@ export default function ProductDeliveryAddressPicker({
                     markerPos,
                     resolvedDeliveryAddress,
                   );
-                  emitDeliveryAddressUpdate(address);
+                  emitDeliveryAddressUpdate({
+                    address,
+                    position: markerPos,
+                    deliveryAddress: resolvedDeliveryAddress,
+                  });
+                  writeCheckoutDraft({
+                    deliveryAddress: address,
+                    deliveryAddressDetails: resolvedDeliveryAddress,
+                    deliveryPosition: markerPos,
+                  });
                   onDone?.(address, markerPos, resolvedDeliveryAddress);
                   void persistSelectionToProfile(resolvedDeliveryAddress);
                   setIsOpen(false);
                 }}
                 disabled={!hasAddress || isSavingProfile}
-                className={`h-12 rounded-2xl text-sm font-semibold transition ${
+                className={`h-12 rounded-xl text-sm font-semibold transition ${
                   hasAddress && !isSavingProfile
                     ? "bg-[#245d00] text-white hover:bg-[#1b4700]"
                     : "cursor-not-allowed bg-[#dce8ce] text-[#8aa27a]"

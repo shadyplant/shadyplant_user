@@ -586,32 +586,30 @@ export default function SearchResultsPageClient({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-[2rem] border border-[#dbe8cd] bg-white/95 p-8 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)]">
-                    <h2 className="text-3xl font-black tracking-[-0.04em] text-[#163915]">
-                      No products matched this search
-                    </h2>
-                    <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-[#5c7752]">
-                      Try a broader keyword, remove a few filters, or start again
-                      from the full search page.
-                    </p>
-                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          router.push("/search");
-                        }}
-                        className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(135deg,#24361b_0%,#365127_100%)] px-6 py-4 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
-                      >
-                        Clear all filters
-                      </button>
-                      <Link
-                        href="/"
-                        className="inline-flex items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
-                      >
-                        Back to home
-                      </Link>
-                    </div>
-                  </div>
+                <div className="flex flex-col items-center justify-center bg-white px-6 py-16 text-center sm:py-24">
+  <h2 className="text-xl font-medium tracking-tight text-[#163915]">
+    No products found
+  </h2>
+  <p className="mt-2 max-w-sm text-sm text-zinc-500">
+    Try adjusting your keywords, removing some filters, or starting fresh.
+  </p>
+  
+  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+    <button
+      type="button"
+      onClick={() => router.push("/search")}
+      className="inline-flex items-center justify-center rounded-md bg-[#4c8b5d] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#4c8b5d]/80 focus:outline-none focus:ring-2 focus:ring-[#163915] focus:ring-offset-2"
+    >
+      Clear all filters
+    </button>
+    <Link
+      href="/"
+      className="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#163915] focus:ring-offset-2"
+    >
+      Back to home
+    </Link>
+  </div>
+</div>
                 )}
               </div>
             </div>

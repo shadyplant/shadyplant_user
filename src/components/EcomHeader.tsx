@@ -16,12 +16,11 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartItems } from "@/components/cartStore";
-import ProductDeliveryAddressPicker, {
-  DELIVERY_ADDRESS_EVENT,
-} from "@/components/ProductDeliveryAddressPicker";
+import { DELIVERY_ADDRESS_EVENT } from "@/components/ProductDeliveryAddressPicker";
 import { useProductsStore } from "@/components/productsStore";
 import { formatDeliveryAddress } from "@/lib/deliveryAddress";
 import { getProductHref } from "@/lib/productUrls";
+import ProductDeliveryAddressPicker from "./ProductDeliveryAddressPicker";
 
 const TOP_OFFER_MARQUEE_IS_ANIMATED = false;
 
@@ -55,11 +54,11 @@ function formatCollectionLabel(value: string) {
     .join(" ");
 }
 
-export default function EcomHeader({
-  initialDeliveryAddress = "",
-}: {
+type EcomHeaderProps = {
   initialDeliveryAddress?: string;
-}) {
+};
+
+export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, logout, user } = useAuth();
@@ -81,6 +80,7 @@ export default function EcomHeader({
   const [isHeaderPinned, setIsHeaderPinned] = useState(false);
   const headerRootRef = useRef<HTMLDivElement | null>(null);
   const flashSaleRef = useRef<HTMLDivElement | null>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const cartItems = useCartItems();
   const { products } = useProductsStore();
@@ -91,8 +91,9 @@ export default function EcomHeader({
   const wishlistHref = isAuthenticated ? "/wishlist" : "/auth?next=/wishlist";
   const cartHref = "/cart";
   const savedDeliveryAddress =
-    formatDeliveryAddress(user?.deliveryAddress) || initialDeliveryAddress;
-  const headerDeliveryAddress = liveDeliveryAddress || savedDeliveryAddress;
+    formatDeliveryAddress(user?.deliveryAddress) || "";
+  const headerDeliveryAddress =
+    liveDeliveryAddress || savedDeliveryAddress || initialDeliveryAddress;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -136,7 +137,6 @@ export default function EcomHeader({
   // ==================== SMOOTH TYPING ANIMATION ====================
   useEffect(() => {
     if (searchTerm.trim()) {
-      setTypedPlaceholder("");
       return;
     }
 
@@ -159,8 +159,12 @@ export default function EcomHeader({
           setTypedPlaceholder((prev) => prev.slice(0, -1));
         }, 35 + Math.random() * 25); // Natural delete speed
       } else {
-        setIsDeleting(false);
-        setPlaceholderIndex((prev) => (prev + 1) % animatedSearchPlaceholders.length);
+        timeout = setTimeout(() => {
+          setIsDeleting(false);
+          setPlaceholderIndex(
+            (prev) => (prev + 1) % animatedSearchPlaceholders.length,
+          );
+        }, 0);
       }
     } else {
       if (typedPlaceholder.length < currentText.length) {
@@ -168,7 +172,9 @@ export default function EcomHeader({
           setTypedPlaceholder(currentText.slice(0, typedPlaceholder.length + 1));
         }, 60 + Math.random() * 50); // Natural typing variation
       } else {
-        setPauseAtEnd(true);
+        timeout = setTimeout(() => {
+          setPauseAtEnd(true);
+        }, 0);
       }
     }
 
@@ -177,10 +183,6 @@ export default function EcomHeader({
       clearInterval(cursorInterval);
     };
   }, [typedPlaceholder, placeholderIndex, isDeleting, pauseAtEnd, searchTerm]);
-
-  useEffect(() => {
-    setLiveDeliveryAddress(savedDeliveryAddress);
-  }, [savedDeliveryAddress]);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -195,9 +197,25 @@ export default function EcomHeader({
   }, [menuOpen]);
 
   useEffect(() => {
-    setMenuOpen(false);
-    setMobileSearchOpen(false);
+    const resetOverlayState = window.setTimeout(() => {
+      setMenuOpen(false);
+      setMobileSearchOpen(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(resetOverlayState);
+    };
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileSearchOpen) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      mobileSearchInputRef.current?.focus();
+    });
+  }, [mobileSearchOpen]);
 
   useEffect(() => {
     function handleDeliveryAddressUpdate(event: Event) {
@@ -309,6 +327,7 @@ export default function EcomHeader({
             }
           >
             <input
+              ref={mobile ? mobileSearchInputRef : undefined}
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -411,19 +430,19 @@ export default function EcomHeader({
         }`}
       >
         <header className={stickyHeaderClass}>
-          <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-4">
+          <div className="mx-auto max-w-7xl px-2 py-2.5 md:px-6 md:py-4">
             <div className="flex items-center justify-between gap-3 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-6">
               {/* Logo */}
               <Link href="/" className="flex shrink-0 items-center gap-2">
                 <Image
                   src="/ggn-logo2.svg"
-                  alt="Grass Green Nursery"
+                  alt="ShadyPlant"
                   width={188}
                   height={54}
                   priority
                   className="h-8 w-auto md:h-10"
                 />
-                <span className="sr-only">Grass Green Nursery</span>
+                <span className="sr-only">ShadyPlant</span>
               </Link>
 
               {/* Desktop Search */}
@@ -435,7 +454,12 @@ export default function EcomHeader({
               <div className="flex items-center justify-self-end gap-1.5 md:gap-2.5">
                 <div className="hidden lg:block">
                   <div className=" bg-white px-1.5 py-1">
-                    <ProductDeliveryAddressPicker
+                    {/* <MovingBorderButton
+      >
+        Fast orange border
+      </MovingBorderButton> */}
+
+                       <ProductDeliveryAddressPicker
                       variant="header-inline"
                       initialAddress={headerDeliveryAddress}
                       emptyLabel="Set your Location"
@@ -473,7 +497,7 @@ export default function EcomHeader({
                 >
                   <ShoppingCart size={21} />
                   {cartCount > 0 && (
-                    <span className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#75b35c] px-1 text-center text-[10px] leading-4 text-white">
+                    <span className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#4c8b5d] px-1 text-center text-[10px] leading-4 text-white">
                       {displayCartCount}
                     </span>
                   )}

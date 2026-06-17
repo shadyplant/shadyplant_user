@@ -27,8 +27,11 @@ import {
   normalizeBillingDetailsDraft,
   readBillingDetailsDraft,
   readCheckoutDraft,
+  writeCheckoutDraft,
   type CheckoutPosition,
 } from "@/lib/checkoutSession";
+import { DELIVERY_ADDRESS_EVENT } from "@/components/ProductDeliveryAddressPicker";
+import { normalizeDeliveryAddress } from "@/lib/validation";
 
 type Step = 1 | 2 | 3;
 
@@ -146,7 +149,7 @@ export default function OrderSummaryClient() {
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasHandledGatewayReturn, setHasHandledGatewayReturn] = useState(false);
-  const [checkoutDraft] = useState(() => readCheckoutDraft());
+  const [checkoutDraft, setCheckoutDraft] = useState(() => readCheckoutDraft());
   const [billingDetailsDraft] = useState(() => readBillingDetailsDraft());
   const { fetchWithAuth, isAuthenticated, isReady: isAuthReady, user } = useAuth();
   const {
@@ -211,6 +214,52 @@ export default function OrderSummaryClient() {
       router.replace("/auth?next=/order-summary");
     }
   }, [isAuthReady, isAuthenticated, router]);
+
+  useEffect(() => {
+    function handleDeliveryAddressUpdate(event: Event) {
+      if (!(event instanceof CustomEvent)) {
+        return;
+      }
+
+      const nextAddress =
+        typeof event.detail?.address === "string"
+          ? event.detail.address
+          : "";
+      const nextPosition =
+        event.detail?.position &&
+        Number.isFinite(Number(event.detail.position.lat)) &&
+        Number.isFinite(Number(event.detail.position.lng))
+          ? {
+              lat: Number(event.detail.position.lat),
+              lng: Number(event.detail.position.lng),
+            }
+          : null;
+      const nextDeliveryAddress =
+        event.detail?.deliveryAddress &&
+        typeof event.detail.deliveryAddress === "object"
+          ? normalizeDeliveryAddress(event.detail.deliveryAddress)
+          : null;
+
+      const nextDraft = {
+        ...readCheckoutDraft(),
+        deliveryAddress: nextAddress,
+        deliveryAddressDetails: nextDeliveryAddress,
+        deliveryPosition: nextPosition,
+      };
+
+      writeCheckoutDraft(nextDraft);
+      setCheckoutDraft(nextDraft);
+    }
+
+    window.addEventListener(DELIVERY_ADDRESS_EVENT, handleDeliveryAddressUpdate);
+
+    return () => {
+      window.removeEventListener(
+        DELIVERY_ADDRESS_EVENT,
+        handleDeliveryAddressUpdate,
+      );
+    };
+  }, []);
 
   const pollPaymentAttempt = useCallback(
     async (paymentAttemptId: string) => {
@@ -310,15 +359,18 @@ export default function OrderSummaryClient() {
     setStatusMessage("");
     setPreviewError("");
 
+    const deliveryAddressPayload = buildCheckoutDeliveryAddressPayload(
+      deliveryAddress,
+      deliveryAddressDetails,
+      user?.deliveryAddress,
+    );
+
     void fetchWithAuth<ApiResponse<{ preview: CheckoutPreview }>>("/checkout/preview", {
       method: "POST",
       body: JSON.stringify({
-        deliveryAddress: buildCheckoutDeliveryAddressPayload(
-          deliveryAddress,
-          deliveryAddressDetails,
-          user?.deliveryAddress,
-        ),
+        deliveryAddress: deliveryAddressPayload,
         deliveryLocation: deliveryPosition,
+        state: deliveryAddressPayload.state,
         couponCode: appliedCouponCode || undefined,
       }),
     })
@@ -391,13 +443,16 @@ export default function OrderSummaryClient() {
     setIsSubmitting(true);
     setStatusMessage("");
 
+    const deliveryAddressPayload = buildCheckoutDeliveryAddressPayload(
+      deliveryAddress,
+      deliveryAddressDetails,
+      user?.deliveryAddress,
+    );
+
     const payload = {
-      deliveryAddress: buildCheckoutDeliveryAddressPayload(
-        deliveryAddress,
-        deliveryAddressDetails,
-        user?.deliveryAddress,
-      ),
+      deliveryAddress: deliveryAddressPayload,
       deliveryLocation: deliveryPosition,
+      state: deliveryAddressPayload.state,
       billingDetails,
       deliveryDate: effectivePreview.suggestedDeliveryDate,
       returnPath: "/order-summary",

@@ -24,7 +24,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="relative">
         <Link
           href={productHref}
-          className="group/image relative block aspect-[1.18] overflow-hidden rounded-[0.5rem] bg-stone-50"
+          className="group/image relative block aspect-[1.00] overflow-hidden rounded-[0.5rem] bg-stone-50"
         >
           <Image
             src={product.image}

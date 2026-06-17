@@ -38,7 +38,7 @@ const faqs = [
 ];
 
 export default function FAQSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
     <section className="px-3 py-8 md:px-6 md:py-12">
@@ -58,7 +58,7 @@ export default function FAQSection() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
-          <div className="overflow-hidden rounded-[1.8rem] bg-[#f3f5ee]">
+          <div className="hidden overflow-hidden rounded-[1.8rem] lg:block">
             <div className="relative aspect-[4/4.35] min-h-[280px] w-full md:min-h-[420px]">
               <Image
                 src="/hero_image.png"

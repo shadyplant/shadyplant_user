@@ -5,67 +5,27 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { HomeSliderBanner } from "@/lib/homeSliderBanners";
-import { buildProductHref } from "@/lib/productUrls";
-
-const fallbackSlides: HomeSliderBanner[] = [
-  {
-    id: "fallback-areca-palm",
-    itemKey: "well-crafted-greenery",
-    title: "Well-crafted greenery",
-    desktopImage:
-      "https://www.ugaoo.com/cdn/shop/files/Website_Banner-New.webp?v=1775469492&width=2000",
-    mobileImage:
-      "https://www.ugaoo.com/cdn/shop/files/Website_Banner-New.webp?v=1775469492&width=900",
-    href: buildProductHref({ name: "Areca Palm", productId: "PRD386762349" }),
-    isActive: true,
-    sortOrder: 10,
-  },
-  {
-    id: "fallback-lawn-grass",
-    itemKey: "fresh-lawn-grass",
-    title: "Fresh lawn grass",
-    desktopImage:
-      "https://www.ugaoo.com/cdn/shop/files/Desktop_3b72e57e-bcbe-416e-9b6a-79738d23892e.jpg?v=1778946988&width=2000",
-    mobileImage:
-      "https://www.ugaoo.com/cdn/shop/files/Desktop_3b72e57e-bcbe-416e-9b6a-79738d23892e.jpg?v=1778946988&width=900",
-    href: "/checkout",
-    isActive: true,
-    sortOrder: 20,
-  },
-  {
-    id: "fallback-snake-plant",
-    itemKey: "statement-indoor-plants",
-    title: "Statement indoor plants",
-    desktopImage:
-      "https://www.ugaoo.com/cdn/shop/files/New.webp?v=1774954211&width=2000",
-    mobileImage:
-      "https://www.ugaoo.com/cdn/shop/files/New.webp?v=1774954211&width=900",
-    href: buildProductHref({
-      name: "Snake Plant Laurentii",
-      productId: "PRD753739678",
-    }),
-    isActive: true,
-    sortOrder: 30,
-  },
-];
 
 type HomeSliderProps = {
   slides?: HomeSliderBanner[];
 };
 
 export default function HomeSlider({ slides = [] }: HomeSliderProps) {
-  const items = slides.length ? slides : fallbackSlides;
+  const items = slides;
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
   const currentIndex = activeIndex >= items.length ? 0 : activeIndex;
 
   useEffect(() => {
-    if (!items.length) {
+    if (items.length <= 1) {
       return;
     }
 
     const interval = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % items.length);
+      setIsTransitionEnabled(true);
+      setActiveIndex((current) => current + 1);
     }, 4500);
+
     return () => window.clearInterval(interval);
   }, [items.length]);
 
@@ -74,72 +34,83 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
   }
 
   const goToPrevious = () => {
+    setIsTransitionEnabled(true);
     setActiveIndex((current) => (current - 1 + items.length) % items.length);
   };
 
   const goToNext = () => {
-    setActiveIndex((current) => (current + 1) % items.length);
+    setIsTransitionEnabled(true);
+    setActiveIndex((current) => current + 1);
   };
+
+  const handleTransitionEnd = () => {
+    if (activeIndex === items.length) {
+      setIsTransitionEnabled(false);
+      setActiveIndex(0);
+    }
+  };
+
+  const renderSlideImage = (slide: HomeSliderBanner, index: number) => (
+    <>
+      <Image
+        src={slide.mobileImage || slide.desktopImage}
+        alt={slide.title}
+        fill
+        priority={index === 0}
+        sizes="(max-width: 767px) 100vw, 0px"
+        className="!object-cover object-center md:hidden"
+        style={{ objectFit: "cover", objectPosition: "center" }}
+        quality={100}
+      />
+      <Image
+        src={slide.desktopImage || slide.mobileImage}
+        alt={slide.title}
+        fill
+        priority={index === 0}
+        sizes="(max-width: 767px) 0px, 100vw"
+        className="hidden !object-cover object-center md:block"
+        style={{ objectFit: "cover", objectPosition: "center" }}
+        quality={100}
+      />
+    </>
+  );
 
   return (
     <section className="px-0 pt-0 md:px-0">
       <div className="w-full">
-        <div className=" px-0 md:p-0">
+        <div className="px-0 md:p-0">
           <div className="relative aspect-[390/210] w-full overflow-hidden border border-[#d7e1d3] bg-[#eef4ea] sm:aspect-[390/190] md:aspect-[2000/598]">
             <div
-              className="flex h-full transition-transform duration-700 ease-in-out"
-              style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+              className={`flex h-full ${
+                isTransitionEnabled
+                  ? "transition-transform duration-700 ease-in-out"
+                  : ""
+              }`}
+              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+              onTransitionEnd={handleTransitionEnd}
             >
-              {items.map((slide, index) => (
-                <div key={slide.title} className="relative h-full min-w-full">
+              {[...items, items[0]].map((slide, index) => (
+                <div
+                  key={`${slide.title}-${index}`}
+                  className="relative h-full w-full shrink-0 overflow-hidden"
+                >
                   {slide.href ? (
                     <Link
                       href={slide.href}
-                      className="relative block h-full w-full"
+                      className="relative block h-full w-full overflow-hidden"
                       aria-label={slide.title}
                     >
-                      <Image
-                        src={slide.mobileImage || slide.desktopImage}
-                        alt={slide.title}
-                        fill
-                        priority={index === 0}
-                        sizes="(max-width: 767px) 100vw, 0px"
-                        className="object-cover md:hidden"
-                      />
-                      <Image
-                        src={slide.desktopImage || slide.mobileImage}
-                        alt={slide.title}
-                        fill
-                        priority={index === 0}
-                        sizes="(max-width: 767px) 0px, 100vw"
-                        className="hidden object-cover md:block"
-                      />
+                      {renderSlideImage(slide, index)}
                     </Link>
                   ) : (
-                    <>
-                      <Image
-                        src={slide.mobileImage || slide.desktopImage}
-                        alt={slide.title}
-                        fill
-                        priority={index === 0}
-                        sizes="(max-width: 767px) 100vw, 0px"
-                        className="object-cover md:hidden"
-                      />
-                      <Image
-                        src={slide.desktopImage || slide.mobileImage}
-                        alt={slide.title}
-                        fill
-                        priority={index === 0}
-                        sizes="(max-width: 767px) 0px, 100vw"
-                        className="hidden object-cover md:block"
-                      />
-                    </>
+                    <div className="relative h-full w-full overflow-hidden">
+                      {renderSlideImage(slide, index)}
+                    </div>
                   )}
                 </div>
               ))}
             </div>
 
-            {/* Prev button */}
             <button
               type="button"
               aria-label="Previous slide"
@@ -152,7 +123,6 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
               />
             </button>
 
-            {/* Next button */}
             <button
               type="button"
               aria-label="Next slide"
@@ -172,7 +142,10 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
                 key={slide.title}
                 type="button"
                 aria-label={`Go to slide ${index + 1}`}
-                onClick={() => setActiveIndex(index)}
+                onClick={() => {
+                  setIsTransitionEnabled(true);
+                  setActiveIndex(index);
+                }}
                 className={`rounded-full transition-all duration-300 ${
                   index === currentIndex
                     ? "h-1.2 w-7 bg-[#4c8b5d] sm:h-2 sm:w-8 md:h-2 md:w-7"

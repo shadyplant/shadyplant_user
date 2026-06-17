@@ -54,6 +54,7 @@ function GoogleMark() {
 }
 
 type AuthLoginPanelProps = {
+  msgTitle?: string;
   nextPath: string;
   initialIdentifier?: string;
   onSuccess?: () => void;
@@ -64,13 +65,14 @@ type AuthLoginPanelProps = {
 };
 
 export default function AuthLoginPanel({
+  msgTitle = "Welcome back!",
   nextPath,
   initialIdentifier = "",
   onSuccess,
   onRequestRegister,
   onRequestForgotPassword,
   className = "mt-6 space-y-4",
-  submitLabel = "Sign In",
+  submitLabel = "Log In",
 }: AuthLoginPanelProps) {
   const router = useRouter();
   const { clearError, login, loginWithGoogle } = useAuth();
@@ -147,12 +149,11 @@ export default function AuthLoginPanel({
         </div>
       ) : null}
 
-      <div className="space-y-1 text-center mb-8">
-        <h2 className="text-2xl font-bold text-[#214f14]">Welcome back</h2>
-        <p className="text-sm text-[#58724f]">
-          Please enter your details to sign in to your account.
-        </p>
-      </div>
+        <div className="mb-6 pr-8">
+            <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+              {msgTitle}
+            </h2>
+          </div>
 
       <label className="block">
         <span className="mb-2 block text-sm font-semibold text-[#214f14]">
@@ -232,9 +233,9 @@ export default function AuthLoginPanel({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-[0.5rem] bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
       >
-        {isSubmitting ? "Signing in..." : submitLabel}
+        {isSubmitting ? "Logging in..." : submitLabel}
       </button>
 
 
@@ -247,7 +248,7 @@ export default function AuthLoginPanel({
             resetFeedback();
             onRequestRegister?.();
           }}
-          className=" text-[#214f14]"
+          className=" text-[#214f14] cursor-pointer"
         >
           CREATE A NEW ACCOUNT
         </button>
@@ -266,7 +267,7 @@ export default function AuthLoginPanel({
         type="button"
         onClick={handleGoogleLogin}
         disabled={isSubmitting}
-        className="flex w-full items-center justify-center gap-3 rounded-[0.5rem] border border-[#dbe8cd] bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dbe8cd] cursor-pointer bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
       >
         <GoogleMark />
         Continue with Google

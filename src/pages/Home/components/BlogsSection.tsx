@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import BlogIcon from "@/assets/home_section_icons/blog";
-import { blogPosts } from "@/content/blogs";
+import { blogArticles, getArticlePreview } from "@/app/blogs/mockArticleData";
 
 function formatPublishedDate(value: string) {
   const date = new Date(value);
@@ -20,7 +20,7 @@ function formatPublishedDate(value: string) {
 }
 
 export default function BlogsSection() {
-  const featuredPosts = blogPosts.slice(0, 4);
+  const featuredPosts = blogArticles.slice(0, 4);
   const shouldCenterTrack = featuredPosts.length <= 3;
 
   if (!featuredPosts.length) {
@@ -28,7 +28,7 @@ export default function BlogsSection() {
   }
 
   return (
-    <section className="px-3 py-8 md:px-6 md:py-12">
+    <section className="px-4 py-8 md:px-8 md:py-12">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 text-center">
           <div className="inline-flex items-center justify-center gap-3">
@@ -43,7 +43,7 @@ export default function BlogsSection() {
         </div>
 
         <div
-          className={`flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-2 scroll-smooth scrollbar-hide ${
+          className={`flex snap-x snap-mandatory gap-4 overflow-x-auto px-0 pb-2 scroll-smooth scrollbar-hide ${
             shouldCenterTrack ? "md:justify-center" : ""
           }`}
         >
@@ -53,9 +53,9 @@ export default function BlogsSection() {
               href={`/blogs/${post.slug}`}
               className="group w-[84vw] max-w-[24rem] shrink-0 snap-center overflow-hidden rounded-[0.5rem] bg-white transition hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(26,44,21,0.08)] sm:w-[20rem]"
             >
-              <div className="relative aspect-[1.15/0.78] overflow-hidden rounded-[0.5rem] m-3">
+              <div className="relative aspect-[1.15/0.78] overflow-hidden rounded-[0.5rem] m-0 md:m-3">
                 <Image
-                  src={post.coverImage}
+                  src={post.featured_image.url}
                   alt={post.title}
                   fill
                   className="object-cover transition duration-300 group-hover:scale-[1.03]"
@@ -68,10 +68,10 @@ export default function BlogsSection() {
                   {post.title}
                 </span>
                 <p className="mt-3 line-clamp-3 text-sm leading-5 text-[#5c6757]">
-                  {post.excerpt}
+                  {getArticlePreview(post, 120)}
                 </p>
                 <p className="mt-4 text-sm font-medium text-[#5c6757]">
-                  {formatPublishedDate(post.publishedAt)}
+                  {formatPublishedDate(post.published_date)}
                 </p>
               </div>
             </Link>

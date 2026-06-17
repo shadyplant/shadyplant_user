@@ -26,6 +26,7 @@ export type Product = {
   description: string;
   image: string;
   images: string[];
+  usesImages: string[];
   tags: string[];
   videoClips: ProductVideoClip[];
   optionGroups: ProductOptionGroup[];
@@ -61,9 +62,10 @@ export type ProductOptionGroup = {
   options: ProductOption[];
 };
 
-type ProductApi = Omit<Product, "image" | "images" | "videoClips"> & {
+type ProductApi = Omit<Product, "image" | "images" | "usesImages" | "videoClips"> & {
   image?: string;
   images?: string[];
+  usesImages?: string[];
   videoClips?: Array<Partial<ProductVideoClip> & { image?: string }>;
 };
 
@@ -244,6 +246,11 @@ function normalizeProduct(product: ProductApi): Product {
       .map((image) => String(image || "").trim())
       .filter(Boolean),
   )];
+  const usesImages = [...new Set(
+    (Array.isArray(product.usesImages) ? product.usesImages : [])
+      .map((image) => String(image || "").trim())
+      .filter(Boolean),
+  )];
   const tags = Array.isArray(product.tags)
     ? [...new Set(product.tags.map((tag) => String(tag || "").trim()).filter(Boolean))]
     : [];
@@ -264,6 +271,7 @@ function normalizeProduct(product: ProductApi): Product {
     isFeaturedLatest: Boolean(product.isFeaturedLatest),
     image: images[0] || "",
     images,
+    usesImages,
     tags,
     optionGroups: normalizeProductOptionGroups(product.optionGroups),
     detailSections: normalizeProductDetailSections(product.detailSections),

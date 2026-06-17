@@ -18,6 +18,22 @@ http://localhost:8080/api/v1
 npm run dev
 ```
 
+## Chat Widget Setup (Optional)
+
+The app includes a Chatbase chat widget for customer support. To enable it:
+
+1. Create a Chatbase account and bot at https://www.chatbase.co
+2. Get your widget ID from the Chatbase dashboard
+3. Set `NEXT_PUBLIC_CHATBASE_WIDGET_ID` in `.env` with your widget ID
+4. Restart the dev server
+
+Example:
+```bash
+NEXT_PUBLIC_CHATBASE_WIDGET_ID=your_chatbase_widget_id_here
+```
+
+**Note:** If no valid widget ID is configured, the chat widget will be automatically disabled and won't affect page functionality.
+
 Open [http://localhost:3000](http://localhost:3000).
 
 ## Required Env

@@ -135,11 +135,7 @@ export default function SignInPromptModal() {
         </div>
 
         <div className="flex flex-col justify-center p-6 sm:p-8 md:p-10">
-          <div className="mb-6 pr-8">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
-              Let&apos;s get started with ShadyPlant!
-            </h2>
-          </div>
+  
 
           <AuthLoginPanel
             nextPath={nextPath}

@@ -1,14 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { HomeCategoryItem } from "@/lib/homeCategoryItems";
-import { ChevronRight } from "lucide-react";
 
 type CategorySectionProps = {
   items?: HomeCategoryItem[];
   pulseIndices?: number | number[];
 };
-
-const FALLBACK_IMAGE = "/hero_image.png";
 
 export default function CategorySection({
   items = [],
@@ -19,7 +16,7 @@ export default function CategorySection({
     .map((item) => ({
       label: item.label,
       href: item.href || "/search",
-      image: item.image || FALLBACK_IMAGE,
+      image: item.image,
       accentStyle: {
         backgroundImage: `linear-gradient(135deg, ${item.accentFrom}, ${item.accentVia}, ${item.accentTo})`,
       },
@@ -57,13 +54,15 @@ export default function CategorySection({
                       </span>
                     </div>
                   ) : (
-                    <Image
-                      src={story.image}
-                      alt={story.label}
-                      fill
-                      sizes="112px"
-                      className="object-cover transition duration-300 group-hover/story:scale-105"
-                    />
+                    story.image ? (
+                      <Image
+                        src={story.image}
+                        alt={story.label}
+                        fill
+                        sizes="112px"
+                        className="object-cover transition duration-300 group-hover/story:scale-105"
+                      />
+                    ) : null
                   )}
                 </div>
               </div>

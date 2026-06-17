@@ -42,8 +42,8 @@ import {
 
 const LIBRARIES: "places"[] = ["places"];
 const WAREHOUSE_LOCATION = {
-  lat: 26.2457163,
-  lng: 90.9172911,
+  lat: Number(process.env.NEXT_PUBLIC_DELIVERY_ORIGIN_LAT || 25.5138),
+  lng: Number(process.env.NEXT_PUBLIC_DELIVERY_ORIGIN_LNG || 90.2142),
 };
 const GRASS_PRICE_PER_SQFT = 12;
 
@@ -112,6 +112,16 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function getStateFromAddressComponents(
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+) {
+  return (
+    components?.find((component) =>
+      component.types.includes("administrative_area_level_1"),
+    )?.long_name || ""
+  ).trim();
+}
+
 export default function GrassCalculator() {
   const router = useRouter();
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -124,6 +134,7 @@ export default function GrassCalculator() {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markerPos, setMarkerPos] = useState(WAREHOUSE_LOCATION);
   const [address, setAddress] = useState("");
+  const [deliveryState, setDeliveryState] = useState("");
   const [formData, setFormData] = useState({
     sqft: "",
     vehicleId: "small",
@@ -161,6 +172,9 @@ export default function GrassCalculator() {
       geocoder.geocode({ location: newPos }, (results) => {
         if (results && results[0]) {
           setAddress(results[0].formatted_address);
+          setDeliveryState(
+            getStateFromAddressComponents(results[0].address_components),
+          );
         }
       });
     }
@@ -175,6 +189,9 @@ export default function GrassCalculator() {
       };
       setMarkerPos(newPos);
       setAddress(place.formatted_address || "");
+      setDeliveryState(
+        getStateFromAddressComponents(place.address_components),
+      );
       map?.panTo(newPos);
     }
   };
@@ -200,6 +217,7 @@ export default function GrassCalculator() {
         body: JSON.stringify({
           lat: markerPos.lat,
           lng: markerPos.lng,
+          state: deliveryState || user?.deliveryAddress?.state || "",
         }),
       });
 

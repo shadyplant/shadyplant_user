@@ -50,11 +50,11 @@ export default function MobileSearchHeader({
         sticky ? "sticky top-0 z-50" : ""
       }`}
     >
-      <div className="flex min-h-[60px] items-center gap-2 px-3 py-2">
+      <div className="flex min-h-[68px] items-center gap-2 px-3 py-2.5">
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5f7f3] text-[#1f1f1f] transition hover:bg-[#edf3e9]"
+          className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-700 transition hover:bg-gray-300"
           aria-label="Go back"
         >
           <ArrowLeft size={22} strokeWidth={1.9} />
@@ -62,30 +62,30 @@ export default function MobileSearchHeader({
 
         <form
           onSubmit={submitSearch}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-[#d9e4d3] bg-[#f8fbf6] px-4 py-2 shadow-[0_4px_14px_rgba(28,45,20,0.05)]"
+          className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-md border border-gray-300 px-4 py-3 shadow-[0_4px_14px_rgba(28,45,20,0.05)]"
         >
           <Search
             size={18}
             strokeWidth={2}
-            className="shrink-0 text-[#5f7157]"
+            className="shrink-0 text-gray-500 transition group-hover:text-gray-700"
           />
           <input
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search for products"
-            className="min-w-0 flex-1 bg-transparent text-[14px] font-medium text-[#222222] outline-none placeholder:text-[#95a08f]"
+            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-gray-700 outline-none placeholder:text-gray-500 md:text-base"
           />
         </form>
 
         <Link
           href={cartHref}
-          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5f7f3] text-[#1f1f1f] transition hover:bg-[#edf3e9]"
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center text-gray-700 transition hover:bg-gray-300"
           aria-label="View cart"
         >
           <ShoppingCart size={21} strokeWidth={1.9} />
           {cartCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#4c8d5b] px-1 text-center text-[10px] leading-4 text-white">
+            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-600 px-1 text-center text-xs leading-4 text-white">
               {displayCartCount}
             </span>
           ) : null}

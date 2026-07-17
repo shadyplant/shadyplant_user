@@ -169,7 +169,7 @@ export default function ProfilePageClient() {
     return (
       <SiteShell>
         <section className="px-4 py-8 md:px-6 md:py-12">
-          <div className="mx-auto max-w-4xl rounded-[1.8rem] border border-[#dbe8cd] bg-white p-6 text-sm text-[#58724f] shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
+          <div className="mx-auto max-w-4xl rounded-[1.8rem] border border-gray-300 bg-white p-6 text-sm text-gray-500 shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
             Loading your account...
           </div>
         </section>
@@ -395,7 +395,7 @@ export default function ProfilePageClient() {
   function renderSectionPanel(className = "p-6 md:p-8 shadow-[0_22px_60px_rgba(33,79,20,0.08)]") {
     return (
       <div className={className}>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf2e7] pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-6">
           <div>
             <h2 className="text-3xl text-[#163915]">
               {sectionTitle}
@@ -404,7 +404,7 @@ export default function ProfilePageClient() {
         </div>
 
         {feedback ? (
-          <div className="mt-6 rounded-[1.3rem] border border-[#dbe8cd] bg-[#f7fbf2] p-4 text-sm text-[#244119]">
+          <div className="mt-6 rounded-[1.3rem] border border-gray-300 bg-[#f7fbf2] p-4 text-sm text-[#244119]">
             {feedback}
           </div>
         ) : null}
@@ -421,12 +421,12 @@ export default function ProfilePageClient() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
-                  <span>Address line 1</span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span className="text-gray-500">Address line 1</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("line1")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -444,7 +444,7 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.75rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f] md:rounded-[1.2rem]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.line1 ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.line1}</span>
@@ -454,7 +454,7 @@ export default function ProfilePageClient() {
                     <button
                       type="button"
                       onClick={cancelFieldEdit}
-                      className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"
+                      className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"
                     >
                       <X size={14} />
                       Cancel
@@ -463,7 +463,7 @@ export default function ProfilePageClient() {
                       type="button"
                       onClick={handleSaveAddressField}
                       disabled={isSaving}
-                      className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60"
+                      className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
                     >
                       {isSaving ? "Saving..." : "Save"}
                     </button>
@@ -472,12 +472,12 @@ export default function ProfilePageClient() {
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
-                  <span>Address line 2</span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span className="text-gray-500">Address line 2</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("line2")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -495,18 +495,18 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.75rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f] md:rounded-[1.2rem]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {activeField === "line2" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]"><span>City</span><button type="button" onClick={() => startFieldEdit("city")} className="inline-flex items-center gap-1 text-[#214f14]"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">City</span><button type="button" onClick={() => startFieldEdit("city")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
                 <input
                   type="text"
                   disabled={activeField !== "city"}
@@ -520,21 +520,21 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.75rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f] md:rounded-[1.2rem]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.city ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.city}</span>
                 ) : null}
                 {activeField === "city" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]"><span>State</span><button type="button" onClick={() => startFieldEdit("state")} className="inline-flex items-center gap-1 text-[#214f14]"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">State</span><button type="button" onClick={() => startFieldEdit("state")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
                 <input
                   type="text"
                   disabled={activeField !== "state"}
@@ -548,21 +548,21 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.75rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f] md:rounded-[1.2rem]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.state ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.state}</span>
                 ) : null}
                 {activeField === "state" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]"><span>Postal code</span><button type="button" onClick={() => startFieldEdit("postalCode")} className="inline-flex items-center gap-1 text-[#214f14]"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">Postal code</span><button type="button" onClick={() => startFieldEdit("postalCode")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
                 <input
                   type="text"
                   disabled={activeField !== "postalCode"}
@@ -576,21 +576,21 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.75rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f] md:rounded-[1.2rem]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.postalCode ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.postalCode}</span>
                 ) : null}
                 {activeField === "postalCode" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]"><span>Landmark</span><button type="button" onClick={() => startFieldEdit("landmark")} className="inline-flex items-center gap-1 text-[#214f14]"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">Landmark</span><button type="button" onClick={() => startFieldEdit("landmark")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
                 <input
                   type="text"
                   disabled={activeField !== "landmark"}
@@ -604,18 +604,18 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.75rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f] md:rounded-[1.2rem]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {activeField === "landmark" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block md:col-span-2">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]"><span>Delivery notes</span><button type="button" onClick={() => startFieldEdit("notes")} className="inline-flex items-center gap-1 text-[#214f14]"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">Delivery notes</span><button type="button" onClick={() => startFieldEdit("notes")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
                 <textarea
                   rows={4}
                   disabled={activeField !== "notes"}
@@ -629,22 +629,22 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.75rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f] md:rounded-[1.2rem]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {activeField === "notes" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
             </div>
 
-            <div className="rounded-[1.5rem] border border-[#dbe8cd] bg-[#fbfdf8] p-5 text-sm text-[#58724f]">
+            <div className="rounded-[0.5rem] border border-gray-200 bg-white p-5 text-sm text-gray-700 md:rounded-[0.5rem]">
               <div className="flex items-start gap-3">
-                <MapPin size={18} className="mt-0.5 shrink-0 text-[#214f14]" />
+                <MapPin size={18} className="mt-0.5 shrink-0 text-gray-700" />
                 <div>
-                  <p className="font-semibold text-[#163915]">Saved delivery profile</p>
+                  <p className="font-semibold text-gray-700">Saved delivery profile</p>
                   <p className="mt-2 leading-6">
                     {[
                       form.deliveryAddress.line1,
@@ -664,12 +664,12 @@ export default function ProfilePageClient() {
           <div className="mt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block md:col-span-2">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
                   <span>Personal/Business Name</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("billingName")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -687,35 +687,35 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {activeField === "billingName" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 block text-sm font-semibold text-gray-700">
                   Email Address
                 </span>
                 <input
                   type="email"
                   value={profileUser.email}
                   disabled
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#f2f6ec] px-4 py-3 text-sm text-[#58724f] outline-none"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none"
                 />
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
                   <span>Phone</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("billingContact")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -733,26 +733,26 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {errors.billingContact ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.billingContact}</span>
                 ) : null}
                 {activeField === "billingContact" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
                   <span>GST Number</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("billingGstin")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -770,26 +770,26 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {errors.billingGstin ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.billingGstin}</span>
                 ) : null}
                 {activeField === "billingGstin" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
                   <span>State</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("billingState")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -807,23 +807,23 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {activeField === "billingState" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
                   <span>City</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("billingCity")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -841,23 +841,23 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {activeField === "billingCity" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block md:col-span-2">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
                   <span>Address</span>
                   <button
                     type="button"
                     onClick={() => startFieldEdit("billingAddress")}
-                    className="inline-flex items-center gap-1 text-[#214f14]"
+                    className="inline-flex items-center gap-1 text-gray-700"
                   >
                     <Edit3 size={14} />
                   </button>
@@ -875,12 +875,12 @@ export default function ProfilePageClient() {
                       },
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {activeField === "billingAddress" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
@@ -890,7 +890,7 @@ export default function ProfilePageClient() {
           <div className="mt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]"><span>Full name</span><button type="button" onClick={() => startFieldEdit("fullName")} className="inline-flex items-center gap-1 text-[#214f14]"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span>Full name</span><button type="button" onClick={() => startFieldEdit("fullName")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
                 <input
                   type="text"
                   disabled={activeField !== "fullName"}
@@ -901,21 +901,21 @@ export default function ProfilePageClient() {
                       fullName: event.target.value,
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-white disabled:text-gray-700"
                 />
                 {errors.fullName ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.fullName}</span>
                 ) : null}
                 {activeField === "fullName" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveProfileField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveProfileField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-[#214f14]"><span>Phone number</span><button type="button" onClick={() => startFieldEdit("phoneNumber")} className="inline-flex items-center gap-1 text-[#214f14]"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span>Phone number</span><button type="button" onClick={() => startFieldEdit("phoneNumber")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
                 <input
                   type="tel"
                   disabled={activeField !== "phoneNumber"}
@@ -926,28 +926,28 @@ export default function ProfilePageClient() {
                       phoneNumber: event.target.value,
                     }))
                   }
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none disabled:bg-[#f2f6ec] disabled:text-[#58724f]"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-white disabled:text-gray-700"
                 />
                 {errors.phoneNumber ? (
                   <span className="mt-2 block text-xs text-[#c54b4b]">{errors.phoneNumber}</span>
                 ) : null}
                 {activeField === "phoneNumber" ? (
                   <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] px-3 py-2 text-xs font-semibold text-[#58724f]"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveProfileField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-[#214f14] disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
+                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
+                    <button type="button" onClick={handleSaveProfileField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
                   </div>
                 ) : null}
               </label>
 
               <label className="block md:col-span-2">
-                <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+                <span className="mb-2 block text-sm font-semibold text-gray-700">
                   Verified email
                 </span>
                 <input
                   type="email"
                   value={profileUser.email}
                   disabled
-                  className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#f2f6ec] px-4 py-3 text-sm text-[#58724f] outline-none"
+                  className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none"
                 />
               </label>
             </div>
@@ -955,52 +955,52 @@ export default function ProfilePageClient() {
             <div className="grid gap-4 md:grid-cols-3">
               <Link
                 href="/order"
-                className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
+                className="rounded-[1.4rem] border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
               >
-                <PackageSearch size={18} className="text-[#214f14]" />
-                <p className="mt-3 text-base font-bold text-[#163915]">
+                <PackageSearch size={18} className="text-gray-700" />
+                <p className="mt-3 text-base font-bold text-gray-700">
                   Track Orders
                 </p>
-                <p className="mt-1 text-sm text-[#58724f]">
+                <p className="mt-1 text-sm text-gray-600">
                   View live status updates from your account.
                 </p>
               </Link>
 
               <Link
                 href="/wishlist"
-                className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
+                className="rounded-[1.4rem] border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
               >
-                <Heart size={18} className="text-[#214f14]" />
-                <p className="mt-3 text-base font-bold text-[#163915]">
+                <Heart size={18} className="text-gray-700" />
+                <p className="mt-3 text-base font-bold text-gray-700">
                   Wishlist
                 </p>
-                <p className="mt-1 text-sm text-[#58724f]">
+                <p className="mt-1 text-sm text-gray-600">
                   Pick up where you left off with saved items.
                 </p>
               </Link>
 
               <Link
                 href="/profile?section=addresses"
-                className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
+                className="rounded-[1.4rem] border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
               >
-                <Home size={18} className="text-[#214f14]" />
-                <p className="mt-3 text-base font-bold text-[#163915]">
+                <Home size={18} className="text-gray-700" />
+                <p className="mt-3 text-sm font-semibold text-gray-700">
                   Delivery Address
                 </p>
-                <p className="mt-1 text-sm text-[#58724f]">
+                <p className="mt-1 text-sm text-gray-600">
                   Complete your address before checkout.
                 </p>
               </Link>
 
               <Link
                 href="/profile?section=billing"
-                className="rounded-[1.4rem] border border-[#dbe8cd] bg-[#fbfdf8] p-4 transition-colors hover:bg-[#f3f8ec]"
+                className="rounded-[1.4rem] border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
               >
-                <Home size={18} className="text-[#214f14]" />
-                <p className="mt-3 text-base font-bold text-[#163915]">
+                <Home size={18} className="text-gray-700" />
+                <p className="mt-3 text-sm font-semibold text-gray-700">
                   Billing Details
                 </p>
-                <p className="mt-1 text-sm text-[#58724f]">
+                <p className="mt-1 text-sm text-gray-600">
                   Manage invoice and GST information.
                 </p>
               </Link>
@@ -1025,7 +1025,7 @@ export default function ProfilePageClient() {
                   <p className="relative text-xl font-semibold">Profile</p>
 
                   <div className="relative mt-10 flex flex-col items-center text-center">
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-[#214f14] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-gray-700 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
                       <UserRound size={42} />
                     </div>
                     <p className="mt-5 text-[1.45rem] font-semibold leading-tight">
@@ -1048,7 +1048,7 @@ export default function ProfilePageClient() {
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <UserRound size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-[#2e2e2e]">My Profile</span>
+                        <span className="text-[15px] font-medium text-gray-700">My Profile</span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
@@ -1058,7 +1058,7 @@ export default function ProfilePageClient() {
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <PackageSearch size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-[#2e2e2e]">My Orders</span>
+                        <span className="text-[15px] font-medium text-gray-700">My Orders</span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
@@ -1068,7 +1068,7 @@ export default function ProfilePageClient() {
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <MapPin size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-[#2e2e2e]">Delivery Address</span>
+                        <span className="text-[15px] font-medium text-gray-700">Delivery Address</span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
@@ -1078,7 +1078,7 @@ export default function ProfilePageClient() {
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <Home size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-[#2e2e2e]">Billing Details</span>
+                        <span className="text-[15px] font-medium text-gray-700">Billing Details</span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
@@ -1088,7 +1088,7 @@ export default function ProfilePageClient() {
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <Heart size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-[#2e2e2e]">My Wishlist</span>
+                        <span className="text-[15px] font-medium text-gray-700">My Wishlist</span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
@@ -1104,18 +1104,18 @@ export default function ProfilePageClient() {
                         </span>
                         <span className="text-[15px] font-medium text-[#2e2e2e]">Logout</span>
                       </div>
-                      <ChevronRight size={18} className="text-[#737373]" />
+                      <ChevronRight size={18} className="text-gray-500" />
                     </button>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="overflow-hidden rounded-b-[1.8rem] bg-white pb-24 shadow-[0_22px_60px_rgba(33,79,20,0.08)]">
-                <div className="flex items-center gap-3 border-b border-[#edf2e7] px-4 py-4">
+                <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-4">
                   <button
                     type="button"
                     onClick={() => router.push("/profile")}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f7f1] text-[#214f14]"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f7f1] text-gray-700"
                     aria-label="Back to profile overview"
                   >
                     <ChevronLeft size={18} />
@@ -1134,15 +1134,15 @@ export default function ProfilePageClient() {
             <aside className="space-y-4 shadow-[0_22px_60px_rgba(33,79,20,0.08)]">
               <div className=" p-5">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f1d661] text-[#214f14]">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f1d661] text-gray-700">
                     <UserRound size={24} />
                   </div>
                   <div>
-                    <p className="text-sm text-[#58724f]">Signed in as</p>
+                    <p className="text-sm text-gray-500">Signed in as</p>
                     <h1 className="text-2xl  text-[#163915]">
                       {profileUser.fullName}
                     </h1>
-                    <p className="mt-1 text-sm text-[#58724f]">{profileUser.email}</p>
+                    <p className="mt-1 text-sm text-gray-500">{profileUser.email}</p>
                     {profileUser.isVip ? (
                       <span className="mt-3 inline-flex items-center rounded-full bg-[#f5edc4] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#7b5b08]">
                         VIP Customer
@@ -1153,8 +1153,8 @@ export default function ProfilePageClient() {
               </div>
 
               <div className="overflow-hidden ">
-                <div className="border-b border-[#edf2e7] px-5 py-4">
-                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#6b8b58]">
+                <div className="border-b border-gray-200 px-5 py-4">
+                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-gray-500">
                     Account
                   </p>
                 </div>
@@ -1166,8 +1166,8 @@ export default function ProfilePageClient() {
                       href={item.href}
                       className={`flex items-center justify-between px-5 py-4 text-sm font-semibold transition-colors ${
                         item.active
-                          ? "bg-[#edf5e1] text-[#214f14]"
-                          : "text-[#4f6647] hover:bg-[#f7faf2]"
+                          ? "bg-[#207958] text-gray-100"
+                          : "text-gray-700 hover:bg-[#f7faf2]"
                       }`}
                     >
                       <span>{item.label}</span>
@@ -1176,7 +1176,7 @@ export default function ProfilePageClient() {
                   ))}
                 </div>
 
-                <div className="border-t border-[#edf2e7] px-5 py-4">
+                <div className="border-t border-gray-200 px-5 py-4">
                   <button
                     type="button"
                     onClick={handleLogout}

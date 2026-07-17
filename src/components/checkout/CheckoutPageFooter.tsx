@@ -85,8 +85,8 @@ const trustItems = [
 
 export default function CheckoutPageFooter() {
   return (
-    <footer className="mx-auto mt-10 w-full max-w-7xl border-t border-[#e8ece3] pt-8 pb-6 text-center">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7a8a6a]">
+    <footer className="mx-auto mt-10 w-full max-w-7xl border-t border-gray-200 pt-8 pb-6 text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-600">
         Secure Payment Methods
       </p>
 
@@ -94,27 +94,27 @@ export default function CheckoutPageFooter() {
         {paymentMethods.map(({ name, icon }) => (
           <span
             key={name}
-            className="inline-flex items-center gap-2 rounded-[10px] border border-[#d7dccf] bg-white px-3.5 py-1.5 text-sm font-medium text-[#1f2a18] shadow-none transition-colors hover:border-[#b0b8a6]"
+            className="inline-flex items-center gap-2 rounded-[10px] border border-gray-100 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-500 shadow-none transition-colors hover:border-[#b0b8a6]"
           >
             {icon}
             {name}
           </span>
         ))}
-        <span className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#d7dccf] bg-white px-3.5 py-1.5 text-xs font-medium text-[#7a8a6a]">
+        <span className="inline-flex items-center gap-1.5 rounded-[10px] border border-gray-100 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-500">
           More
         </span>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-5">
         {trustItems.map(({ icon: Icon, label }) => (
-          <div key={label} className="flex items-center gap-1.5 text-xs text-[#6a7a5a]">
+          <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
             <Icon size={14} strokeWidth={2} />
             {label}
           </div>
         ))}
       </div>
 
-      <p className="mt-5 text-[11px] tracking-[0.04em] text-[#9aaa8a]">
+      <p className="mt-5 text-[11px] tracking-[0.04em] text-gray-400">
         Copyright {"\u00A9"} ShadyPlant. All rights reserved.
       </p>
     </footer>

@@ -74,7 +74,7 @@ export default function ProductBuyNowButton({
         await updateQuantity(existingItem.id, stockAvailable);
       }
 
-      router.push("/checkout");
+      router.push("/cart");
     } finally {
       setIsSubmitting(false);
     }

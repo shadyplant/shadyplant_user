@@ -31,15 +31,15 @@ function ProductGridSection({ title, products }: ProductSection) {
             {/* <div className="flex h-8 w-6 shrink-0 items-center justify-center md:h-9 md:w-7">
               {icon}
             </div> */}
-            <span className="block truncate text-lg leading-none text-[#163915] md:text-2xl">
+            <span className="block truncate text-md text-black/80 md:text-2xl">
               {title}
             </span>
           </div>
           <Link
             href="/search"
-            className="shrink-0 inline-flex items-center justify-center gap-1 text-[11px] text-[#214f14] transition-all border border-transparent md:text-xs"
+            className="shrink-0 inline-flex items-center justify-center gap-1 text-xs text-black/70 transition-all border border-transparent md:text-xs"
           >
-            <span className="text-sm">View all</span>
+            <span className="text-xs">View all</span>
             <ChevronRight color="#cccccc" size={16} />
           </Link>
         </div>
@@ -68,17 +68,17 @@ export default function HomePage({
   const categoryPulseIndices = [0];
   const productSections: ProductSection[] = [
     {
-      title: "Latest products collection",
+      title: "Latest Items",
       products,
     },
     {
-      title: "Indoor plant favorites",
+      title: "Indoor Collection",
       products: products.filter(
         (product) => product.category === "Indoor Plants",
       ),
     },
     {
-      title: "Lawn and outdoor essentials",
+      title: "Outdoor Collection",
       products: products.filter((product) =>
         ["Outdoor Plants", "Lawn Grass"].includes(product.category),
       ),
@@ -90,22 +90,23 @@ export default function HomePage({
   ];
 
   return (
-    <div className="bg-white space-y-4 pb-24 pt-0 md:pb-12 md:pt-0">
+    <div className="bg-white space-y-4 pb-1 pt-0 md:pb-12 md:pt-0">
       <div className="md:hidden">
+        
         <HomeLocationStrip initialAddress={initialDeliveryAddress} />
       </div>
 
       <div className="space-y-0 md:space-y-1">
-        <HomeSlider slides={homeSliderBanners} />
-        {/* <TrustMarquee /> */}
-        <CategorySection
+         <HomeSlider slides={homeSliderBanners} />
+           <CategorySection
           items={categoryItems}
           pulseIndices={categoryPulseIndices}
         />
+        {/* <BestSellingCarousel /> */}
+     
       </div>
 
       {/* <BestSellingCarousel /> */}
-
       {productSections.map((section) => (
         <ProductGridSection
           key={section.title}
@@ -114,8 +115,8 @@ export default function HomePage({
         />
       ))}
 
-      <ReviewsSection />
-      <BlogsSection />
+      {/* <ReviewsSection />
+      <BlogsSection /> */}
       <FAQSection />
     </div>
   );

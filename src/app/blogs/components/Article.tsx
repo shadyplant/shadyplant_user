@@ -51,8 +51,8 @@ export default function Article({ data }: ArticleComponentProps) {
   if (!data) return null;
 
   return (
-    <article className="mx-auto max-w-[680px] bg-white px-4 py-10 text-neutral-800 antialiased">
-      <h1 className="mb-6 text-3xl font-bold leading-tight tracking-tight text-neutral-900 md:text-4xl">
+    <article className="mx-auto max-w-full bg-white px-0 py-5 md:py-5 text-neutral-800 antialiased">
+      <h1 className="mb-6 text-2xl font-bold leading-tight tracking-tight text-neutral-900 md:text-2xl">
         {data.title}
       </h1>
 
@@ -98,7 +98,7 @@ export default function Article({ data }: ArticleComponentProps) {
             {data.introduction.label}
           </h2>
           <div
-            className="prose prose-neutral max-w-none space-y-4 text-[1.05rem] leading-relaxed"
+            className="prose prose-neutral max-w-none space-y-4 text-base leading-relaxed"
             dangerouslySetInnerHTML={{ __html: data.introduction.content }}
           />
         </section>
@@ -110,7 +110,7 @@ export default function Article({ data }: ArticleComponentProps) {
             {mainSec.label}
           </h2>
           <div
-            className="prose prose-neutral mb-6 max-w-none space-y-4 text-[1.05rem] leading-relaxed"
+            className="prose prose-neutral mb-6 max-w-none space-y-4 text-base leading-relaxed"
             dangerouslySetInnerHTML={{ __html: mainSec.content }}
           />
 
@@ -136,7 +136,7 @@ export default function Article({ data }: ArticleComponentProps) {
               ) : null}
 
               <div
-                className="prose prose-neutral mb-6 max-w-none space-y-4 text-[1.05rem] leading-relaxed"
+                className="prose prose-neutral mb-6 max-w-none space-y-4 text-base leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: subSec.content }}
               />
 
@@ -162,7 +162,7 @@ export default function Article({ data }: ArticleComponentProps) {
                   ) : null}
 
                   <div
-                    className="prose prose-neutral max-w-none space-y-4 text-[1.05rem] leading-relaxed"
+                    className="prose prose-neutral max-w-none space-y-4 text-base leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: miniSec.content }}
                   />
                 </div>

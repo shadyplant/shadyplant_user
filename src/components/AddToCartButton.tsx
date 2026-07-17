@@ -1,6 +1,5 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import {
   getCartQuantity,
@@ -8,6 +7,7 @@ import {
   useCartStore,
 } from "@/components/cartStore";
 import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
+import QuantityStepper from "@/components/QuantityStepper";
 
 type AddToCartButtonProps = {
   productId: string;
@@ -147,6 +147,7 @@ function AddedToCartIcon({ className = "" }: { className?: string }) {
   );
 }
 
+
 export default function AddToCartButton({
   productId,
   quantity = 1,
@@ -169,6 +170,7 @@ export default function AddToCartButton({
     ? getCartQuantityByLineId(cartItems, selectedOptionContext.resolved.lineId)
     : getCartQuantity(cartItems, productId);
   const [justAdded, setJustAdded] = useState(false);
+  const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
   const effectiveAvailableStock =
     selectedOptionContext?.resolved.stock ?? availableStock;
   const stockAvailable = Math.max(
@@ -188,11 +190,13 @@ export default function AddToCartButton({
   const hasReachedStockLimit =
     effectiveAvailableStock !== undefined && quantityInCart >= stockAvailable;
   const displayQuantity = Math.max(effectiveMinimumQuantity, quantityInCart);
+  const inputValue = draftQuantity ?? String(displayQuantity);
 
   function stopNestedNavigation(
     event:
-      | React.MouseEvent<HTMLButtonElement>
-      | React.TouchEvent<HTMLButtonElement>,
+      | React.MouseEvent<HTMLElement>
+      | React.TouchEvent<HTMLElement>
+      | React.FocusEvent<HTMLElement>,
   ) {
     event.stopPropagation();
   }
@@ -219,14 +223,10 @@ export default function AddToCartButton({
     window.setTimeout(() => setJustAdded(false), 1400);
   }
 
-  async function handleDecreaseQuantity(
-    event: React.MouseEvent<HTMLButtonElement>,
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
-
+  async function decreaseQuantity() {
     if (quantityInCart <= effectiveMinimumQuantity) {
       await removeItem(activeLineId);
+      setDraftQuantity(null);
       return;
     }
 
@@ -234,14 +234,10 @@ export default function AddToCartButton({
       activeLineId,
       Math.max(effectiveMinimumQuantity, quantityInCart - 1),
     );
+    setDraftQuantity(null);
   }
 
-  async function handleIncreaseQuantity(
-    event: React.MouseEvent<HTMLButtonElement>,
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
-
+  async function increaseQuantity() {
     if (isOutOfStock || hasReachedStockLimit) {
       return;
     }
@@ -266,6 +262,41 @@ export default function AddToCartButton({
         ? effectiveMinimumQuantity
         : quantityInCart + 1,
     );
+    setDraftQuantity(null);
+  }
+
+  async function commitQuantity(value: string) {
+    const numericQuantity = Number(value);
+
+    if (!Number.isFinite(numericQuantity)) {
+      setDraftQuantity(null);
+      return;
+    }
+
+    const nextQuantity = Math.max(
+      effectiveMinimumQuantity,
+      Math.min(
+        stockAvailable || effectiveMinimumQuantity,
+        Math.floor(numericQuantity),
+      ),
+    );
+
+    if (quantityInCart <= 0) {
+      await addItem(
+        activeProductId,
+        nextQuantity,
+        selectedOptionContext
+          ? {
+              variantId: selectedOptionContext.resolved.variantId,
+              optionSelections: selectedOptionContext.resolved.optionSelections,
+            }
+          : undefined,
+      );
+    } else {
+      await updateQuantity(activeLineId, nextQuantity);
+    }
+
+    setDraftQuantity(null);
   }
 
   if (compact) {
@@ -283,9 +314,13 @@ export default function AddToCartButton({
               : label
         }
         disabled={isOutOfStock || hasReachedStockLimit}
-        className={`z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
+        className={`group relative isolate overflow-hidden z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
       >
-        <div className="relative inline-flex items-center justify-center">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 -bottom-[20%] -z-10 h-10 w-10 -translate-x-1/2 translate-y-full scale-100 rounded-full bg-black transition-transform duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-[60%] group-hover:scale-[8] group-focus-visible:translate-y-[60%] group-focus-visible:scale-[8]"
+        />
+        <div className="relative z-10 inline-flex items-center justify-center">
           {justAdded ? (
             <AddedToCartIcon className="h-6 w-6" />
           ) : (
@@ -304,36 +339,26 @@ export default function AddToCartButton({
 
   if (showQuantityControls && quantityInCart > 0 && !isOutOfStock) {
     return (
-      <div
-        className={`grid h-11 w-full grid-cols-3 overflow-hidden rounded-[0.5rem] border border-[#4c8d5b] bg-white text-[#0d9a55] ${className}`.trim()}
-      >
-        <button
-          type="button"
-          onMouseDown={stopNestedNavigation}
-          onTouchStart={stopNestedNavigation}
-          onClick={(event) => void handleDecreaseQuantity(event)}
-          className="flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7]"
-          aria-label="Decrease cart quantity"
-        >
-          <Minus size={20} strokeWidth={2.6} />
-        </button>
-
-        <div className="flex min-w-0 items-center justify-center border-x border-[#d9eddc] bg-white px-4 text-center text-lg font-black text-[#0d9a55]">
-          {displayQuantity}
-        </div>
-
-        <button
-          type="button"
-          onMouseDown={stopNestedNavigation}
-          onTouchStart={stopNestedNavigation}
-          onClick={(event) => void handleIncreaseQuantity(event)}
-          disabled={hasReachedStockLimit}
-          className="flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="Increase cart quantity"
-        >
-          <Plus size={20} strokeWidth={2.6} />
-        </button>
-      </div>
+      <QuantityStepper
+        value={inputValue}
+        min={effectiveMinimumQuantity}
+        max={stockAvailable || effectiveMinimumQuantity}
+        ariaLabel="Cart quantity"
+        decreaseAriaLabel="Decrease cart quantity"
+        increaseAriaLabel="Increase cart quantity"
+        className="h-12 min-w-[12.5rem] sm:min-w-[13.5rem]"
+        increaseDisabled={hasReachedStockLimit}
+        onMouseDown={stopNestedNavigation}
+        onTouchStart={stopNestedNavigation}
+        onInputFocus={(event) => {
+          stopNestedNavigation(event);
+          setDraftQuantity(String(displayQuantity));
+        }}
+        onChange={setDraftQuantity}
+        onCommit={commitQuantity}
+        onDecrease={decreaseQuantity}
+        onIncrease={increaseQuantity}
+      />
     );
   }
 
@@ -343,11 +368,15 @@ export default function AddToCartButton({
       onMouseDown={stopNestedNavigation}
       onTouchStart={stopNestedNavigation}
       onClick={handleClick}
-      className={`z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
+      className={`group relative isolate overflow-hidden z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
       aria-label={isOutOfStock ? "Add to cart unavailable" : label}
       disabled={isOutOfStock || hasReachedStockLimit}
     >
-      <span className="inline-flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 -bottom-[20%] -z-10 h-10 w-10 -translate-x-1/2 translate-y-full scale-100 rounded-full bg-[#07ab4e] transition-transform duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-[60%] group-hover:scale-[10] group-focus-visible:translate-y-[60%] group-focus-visible:scale-[8]"
+      />
+      <span className="relative z-10 inline-flex items-center gap-2">
         {justAdded ? (
           <AddedToCartIcon className="h-6 w-6 shrink-0" />
         ) : (
@@ -363,7 +392,7 @@ export default function AddToCartButton({
       </span>
 
       {quantityInCart > 0 && !showInlineInCartLabel ? (
-        <span className="rounded-full bg-[#214f14] px-3 py-1 text-xs font-bold text-white">
+        <span className="relative z-10 rounded-full bg-[#214f14] px-3 py-1 text-xs font-bold text-white">
           {quantityInCart} in cart
         </span>
       ) : null}

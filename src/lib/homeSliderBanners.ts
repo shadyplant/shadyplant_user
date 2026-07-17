@@ -10,6 +10,8 @@ export type HomeSliderBanner = {
   mobileImage: string;
   isActive: boolean;
   sortOrder: number;
+  actionType?: "link" | "popup";
+  popupKey?: string;
 };
 
 type HomeSliderBannerApiResponse = {

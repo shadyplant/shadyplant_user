@@ -61,18 +61,15 @@ export default function ProductImageGallery({
                 key={`${image}-${index}`}
                 type="button"
                 onClick={() => setActiveIndex(index)}
-                // 1. Removed "relative" from here so the image doesn't anchor to the button
-                // 2. Added "flex items-center justify-center" to perfectly center the inner image
-                className={`flex shrink-0 items-center justify-center rounded-xl bg-white transition-all ${
+                className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white transition-all sm:h-24 sm:w-24 lg:h-[88px] lg:w-[88px] ${
                   isActive
                     ? "border-2 border-[#214f14] p-1 shadow-[0_8px_16px_rgba(33,79,20,0.1)]"
                     : "border border-[#d6e6bd] hover:border-[#8ca773]"
                 }`}
                 aria-label={`Show ${productName} image ${index + 1}`}
               >
-                {/* 3. CRITICAL: This div must have "relative" and "overflow-hidden" */}
                 <div
-                  className={`relative h-20 w-16 overflow-hidden sm:h-24 sm:w-20 lg:h-[108px] lg:w-[88px] ${
+                  className={`relative aspect-square w-full overflow-hidden ${
                     isActive ? "rounded-md" : "rounded-[0.5rem]"
                   }`}
                 >
@@ -91,11 +88,28 @@ export default function ProductImageGallery({
       ) : null}
 
       <div className="order-1 rounded-[2rem] p-0 sm:p-0 lg:order-2">
-        <div className="relative overflow-hidden rounded-[1.6rem]">
-          <span className="absolute right-4 top-4 z-10 rounded-full bg-white/92 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#214f14] shadow-sm backdrop-blur">
-            Real Image
-          </span>
-          <div className="relative aspect-[4/5] min-h-[320px] sm:aspect-[5/6] lg:min-h-[640px] xl:min-h-[720px]">
+        <div className="relative overflow-hidden rounded-[1.6rem] shadow-[0_24px_56px_rgba(33,79,20,0.08)]">
+<span
+  className="
+    absolute
+    -left-10 top-4
+    z-20
+    w-32
+    -rotate-45
+    bg-[#07ab4e]
+    py-0.5
+    text-center
+    text-[11px]
+    font-semibold
+    tracking-wide
+    text-white
+    shadow-md
+    select-none
+  "
+>
+  Real Image
+</span>
+          <div className="relative aspect-square min-h-[280px] sm:min-h-[420px] lg:min-h-[560px] xl:min-h-[620px]">
             <Image
               src={activeImage}
               alt={`${productName} image ${resolvedActiveIndex + 1}`}
@@ -106,7 +120,7 @@ export default function ProductImageGallery({
             />
           </div>
           {overlayContent ? (
-            <div className="absolute left-4 top-4 z-10">{overlayContent}</div>
+            <div className="absolute right-4 top-15 z-10 flex flex-col gap-2">{overlayContent}</div>
           ) : null}
 
           {hasMultipleImages ? (

@@ -114,11 +114,11 @@ export default function SignInPromptModal() {
         onClick={closePrompt}
       />
 
-      <div className="relative z-[1] grid w-full max-w-[860px] grid-cols-1 overflow-hidden rounded-[0.5rem] border border-[#dbe8cd] bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)] md:grid-cols-2">
+      <div className="relative z-[1] grid w-full max-w-[860px] grid-cols-1 overflow-hidden rounded-[0.5rem] border border-gray-300 bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)] md:grid-cols-2">
         <button
           type="button"
           onClick={closePrompt}
-          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#dbe8cd] bg-white text-[#58724f] hover:bg-neutral-50"
+          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 bg-white text-[#58724f] hover:bg-neutral-50"
           aria-label="Close sign in prompt"
         >
           <X size={18} />

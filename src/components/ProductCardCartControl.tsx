@@ -1,10 +1,11 @@
 "use client";
 
-import { KeyboardEvent, useState } from "react";
-import { BellRing, Minus, Plus } from "lucide-react";
+import { useState } from "react";
+import { BellRing } from "lucide-react";
 import { getCartQuantity, useCartStore } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProductStockAlertStore } from "@/components/productStockAlertStore";
+import QuantityStepper from "@/components/QuantityStepper";
 
 type ProductCardCartControlProps = {
   productId: string;
@@ -174,7 +175,10 @@ export default function ProductCardCartControl({
 
     const nextQuantity = Math.max(
       effectiveMinimumQuantity,
-      Math.min(availableStock || effectiveMinimumQuantity, Math.floor(numericValue)),
+      Math.min(
+        availableStock || effectiveMinimumQuantity,
+        Math.floor(numericValue),
+      ),
     );
 
     if (quantity <= 0) {
@@ -184,12 +188,6 @@ export default function ProductCardCartControl({
     }
 
     setDraftQuantity(null);
-  }
-
-  function handleQuantityKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      event.currentTarget.blur();
-    }
   }
 
   if (availableStock <= 0) {
@@ -205,7 +203,7 @@ export default function ProductCardCartControl({
             ? "Stock notification already requested"
             : "Get stock notification"
         }
-        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#55ad35] bg-transparent px-3 text-base font-bold tracking-normal text-[#2f6d1d] transition hover:bg-[#f4fbf1] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg"
+        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#55ad35] bg-transparent px-3 text-base font-bold tracking-normal text-[#2f6d1d] transition hover:bg-[#07ab4e] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg"
       >
         <span>
           {hasRequestedNotify
@@ -226,7 +224,7 @@ export default function ProductCardCartControl({
         onMouseDown={swallowCardNavigation}
         onTouchStart={swallowCardNavigation}
         onClick={() => void addFirstItem()}
-        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#4C8B5D] px-3 text-white transition hover:bg-[#3f744e] sm:h-12 sm:text-lg"
+        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#207958] px-3 text-white transition hover:bg-[#07ab4e] sm:h-12 sm:text-lg cursor-pointer"
       >
         <span>Add to cart</span>
         <AddCartIcon />
@@ -235,48 +233,25 @@ export default function ProductCardCartControl({
   }
 
   return (
-    <div className="relative z-30 mt-4 grid h-11 w-full grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] overflow-hidden rounded-[0.5rem] border border-[#4c8d5b] bg-white text-[#0d9a55] transition sm:h-12 sm:grid-cols-[3rem_minmax(0,1fr)_3rem]">
-      <button
-        type="button"
-        onMouseDown={swallowCardNavigation}
-        onTouchStart={swallowCardNavigation}
-        onClick={() => void decreaseQuantity()}
-        className="touch-manipulation flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7]"
-        aria-label="Decrease cart quantity"
-      >
-        <Minus size={19} strokeWidth={2.7} />
-      </button>
-
-      <input
-        type="number"
-        min={effectiveMinimumQuantity}
-        max={availableStock}
-        inputMode="numeric"
-        value={inputValue}
-        onMouseDown={swallowCardNavigation}
-        onTouchStart={swallowCardNavigation}
-        onFocus={(event) => {
-          swallowCardNavigation(event);
-          setDraftQuantity(String(displayQuantity));
-        }}
-        onChange={(event) => setDraftQuantity(event.target.value)}
-        onBlur={(event) => void commitQuantity(event.target.value)}
-        onKeyDown={handleQuantityKeyDown}
-        className="min-w-0 border-x border-[#d9eddc] bg-white text-center text-lg font-semibold text-[#0d9a55] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        aria-label="Cart quantity"
-      />
-
-      <button
-        type="button"
-        onMouseDown={swallowCardNavigation}
-        onTouchStart={swallowCardNavigation}
-        onClick={() => void increaseQuantity()}
-        disabled={quantity >= availableStock}
-        className="touch-manipulation flex items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label="Increase cart quantity"
-      >
-        <Plus size={21} strokeWidth={2.7} />
-      </button>
-    </div>
+    <QuantityStepper
+      value={inputValue}
+      min={effectiveMinimumQuantity}
+      max={availableStock}
+      ariaLabel="Cart quantity"
+      decreaseAriaLabel="Decrease cart quantity"
+      increaseAriaLabel="Increase cart quantity"
+      className="relative z-30 mt-4 transition"
+      increaseDisabled={quantity >= availableStock}
+      onMouseDown={swallowCardNavigation}
+      onTouchStart={swallowCardNavigation}
+      onInputFocus={(event) => {
+        swallowCardNavigation(event);
+        setDraftQuantity(String(displayQuantity));
+      }}
+      onChange={setDraftQuantity}
+      onCommit={commitQuantity}
+      onDecrease={decreaseQuantity}
+      onIncrease={increaseQuantity}
+    />
   );
 }

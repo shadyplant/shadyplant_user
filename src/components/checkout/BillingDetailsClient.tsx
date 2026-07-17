@@ -358,17 +358,17 @@ export default function BillingDetailsClient() {
   return (
     <SiteShell hideHeader hideMobileBottomNav>
       <section className="min-h-screen bg-white px-3 pb-24 pt-[5.5rem] sm:px-4 sm:pb-5 sm:pt-24 md:px-6 md:pb-10 md:pt-28">
-        <div className="fixed inset-x-0 top-0 z-40 border-b border-[#e8ece3] bg-white/95 backdrop-blur">
+        <div className="fixed inset-x-0 top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-3 py-3 sm:px-4 md:px-6">
             <button
               type="button"
               onClick={() => router.back()}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#E8F0E0] text-[#173d12] transition hover:bg-[#dcead2]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800 transition hover:bg-gray-200 cursor-pointer"
               aria-label="Go back"
             >
               <ArrowLeft size={21} />
             </button>
-            <h1 className="text-lg font-semibold text-[#173d12] sm:text-xl">
+            <h1 className="text-lg font-semibold text-gray-800 sm:text-xl">
               Billing Details
             </h1>
           </div>
@@ -384,7 +384,7 @@ export default function BillingDetailsClient() {
                 return (
                   <div key={step.id} className="flex flex-1 items-start last:flex-none">
                     <div className="flex min-w-[54px] flex-col items-center gap-2 sm:min-w-[60px]">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-[#C5D6B5] bg-[#4c8b5d] text-white shadow-[0_0_0_2px_rgba(47,100,39,0.18)]" : done ? "bg-[#6B9E3E] text-white" : "bg-[#E8F0E0] text-[#1A1F14]"}`}>
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-gray-200 bg-[#207958] text-white shadow-[0_0_0_2px_rgba(47,100,39,0.18)]" : done ? "bg-[#6B9E3E] text-white" : "bg-gray-200 text-gray-700"}`}>
                         {done ? <CheckCircle2 size={18} /> : step.id}
                       </div>
                       <span className={`text-center text-[10px] md:text-xs leading-tight ${active ? "font-semibold text-[#14721c]" : "font-medium text-[#1A1F14]"}`}>
@@ -392,7 +392,7 @@ export default function BillingDetailsClient() {
                       </span>
                     </div>
                     {index < steps.length - 1 && (
-                      <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#6B9E3E]" : "bg-[#D8DDD0]"}`} />
+                      <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#6B9E3E]" : "bg-gray-200"}`} />
                     )}
                   </div>
                 );
@@ -411,8 +411,8 @@ export default function BillingDetailsClient() {
               />
 
               <div className="flex items-start gap-2">
-                <AlertCircle size={15} className="mt-0.5 shrink-0 text-[#4A5240]" />
-                <p className="text-sm leading-6 text-[#4A5240]">
+                <AlertCircle size={15} className="mt-0.5 shrink-0 text-gray-500" />
+                <p className="text-sm leading-6 text-gray-500">
                   Please note that delivery charges may vary if the delivery address is changed.
                 </p>
               </div>
@@ -420,7 +420,7 @@ export default function BillingDetailsClient() {
               <form ref={formRef} onSubmit={(e) => e.preventDefault()}>
                 <div className="rounded-[0.5rem] p-4 sm:p-6 md:p-0">
                   <div className="mb-6 flex items-center gap-2">
-                    <div className="h-5 w-1 rounded-full bg-[#4c8b5d]" />
+                    <div className="h-5 w-1 rounded-full bg-[#207958]" />
                     <h2 className="text-lg font-semibold">Billing Details</h2>
                   </div>
 
@@ -445,7 +445,7 @@ export default function BillingDetailsClient() {
                           className={`h-[46px] w-full rounded-xl border bg-[#cccccc10] px-4 text-sm text-black outline-none transition placeholder:text-gray-400 ${
                             errors.state
                               ? "border-[#d93025] focus:border-[#d93025] focus:ring-4 focus:ring-[#fde8e6]"
-                              : "border-[#D8DDD0] focus:border-[#3B5E2B] focus:ring-4 focus:ring-[#E8F0E0]"
+                              : "border-gray-200 focus:border-gray-300 focus:bg-white"
                           }`}
                         />
                         <datalist id="indian-states">
@@ -482,7 +482,7 @@ export default function BillingDetailsClient() {
                         className={`min-h-[100px] w-full resize-none rounded-xl border bg-[#cccccc10] px-4 py-3 text-sm text-black outline-none transition placeholder:text-gray-400 ${
                           errors.address
                             ? "border-[#d93025] focus:border-[#d93025] focus:ring-4 focus:ring-[#fde8e6]"
-                            : "border-[#D8DDD0] focus:border-[#3B5E2B] focus:ring-4 focus:ring-[#E8F0E0]"
+                            : "border-gray-200 focus:border-gray-300 focus:bg-white"
                         }`}
                       />
                       {errors.address && (
@@ -504,7 +504,7 @@ export default function BillingDetailsClient() {
                   <button
                     type="button"
                     onClick={() => void handlePlaceOrder()}
-                    className="flex h-[52px] w-full items-center justify-center rounded-[0.85rem] bg-[#4c8b5d] px-6 text-[1.2rem] font-medium text-white transition hover:bg-[#427a50] active:translate-y-0.5 sm:h-[56px] sm:text-[1.35rem]"
+                    className="flex h-[52px] w-full items-center justify-center rounded-[0.85rem] bg-[#207958] px-6 text-[1.2rem] font-medium text-white transition hover:bg-[#07ab4e] cursor-pointer active:translate-y-0.5 sm:h-[56px] sm:text-[1.35rem]"
                   >
                     Continue
                   </button>
@@ -536,8 +536,8 @@ type FieldProps = {
 function Field({ label, name, value, onChange, placeholder, required, hint, type = "text", error }: FieldProps) {
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-xs font-semibold text-black">
-        {label} {required && <span className={error ? "text-[#d93025]" : "text-[#3B5E2B]"}>*</span>}
+      <label className="text-xs font-semibold text-gray-800">
+        {label} {required && <span className={error ? "text-[#d93025]" : "text-[#eb2310]"}>*</span>}
         {hint && <span className="ml-1 font-normal text-gray-500">({hint})</span>}
       </label>
       <input
@@ -546,10 +546,10 @@ function Field({ label, name, value, onChange, placeholder, required, hint, type
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`h-[46px] w-full rounded-xl border bg-[#cccccc10] px-4 text-sm text-black outline-none transition placeholder:text-gray-400 ${
+        className={`h-[46px] w-full rounded-xl border bg-gray-100 px-4 text-sm text-black outline-none transition placeholder:text-gray-400 ${
           error
             ? "border-[#d93025] focus:border-[#d93025] focus:ring-4 focus:ring-[#fde8e6]"
-            : "border-[#D8DDD0] focus:border-[#3B5E2B] focus:ring-4 focus:ring-[#E8F0E0]"
+            : "border-gray-200 focus:border-gray-300 focus:bg-white"
         }`}
       />
       {error && <p className="text-xs font-semibold text-[#d93025]">{error}</p>}

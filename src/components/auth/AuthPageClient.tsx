@@ -1,14 +1,11 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { startTransition, useEffect, useRef, useState } from "react";
-import { Phone, UserRound } from "lucide-react";
+import { Lock, Mail, Phone, UserRound } from "lucide-react";
 import AuthLoginPanel from "@/components/auth/AuthLoginPanel";
 import TopBar from "@/components/TopBar";
 import SiteShell from "@/components/SiteShell";
-import { ApiError } from "@/lib/api";
 import {
   isValidIdentifier,
   validateOtpForm,
@@ -17,6 +14,7 @@ import {
   type ValidationResult,
 } from "@/lib/validation";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { ApiError } from "@/lib/api";
 
 type AuthStep =
   | "login"
@@ -27,6 +25,7 @@ type AuthStep =
   | "reset";
 
 const OTP_LENGTH = 6;
+const RESEND_OTP_COOLDOWN_SECONDS = 60;
 
 type RegisterForm = {
   fullName: string;
@@ -47,12 +46,8 @@ type ResetForm = {
 };
 
 function getApiErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
+  if (error instanceof ApiError && error.status === 409) {
+    return "You already have an account. Please log in.";
   }
 
   return fallback;
@@ -63,6 +58,22 @@ function readNextPath(
 ) {
   const next = searchParams?.get("next");
   return next?.startsWith("/") ? next : "/";
+}
+
+function formatCountdown(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function buildResetOtpStatusMessage(identifier: string) {
+  const trimmedIdentifier = identifier.trim();
+  if (trimmedIdentifier) {
+    return `If ${trimmedIdentifier} is registered, we sent a reset OTP.`;
+  }
+
+  return "If the details you entered are registered, we sent a reset OTP.";
 }
 
 function OtpInputGroup({
@@ -142,7 +153,7 @@ function OtpInputGroup({
             updateValue(nextDigits);
             focusInput(Math.min(pastedValue.length, length) - 1);
           }}
-          className="h-14 w-12 rounded-[1rem] border border-[#dbe8cd] bg-[#fbfdf8] text-center text-lg font-semibold tracking-[0.1em] text-[#163915] outline-none transition focus:border-[#214f14] focus:bg-white sm:w-14"
+          className="h-14 w-12 rounded-[1rem] border border-gray-300 bg-gray-50 text-center text-lg font-semibold tracking-[0.1em] text-gray-600 outline-none transition focus:border-gray-500 focus:bg-white sm:w-14"
         />
       ))}
     </div>
@@ -189,6 +200,7 @@ export default function AuthPageClient() {
     isReady,
     loginWithGoogle,
     register,
+    resendRegistrationOtp,
     requestPasswordReset,
     resetPassword,
     verifyPasswordResetOtp,
@@ -207,6 +219,7 @@ export default function AuthPageClient() {
     phoneNumber: "",
     password: "",
   });
+  const [registrationToken, setRegistrationToken] = useState("");
   const [verifyForm, setVerifyForm] = useState<OtpForm>({
     identifier: "",
     otp: "",
@@ -220,6 +233,61 @@ export default function AuthPageClient() {
     confirmPassword: "",
   });
   const [verifiedResetIdentifier, setVerifiedResetIdentifier] = useState("");
+  const [registerResendOtpCooldown, setRegisterResendOtpCooldown] = useState(0);
+  const [resetResendOtpCooldown, setResetResendOtpCooldown] = useState(0);
+  const [statusVisible, setStatusVisible] = useState(false);
+
+  useEffect(() => {
+    if (registerResendOtpCooldown <= 0) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setRegisterResendOtpCooldown((current) => {
+        if (current <= 1) {
+          window.clearInterval(intervalId);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [registerResendOtpCooldown]);
+
+  useEffect(() => {
+    if (resetResendOtpCooldown <= 0) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setResetResendOtpCooldown((current) => {
+        if (current <= 1) {
+          window.clearInterval(intervalId);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [resetResendOtpCooldown]);
+
+  useEffect(() => {
+    if (!statusMessage) {
+      setStatusVisible(false);
+      return;
+    }
+
+    setStatusVisible(false);
+    const frameId = window.requestAnimationFrame(() => {
+      setStatusVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [statusMessage]);
 
   useEffect(() => {
     if (isReady && isAuthenticated) {
@@ -239,6 +307,83 @@ export default function AuthPageClient() {
     clearError();
   }
 
+  function startRegisterResendCooldown() {
+    setRegisterResendOtpCooldown(RESEND_OTP_COOLDOWN_SECONDS);
+  }
+
+  function startResetResendCooldown() {
+    setResetResendOtpCooldown(RESEND_OTP_COOLDOWN_SECONDS);
+  }
+
+  async function handleRegisterOtpResend() {
+    resetFeedback();
+    const email = verifyForm.identifier.trim();
+
+    if (!email) {
+      setStatusTone("error");
+      setStatusMessage("We could not find the verification email.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await resendRegistrationOtp(
+        registrationToken ? { registrationToken } : { email },
+      );
+      setStatusTone("success");
+      setStatusMessage(`We sent a verification OTP to ${email}.`);
+      setVerifyForm((current) => ({
+        ...current,
+        identifier: email,
+        otp: "",
+      }));
+      startRegisterResendCooldown();
+    } catch {
+      setStatusTone("error");
+      setStatusMessage("Unable to resend verification OTP.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleForgotOtpResend() {
+    resetFeedback();
+    const identifier = verifyForm.identifier.trim();
+
+    if (!isValidIdentifier(identifier)) {
+      setErrors({ identifier: "Enter a valid email address or phone number." });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await requestPasswordReset({ identifier });
+
+      if (response.data && !response.data.accountExists) {
+        setStatusTone("error");
+        setStatusMessage("You don't have an account. Please sign up.");
+        return;
+      }
+
+      setStatusTone("success");
+      setStatusMessage(buildResetOtpStatusMessage(identifier));
+      setVerifyForm((current) => ({
+        ...current,
+        otp: "",
+      }));
+      startResetResendCooldown();
+    } catch (error) {
+      setStatusTone("error");
+      setStatusMessage(
+        getApiErrorMessage(error, "Unable to resend reset OTP."),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleRegisterSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     resetFeedback();
@@ -252,16 +397,29 @@ export default function AuthPageClient() {
 
     try {
       const response = await register(data);
+      const nextRegistrationToken = response.data?.registrationToken || "";
       setStatusTone("success");
-      setStatusMessage(response.message);
+      setStatusMessage("Account created successfully. Please verify your account.");
       startTransition(() => {
+        setRegistrationToken(nextRegistrationToken);
         setVerifyForm({
-          identifier: data.email,
+          identifier: response.data?.email || data.email,
           otp: "",
         });
         setStep("verify");
+        startRegisterResendCooldown();
       });
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        resetFeedback();
+        setStatusTone("error");
+        setStatusMessage("You already have an account. Please log in.");
+        setLoginPrefillIdentifier(registerForm.email.trim());
+        setRegistrationToken("");
+        setStep("login");
+        return;
+      }
+
       setStatusTone("error");
       setStatusMessage(getApiErrorMessage(error, "Unable to create account."));
     } finally {
@@ -301,8 +459,13 @@ export default function AuthPageClient() {
     setIsSubmitting(true);
 
     try {
-      await verifyRegistrationOtp(data);
+      await verifyRegistrationOtp({
+        registrationToken: registrationToken || undefined,
+        identifier: data.identifier,
+        otp: data.otp,
+      });
       setStatusTone("success");
+      setRegistrationToken("");
       router.replace(nextPath);
     } catch (error) {
       setStatusTone("error");
@@ -326,8 +489,15 @@ export default function AuthPageClient() {
 
     try {
       const response = await requestPasswordReset({ identifier });
+
+      if (response.data && !response.data.accountExists) {
+        setStatusTone("error");
+        setStatusMessage("You don't have an account. Please sign up.");
+        return;
+      }
+
       setStatusTone("success");
-      setStatusMessage(response.message);
+      setStatusMessage(buildResetOtpStatusMessage(identifier));
       setVerifyForm({
         identifier,
         otp: "",
@@ -339,6 +509,7 @@ export default function AuthPageClient() {
         confirmPassword: "",
       });
       setStep("forgot-verify");
+      startResetResendCooldown();
     } catch (error) {
       setStatusTone("error");
       setStatusMessage(
@@ -368,7 +539,9 @@ export default function AuthPageClient() {
         otp: data.otp,
       });
       setStatusTone("success");
-      setStatusMessage(response.message);
+      setStatusMessage(
+        "Reset OTP verified successfully. Please create a new password.",
+      );
       setVerifiedResetIdentifier(data.identifier);
       setResetForm({
         resetToken: response.data.resetToken,
@@ -396,9 +569,9 @@ export default function AuthPageClient() {
     setIsSubmitting(true);
 
     try {
-      const response = await resetPassword(data);
+      await resetPassword(data);
       setStatusTone("success");
-      setStatusMessage(response.message);
+      setStatusMessage("Password updated successfully. Please log in again.");
       setVerifiedResetIdentifier("");
       setResetForm({
         resetToken: "",
@@ -421,548 +594,492 @@ export default function AuthPageClient() {
 
   const renderFeedback = statusMessage ? (
     <div
-      className={`rounded-[1.25rem] border p-4 text-sm ${
+      role="status"
+      aria-live="polite"
+      className={`mb-4 overflow-hidden rounded-[1.1rem] border px-4 py-3 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.06)] transition-all duration-300 ease-out ${
         statusTone === "error"
-          ? "border-[#f0c8c8] bg-[#fff5f5] text-[#8f2f2f]"
-          : "border-[#dbe8cd] bg-[#f7fbf2] text-[#244119]"
+          ? "border-[#e6b8b8] bg-[#fff7f7] text-[#8f2f2f]"
+          : "border-[#c6e4d8] bg-[#f5fbf8] text-[#245c45]"
+      } ${
+        statusVisible ? "translate-x-0 opacity-100" : "translate-x-6 opacity-0"
       }`}
     >
-      <p className="font-semibold">{statusMessage}</p>
+      <p className="font-medium leading-6">{statusMessage}</p>
     </div>
   ) : null;
 
   return (
     <SiteShell hideHeader hideMobileBottomNav>
-      <TopBar />
-      <section className="px-4 pb-8 pt-4 md:px-6 md:pb-12 md:pt-6">
-        <div className="md:border md:border-[#dbe8cd] md:rounded-[1rem] overflow-hidden mx-auto grid max-w-5xl gap-0 lg:grid-cols-[0.95fr_1.05fr]">
-          <div
-            className="hidden justify-center items-center lg:flex"
-            style={{
-              background:
-                "linear-gradient(160deg, #fcfff7 0%, #fdfff8 40%, #fafdf4 100%)",
-            }}
-          >
-            <img
-              className="w-full h-full object-cover"
-              src="https://cdn.shopify.com/s/files/1/0692/4415/8245/files/fiddle-leaf-fig_480x480.jpg?v=1706131785"
-              alt="Monstera Deliciosa"
-             
-            />
-          </div>
-          {/* Haramisala */}
+      <div className="min-h-screen flex flex-col items-center justify-center">
 
-          {/* ----------- */}
-
-          <div className="bg-white p-6 md:px-0">
-            <div className="mx-auto w-full max-w-sm">
-              {/* <div>{renderFeedback}</div> */}
-            {errorMessage ? (
-              <div className="mt-4 rounded-[1.25rem] border border-[#f0c8c8] bg-[#fff5f5] p-4 text-sm text-[#8f2f2f]">
-                <p className="font-semibold">{errorMessage}</p>
-              </div>
-            ) : null}
-
-            {step === "login" ? (
-              <AuthLoginPanel
-                msgTitle="Welcome back!"
-                key={loginPrefillIdentifier || "login"}
-                nextPath={nextPath}
-                initialIdentifier={loginPrefillIdentifier}
-                onRequestRegister={() => {
-                  resetFeedback();
-                  setLoginPrefillIdentifier("");
-                  setStep("register");
-                }}
-                onRequestForgotPassword={() => {
-                  resetFeedback();
-                  setLoginPrefillIdentifier("");
-                  setVerifiedResetIdentifier("");
-                  setStep("forgot");
-                }}
+        <section className="px-4 pb-8 pt-4 md:px-6 md:pb-12 md:pt-6 w-full">
+          <div className="md:border md:border-gray-200 min-h-[550px] md:rounded-[1rem] overflow-hidden mx-auto grid max-w-5xl gap-0 lg:grid-cols-[0.95fr_1.05fr] shadow-[0_30px_90px_rgba(0,0,0,0.12)]">
+            
+            {/* Left Image Panel */}
+            <div
+              className="hidden justify-center items-center lg:flex relative"
+              style={{
+                background:
+                  "linear-gradient(160deg, #fcfff7 0%, #fdfff8 40%, #fafdf4 100%)",
+              }}
+            >
+              <img
+                className="w-full h-full object-cover"
+                src="https://img.magnific.com/free-vector/botanical-garden-illustration_52683-111219.jpg?t=st=1783846279~exp=1783849879~hmac=620b52d44d26f7c147353ac1dc2da8781833a2fd00680719af8399a5bbb7c6d7&w=1480"
+                alt="Monstera Deliciosa"
               />
-            ) : null}
 
-            {step === "register" ? (
-              <form onSubmit={handleRegisterSubmit} className="mt-6 space-y-4">
+               <TopBar
+                 className="absolute top-0 left-0 z-50 w-full"
+                 fallbackHref="/"
+               />
+            </div>
+
+            {/* Right Forms Panel - Flex column & center to maintain vertical consistency */}
+            <div className="bg-white p-8 md:p-10 lg:p-12 flex flex-col justify-center min-h-[500px]">
+              <div className="mx-auto w-full max-w-[380px]">
                 
-                  <div className="mb-6 pr-8">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
-              Let&apos;s get started with ShadyPlant!
-            </h2>
-          </div>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Full name
-                  </span>
-                  <div className="relative">
-                    <UserRound
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
-                      size={18}
-                    />
-                    <input
-                      type="text"
-                      value={registerForm.fullName}
-                      onChange={(event) =>
-                        setRegisterForm((current) => ({
-                          ...current,
-                          fullName: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
-                      placeholder="Your full name"
-                    />
+                {renderFeedback}
+                {errorMessage ? (
+                  <div className="mt-4 mb-4 rounded-[1.1rem] border border-[#e6b8b8] bg-[#fff7f7] px-4 py-3 text-sm text-[#8f2f2f] shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+                    <p className="font-medium leading-6">
+                      We couldn&apos;t complete that action right now. Please try again.
+                    </p>
                   </div>
-                  {errors.fullName ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.fullName}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Email
-                  </span>
-                  <input
-                    type="email"
-                    value={registerForm.email}
-                    onChange={(event) =>
-                      setRegisterForm((current) => ({
-                        ...current,
-                        email: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
-                    placeholder="user@example.com"
-                  />
-                  {errors.email ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.email}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Phone number
-                  </span>
-                  <div className="relative">
-                    <Phone
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
-                      size={18}
-                    />
-                    <input
-                      type="tel"
-                      value={registerForm.phoneNumber}
-                      onChange={(event) =>
-                        setRegisterForm((current) => ({
-                          ...current,
-                          phoneNumber: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-11 pr-4 text-sm text-[#163915] outline-none"
-                      placeholder="+91 98765 43210"
-                    />
-                  </div>
-                  {errors.phoneNumber ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.phoneNumber}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Password
-                  </span>
-                  <input
-                    type="password"
-                    value={registerForm.password}
-                    onChange={(event) =>
-                      setRegisterForm((current) => ({
-                        ...current,
-                        password: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
-                    placeholder="Create a strong password"
-                  />
-                  {errors.password ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.password}
-                    </span>
-                  ) : (
-                    <span className="mt-2 block text-xs text-[#6f8167]">
-                      {/* Must be at least 8 characters */}
-                    </span>
-                  )}
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isSubmitting ? "Creating account..." : "Create Account"}
-                </button>
-
-                     <div className="flex items-center gap-3 py-1">
-                  <div className="h-px flex-1 bg-[#e6ecde]" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8aa07d]">
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-[#e6ecde]" />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isSubmitting}
-                  className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dbe8cd] bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
-                >
-                  <GoogleMark />
-                  Continue with Google
-                </button>
-
-           
-
-                <div className="border-t border-[#edf2e7] pt-4 text-center text-sm text-[#58724f]">
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetFeedback();
-                      setStep("login");
-                    }}
-                    className="font-semibold text-[#214f14]"
-                  >
-                    Login
-                  </button>
-                </div>
-              </form>
-            ) : null}
-
-            {step === "verify" ? (
-              <form onSubmit={handleVerifySubmit} className="mt-6 space-y-4">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Email or phone number
-                  </span>
-                  <input
-                    type="text"
-                    value={verifyForm.identifier}
-                    onChange={(event) =>
-                      setVerifyForm((current) => ({
-                        ...current,
-                        identifier: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
-                  />
-                  {errors.identifier ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.identifier}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    OTP
-                  </span>
-                  <OtpInputGroup
-                    value={verifyForm.otp}
-                    onChange={(otp) =>
-                      setVerifyForm((current) => ({
-                        ...current,
-                        otp,
-                      }))
-                    }
-                  />
-                  {errors.otp ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.otp}
-                    </span>
-                  ) : null}
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isSubmitting ? "Verifying..." : "Verify Account"}
-                </button>
-              </form>
-            ) : null}
-
-            {step === "forgot" ? (
-              <form onSubmit={handleForgotSubmit} className="mt-6 space-y-4">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Email or phone number
-                  </span>
-                  <input
-                    type="text"
-                    value={forgotForm.identifier}
-                    onChange={(event) =>
-                      setForgotForm({
-                        identifier: event.target.value,
-                      })
-                    }
-                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
-                    placeholder="user@example.com or +91 98765 43210"
-                  />
-                  {errors.identifier ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.identifier}
-                    </span>
-                  ) : null}
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isSubmitting ? "Sending OTP..." : "Send Reset OTP"}
-                </button>
-              </form>
-            ) : null}
-
-            {step === "forgot-verify" ? (
-              <form
-                onSubmit={handleForgotVerifySubmit}
-                className="mt-6 space-y-5"
-              >
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Email or phone number
-                  </span>
-                  <input
-                    type="text"
-                    value={verifyForm.identifier}
-                    onChange={(event) =>
-                      setVerifyForm((current) => ({
-                        ...current,
-                        identifier: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
-                  />
-                  {errors.identifier ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.identifier}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    OTP
-                  </span>
-                  <OtpInputGroup
-                    value={verifyForm.otp}
-                    onChange={(otp) =>
-                      setVerifyForm((current) => ({
-                        ...current,
-                        otp,
-                      }))
-                    }
-                  />
-                  {errors.otp ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.otp}
-                    </span>
-                  ) : null}
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isSubmitting ? "Verifying OTP..." : "Verify OTP"}
-                </button>
-              </form>
-            ) : null}
-
-            {step === "reset" ? (
-              <form onSubmit={handleResetSubmit} className="mt-6 space-y-4">
-                <div className="p-4 text-sm text-[#58724f]">
-                  OTP verified for{" "}
-                  <span className="font-semibold text-[#214f14]">
-                    {verifiedResetIdentifier}
-                  </span>
-                  . Set a fresh password to finish.
-                </div>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    New password
-                  </span>
-                  <input
-                    type="password"
-                    value={resetForm.newPassword}
-                    onChange={(event) =>
-                      setResetForm((current) => ({
-                        ...current,
-                        newPassword: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
-                  />
-                  {errors.newPassword ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.newPassword}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[#214f14]">
-                    Confirm password
-                  </span>
-                  <input
-                    type="password"
-                    value={resetForm.confirmPassword}
-                    onChange={(event) =>
-                      setResetForm((current) => ({
-                        ...current,
-                        confirmPassword: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] px-4 py-3 text-sm text-[#163915] outline-none"
-                  />
-                  {errors.confirmPassword ? (
-                    <span className="mt-2 block text-xs text-[#c54b4b]">
-                      {errors.confirmPassword}
-                    </span>
-                  ) : null}
-                </label>
-
-                {errors.resetToken ? (
-                  <span className="block text-xs text-[#c54b4b]">
-                    {errors.resetToken}
-                  </span>
                 ) : null}
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {isSubmitting ? "Updating password..." : "Reset Password"}
-                </button>
-              </form>
-            ) : null}
+                {step === "login" ? (
+                  <AuthLoginPanel
+                    msgTitle="Welcome back!"
+                    key={loginPrefillIdentifier || "login"}
+                    nextPath={nextPath}
+                    initialIdentifier={loginPrefillIdentifier}
+                    onRequestRegister={() => {
+                      resetFeedback();
+                      setLoginPrefillIdentifier("");
+                      setRegistrationToken("");
+                      setStep("register");
+                    }}
+                    onRequestForgotPassword={() => {
+                      resetFeedback();
+                      setLoginPrefillIdentifier("");
+                      setRegistrationToken("");
+                      setVerifiedResetIdentifier("");
+                      setStep("forgot");
+                    }}
+                  />
+                ) : null}
+
+                {step === "register" ? (
+                  <form onSubmit={handleRegisterSubmit} className="space-y-5">
+                    <div className="mb-6">
+                      <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                        Let&apos;s get started!
+                      </h2>
+                    </div>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        Full name
+                      </span>
+                      <div className="relative">
+                        <UserRound
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                          size={18}
+                        />
+                        <input
+                          type="text"
+                          value={registerForm.fullName}
+                          onChange={(event) =>
+                            setRegisterForm((current) => ({
+                            ...current,
+                              fullName: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm text-gray-600 outline-none placeholder:text-gray-400"
+                          placeholder="Your full name"
+                        />
+                      </div>
+                      {errors.fullName ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.fullName}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        Email
+                      </span>
+                      <div className="relative">
+                        <Mail
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                          size={18}
+                        />
+                        <input
+                          type="email"
+                          value={registerForm.email}
+                          onChange={(event) =>
+                            setRegisterForm((current) => ({
+                              ...current,
+                              email: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm text-gray-600 outline-none placeholder:text-gray-400"
+                          placeholder="user@example.com"
+                        />
+                      </div>
+                      {errors.email ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.email}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        Phone number
+                      </span>
+                      <div className="relative">
+                        <Phone
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                          size={18}
+                        />
+                        <input
+                          type="tel"
+                          value={registerForm.phoneNumber}
+                          onChange={(event) =>
+                            setRegisterForm((current) => ({
+                            ...current,
+                              phoneNumber: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm text-gray-600 outline-none placeholder:text-gray-400"
+                          placeholder="+91 98765 43210"
+                        />
+                      </div>
+                      {errors.phoneNumber ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.phoneNumber}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        Password
+                      </span>
+                      <div className="relative">
+                        <Lock
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                          size={18}
+                        />
+                        <input
+                          type="password"
+                          value={registerForm.password}
+                          onChange={(event) =>
+                            setRegisterForm((current) => ({
+                              ...current,
+                              password: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm text-gray-600 outline-none placeholder:text-gray-400"
+                          placeholder="Create a strong password"
+                        />
+                      </div>
+                      {errors.password ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.password}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full rounded-full bg-[#207958] cursor-pointer px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+                    >
+                      {isSubmitting ? "Creating account..." : "Create Account"}
+                    </button>
+
+                    <div className="flex items-center gap-3 py-1">
+                      <div className="h-px flex-1 bg-gray-300" />
+                      <span className="text-xs uppercase text-gray-500">or</span>
+                      <div className="h-px flex-1 bg-gray-300" />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={isSubmitting}
+                      className="flex w-full items-center justify-center gap-3 rounded-full border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60 cursor-pointer transition hover:bg-gray-50 hover:text-gray-800"
+                    >
+                      <GoogleMark />
+                      Continue with Google
+                    </button>
+
+                    <div className="border-t border-gray-200 pt-5 mt-2 text-center text-sm text-gray-600">
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetFeedback();
+                          setRegistrationToken("");
+                          setStep("login");
+                        }}
+                        className="font-semibold text-gray-800 transition hover:text-gray-900 cursor-pointer"
+                      >
+                        Login
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {step === "verify" ? (
+                  <form onSubmit={handleVerifySubmit} className="space-y-5">
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                        Verify Account
+                      </h2>
+                      <p className="mt-3 text-sm text-gray-600">
+                        {verifyForm.identifier
+                          ? `Enter the OTP sent to ${verifyForm.identifier} to proceed.`
+                          : "Enter the OTP sent to your email to proceed."}
+                      </p>
+                    </div>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        OTP
+                      </span>
+                      <OtpInputGroup
+                        value={verifyForm.otp}
+                        onChange={(otp) =>
+                          setVerifyForm((current) => ({ ...current, otp }))
+                        }
+                      />
+                      {errors.otp ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.otp}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full mt-2 rounded-full bg-[#207958] px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+                    >
+                      {isSubmitting ? "Verifying..." : "Verify Account"}
+                    </button>
+
+                    <div className="space-y-2 pt-1 text-center">
+                      <p className="text-xs text-gray-500">
+                        Didn&apos;t receive the code?
+                        {registerResendOtpCooldown > 0
+                          ? ` Resend available in ${formatCountdown(registerResendOtpCooldown)}`
+                          : " You can resend it now."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleRegisterOtpResend}
+                        disabled={isSubmitting || registerResendOtpCooldown > 0}
+                        className="inline-flex items-center justify-center rounded-full border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {registerResendOtpCooldown > 0
+                          ? `Resend OTP (${formatCountdown(registerResendOtpCooldown)})`
+                          : isSubmitting
+                            ? "Sending OTP..."
+                            : "Resend OTP"}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {step === "forgot" ? (
+                  <form onSubmit={handleForgotSubmit} className="space-y-5">
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                        Forgot Password?
+                      </h2>
+                      <p className="mt-3 text-sm text-gray-600">
+                        Enter your email and we&apos;ll send you a reset OTP.
+                      </p>
+                    </div>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        Email
+                      </span>
+                      <input
+                        type="text"
+                        value={forgotForm.identifier}
+                        onChange={(event) =>
+                          setForgotForm({ identifier: event.target.value })
+                        }
+                        className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3.5 px-4 text-sm text-gray-600 outline-none placeholder:text-gray-400 focus:border-gray-500 focus:bg-white transition-colors"
+                        placeholder="user@example.com"
+                      />
+                      {errors.identifier ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.identifier}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full mt-2 rounded-full bg-[#207958] px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+                    >
+                      {isSubmitting ? "Sending OTP..." : "Send Reset OTP"}
+                    </button>
+                    
+                    <div className="pt-2 text-center text-sm text-gray-600">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetFeedback();
+                          setRegistrationToken("");
+                          setStep("login");
+                        }}
+                        className="font-semibold text-gray-800 transition hover:text-gray-900 cursor-pointer"
+                      >
+                        Back to Login
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {step === "forgot-verify" ? (
+                  <form onSubmit={handleForgotVerifySubmit} className="space-y-5">
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                        Enter Reset OTP
+                      </h2>
+                    </div>
+
+                    <label className="block">
+                  
+                      <OtpInputGroup
+                        value={verifyForm.otp}
+                        onChange={(otp) =>
+                          setVerifyForm((current) => ({ ...current, otp }))
+                        }
+                      />
+                      {errors.otp ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.otp}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full mt-2 rounded-full bg-[#207958] px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+                    >
+                      {isSubmitting ? "Verifying OTP..." : "Verify OTP"}
+                    </button>
+
+                    <div className="space-y-2 pt-1 text-center">
+                      <p className="text-xs text-gray-500">
+                        Didn&apos;t receive the code?
+                        {resetResendOtpCooldown > 0
+                          ? ` Resend available in ${formatCountdown(resetResendOtpCooldown)}`
+                          : " You can resend it now."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleForgotOtpResend}
+                        disabled={isSubmitting || resetResendOtpCooldown > 0}
+                        className="inline-flex items-center justify-center rounded-full border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {resetResendOtpCooldown > 0
+                          ? `Resend OTP (${formatCountdown(resetResendOtpCooldown)})`
+                          : isSubmitting
+                            ? "Sending OTP..."
+                            : "Resend OTP"}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {step === "reset" ? (
+                  <form onSubmit={handleResetSubmit} className="space-y-5">
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                        Create New Password
+                      </h2>
+                      <p className="mt-3 text-sm text-gray-600">
+                        OTP verified for <span className="font-semibold text-[#46a780]">{verifiedResetIdentifier}</span>. Set a fresh password to finish.
+                      </p>
+                    </div>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        New password
+                      </span>
+                      <input
+                        type="password"
+                        value={resetForm.newPassword}
+                        onChange={(event) =>
+                          setResetForm((current) => ({
+                            ...current,
+                            newPassword: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3.5 px-4 text-sm text-gray-600 outline-none focus:border-gray-500 focus:bg-white transition-colors"
+                      />
+                      {errors.newPassword ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.newPassword}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-gray-800">
+                        Confirm password
+                      </span>
+                      <input
+                        type="password"
+                        value={resetForm.confirmPassword}
+                        onChange={(event) =>
+                          setResetForm((current) => ({
+                            ...current,
+                            confirmPassword: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3.5 px-4 text-sm text-gray-600 outline-none focus:border-gray-500 focus:bg-white transition-colors"
+                      />
+                      {errors.confirmPassword ? (
+                        <span className="mt-2 block text-xs text-[#c54b4b]">
+                          {errors.confirmPassword}
+                        </span>
+                      ) : null}
+                    </label>
+
+                    {errors.resetToken ? (
+                      <span className="block text-xs text-[#c54b4b]">
+                        {errors.resetToken}
+                      </span>
+                    ) : null}
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full mt-2 rounded-full bg-[#207958] px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-60 transition-opacity"
+                    >
+                      {isSubmitting ? "Updating password..." : "Reset Password"}
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+            </div>
           </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </SiteShell>
-  );
-}
-
-interface PlantHeroPanelProps {
-  name: string;
-  subtitle: string;
-  eyebrow?: string;
-  imageUrl: string;
-  badges?: { label: string; type: "light" | "pet" | "care" }[];
-}
-
-function PlantHeroPanel({
-  name = "Monstera Deliciosa",
-  subtitle = "Swiss Cheese Plant",
-  eyebrow = "Featured plant",
-  imageUrl,
-  badges = [
-    { label: "Low light ok", type: "light" },
-    { label: "Pet caution", type: "pet" },
-    { label: "Easy care", type: "care" },
-  ],
-}: PlantHeroPanelProps) {
-  const badgeStyles = {
-    light: {
-      className: "bg-green-100/30 text-green-800 border border-green-300/40",
-      dot: "bg-green-500",
-    },
-    pet: {
-      className: "bg-yellow-100/30 text-yellow-800 border border-yellow-300/40",
-      dot: "bg-yellow-400",
-    },
-    care: {
-      className: "bg-teal-100/30 text-teal-800 border border-teal-300/40",
-      dot: "bg-teal-500",
-    },
-  };
-
-  return (
-    <div
-      className="relative overflow-hidden rounded-[28px] flex flex-col items-center justify-between gap-4 w-full min-h-[520px] px-7 pt-8 pb-7"
-      // style={{
-      //   background:
-      //     "linear-gradient(160deg, #fcfff7 0%, #fdfff8 40%, #fafdf4 100%)",
-      // }}
-    >
-      {/* Header */}
-      <div className="text-center z-10 w-full">
-        <p className="text-[11px] font-medium tracking-[0.14em] uppercase text-green-600 mb-1.5">
-          {eyebrow}
-        </p>
-        <h2 className="italic text-[26px] text-green-950 m-0 leading-tight">
-          {name}
-          <span className="not-italic text-sm text-green-500 block mt-0.5">
-            {subtitle}
-          </span>
-        </h2>
-      </div>
-
-      {/* Plant Image */}
-      <div className="relative z-10 w-full flex items-end justify-center flex-1 py-3">
-        {/* Shadow ellipse */}
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-44 h-7 rounded-full"
-          style={{
-            background:
-              "radial-gradient(ellipse, rgba(100,140,60,0.18) 0%, transparent 70%)",
-          }}
-        />
-        <Image
-          src={imageUrl}
-          alt={name}
-          width={240}
-          height={320}
-          className="object-contain"
-          style={{
-            width: "240px",
-            height: "auto",
-            filter: "drop-shadow(0 20px 30px rgba(40,100,10,0.18))",
-            animation: "floatPlant 5s ease-in-out infinite",
-          }}
-        />
-      </div>
-
-      {/* Badges */}
-      <div className="flex gap-2 z-10 flex-wrap justify-center">
-        {badges.map((b, i) => {
-          const s = badgeStyles[b.type];
-          return (
-            <span
-              key={i}
-              className={`text-[11px] font-medium px-3 py-1 rounded-xs flex items-center gap-1.5 ${s.className}`}
-            >
-              <span
-                className={`w-2.5 h-2.5 rounded-full inline-block ${s.dot}`}
-              />
-              {b.label}
-            </span>
-          );
-        })}
-      </div>
-    </div>
   );
 }

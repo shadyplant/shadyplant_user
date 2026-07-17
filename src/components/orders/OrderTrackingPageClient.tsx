@@ -317,17 +317,17 @@ function OrderPreviewCard({
 
           <div className="flex flex-col gap-5 lg:min-w-[340px] lg:justify-between">
             <Link href={orderHref} className="text-left lg:text-right lg:self-end">
-              <p className="text-[1rem] font-bold text-[#4f8f5f] md:text-[1.1rem]">
+              <p className="text-[1rem] font-bold text-gray-700 md:text-[1.1rem]">
                 {formatCurrency(order.pricing.total)}
               </p>
-              <p className="mt-1 text-[0.82rem] text-[#b1b1b1] md:text-[0.88rem]">View details</p>
+              <p className="mt-1 text-[0.82rem] text-gray-500 md:text-[0.88rem]">View details</p>
             </Link>
 
             <div className="flex flex-nowrap items-center gap-3 lg:justify-end">
               {!isCancelled ? (
                 <Link
                   href={orderHref}
-                  className="inline-flex min-w-[160px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.55rem] border border-[#2e2e2e] bg-white px-4 py-2.5 text-[0.9rem] font-semibold text-[#2e2e2e] transition hover:bg-[#f8f8f8] md:text-[0.95rem]"
+                  className="inline-flex min-w-[160px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.55rem] border border-gray-300 bg-white px-4 py-2.5 text-[0.9rem] font-semibold text-gray-700 transition hover:bg-[#f8f8f8] md:text-[0.95rem]"
                 >
                   <Truck size={18} />
                   Track Order
@@ -353,10 +353,10 @@ function OrderPreviewCard({
               ) : canShowInvoice ? (
                 <OrderInvoiceDownloadButton
                   order={order}
-                  className="border-[#d9e3c8] px-4 py-2.5 text-[0.98rem] text-[#355f2a] hover:bg-[#f8f8f8] md:text-[1.02rem]"
+                  className="border border-gray-300 px-4 py-2.5 text-[0.98rem] text-gray-700 hover:bg-[#f8f8f8] md:text-[1.02rem]"
                 />
               ) : !isRefunded && !isCancelled ? (
-                <span className="inline-flex items-center gap-2 rounded-[0.55rem] border border-[#d8d8d8] bg-[#fafafa] px-4 py-2.5 text-[0.98rem] font-semibold text-[#8e8e8e] md:text-[1.02rem]">
+                <span className="inline-flex items-center gap-2 rounded-[0.55rem] border border-gray-300 bg-white px-4 py-2.5 text-[0.98rem] font-semibold text-gray-700 md:text-[1.02rem]">
                   <Download size={18} />
                   Download Invoice
                 </span>
@@ -622,17 +622,14 @@ export default function OrderTrackingPageClient() {
                   <div className="rounded-[1.6rem] p-8 text-center">
                     <PackageSearch
                       size={28}
-                      className="mx-auto text-[#214f14]"
+                      className="mx-auto text-gray-400"
                     />
-                    <h2 className="mt-4 text-2xl text-[#163915]">
-                      No orders
+                    <h2 className="mt-4 text-2xl text-gray-500">
+                      No orders found
                     </h2>
-                    <p className="mt-3 text-sm text-[#58724f]">
-                      Place your first order
-                    </p>
                     <Link
                       href="/"
-                      className="mt-6 inline-flex rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white"
+                      className="mt-6 inline-flex rounded-full bg-[#207958] px-6 py-3 text-sm font-semibold text-white"
                     >
                       Shop Now
                     </Link>

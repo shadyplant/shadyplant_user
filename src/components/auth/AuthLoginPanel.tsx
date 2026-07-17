@@ -149,19 +149,19 @@ export default function AuthLoginPanel({
         </div>
       ) : null}
 
-        <div className="mb-6 pr-8">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+        <div className="mb-6 ">
+            <h2 className="text-2xl font-semibold tracking-tight text-gray-800 sm:text-3xl">
               {msgTitle}
             </h2>
           </div>
 
       <label className="block">
-        <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+        <span className="mb-2 block text-sm font-semibold text-gray-800">
           Enter email address
         </span>
         <div className="relative">
           <Mail
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
             size={18}
           />
           <input
@@ -173,7 +173,7 @@ export default function AuthLoginPanel({
                 identifier: event.target.value,
               }))
             }
-            className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-4 pr-11 text-sm text-[#163915] outline-none"
+            className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm text-gray-600 outline-none placeholder:text-gray-400"
             placeholder="abcd123@email.com"
           />
         </div>
@@ -185,14 +185,14 @@ export default function AuthLoginPanel({
       </label>
 
       <label className="block">
-        <span className="mb-2 block text-sm font-semibold text-[#214f14]">
+        <span className="mb-2 block text-sm font-semibold text-gray-800">
           Enter password
         </span>
         <div className="relative">
           <button
             type="button"
             onClick={() => setIsPasswordVisible((current) => !current)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6f8167]"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
             aria-label={isPasswordVisible ? "Hide password" : "Show password"}
           >
             {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -206,7 +206,7 @@ export default function AuthLoginPanel({
                 password: event.target.value,
               }))
             }
-            className="w-full rounded-[0.5rem] border border-[#dbe8cd] bg-[#fbfdf8] py-3 pl-4 pr-11 text-sm text-[#163915] outline-none"
+            className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm text-gray-600 outline-none placeholder:text-gray-400"
             placeholder="********"
           />
         </div>
@@ -224,7 +224,7 @@ export default function AuthLoginPanel({
             resetFeedback();
             onRequestForgotPassword?.();
           }}
-          className="text-sm text-[#214f14]"
+          className="text-sm text-gray-600 transition hover:text-gray-800 cursor-pointer"
         >
           Forgot Password?
         </button>
@@ -233,7 +233,7 @@ export default function AuthLoginPanel({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-full bg-[#4c8b5d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-full rounded-full bg-[#207958] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
       >
         {isSubmitting ? "Logging in..." : submitLabel}
       </button>
@@ -248,7 +248,7 @@ export default function AuthLoginPanel({
             resetFeedback();
             onRequestRegister?.();
           }}
-          className=" text-[#214f14] cursor-pointer"
+          className=" text-gray-600 cursor-pointer hover:text-gray-800"
         >
           CREATE A NEW ACCOUNT
         </button>
@@ -256,18 +256,18 @@ export default function AuthLoginPanel({
 
 
        <div className="flex items-center gap-3 py-4">
-        <div className="h-px flex-1 bg-[#e6ecde]" />
-        <span className="text-xs uppercase text-[#8aa07d]">
-          or login with
+        <div className="h-px flex-1 bg-gray-300" />
+        <span className="text-xs uppercase text-gray-500">
+          or
         </span>
-        <div className="h-px flex-1 bg-[#e6ecde]" />
+        <div className="h-px flex-1 bg-gray-300" />
       </div>
 
-       <button
+      <button
         type="button"
         onClick={handleGoogleLogin}
         disabled={isSubmitting}
-        className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dbe8cd] cursor-pointer bg-white px-5 py-3 text-sm font-semibold text-[#163915] shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-3 rounded-full border border-gray-300 cursor-pointer bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 shadow-[0_10px_24px_rgba(33,79,20,0.05)] disabled:opacity-60"
       >
         <GoogleMark />
         Continue with Google

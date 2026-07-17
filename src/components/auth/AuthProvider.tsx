@@ -69,6 +69,25 @@ type MessageResponse = {
   data?: unknown;
 };
 
+type RegistrationStartData = {
+  registrationToken: string;
+  email: string;
+  expiresInMinutes: number;
+};
+
+type RegistrationStartResponse = MessageResponse & {
+  data?: RegistrationStartData;
+};
+
+type PasswordResetRequestData = {
+  accountExists: boolean;
+  authProvider?: string;
+  authMethods?: {
+    hasPasswordLogin: boolean;
+    hasGoogleLogin: boolean;
+  };
+};
+
 type PasswordResetVerificationData = {
   resetToken: string;
   expiresIn: string;
@@ -87,12 +106,19 @@ type AuthContextValue = {
     email: string;
     phoneNumber: string;
     password: string;
-  }) => Promise<MessageResponse>;
+  }) => Promise<RegistrationStartResponse>;
+  resendRegistrationOtp: (input: {
+    registrationToken?: string;
+    email?: string;
+  }) => Promise<RegistrationStartResponse>;
   verifyRegistrationOtp: (input: {
-    identifier: string;
+    registrationToken?: string;
+    identifier?: string;
     otp: string;
   }) => Promise<AuthUser>;
-  requestPasswordReset: (input: { identifier: string }) => Promise<MessageResponse>;
+  requestPasswordReset: (input: {
+    identifier: string;
+  }) => Promise<MessageResponse & { data?: PasswordResetRequestData }>;
   verifyPasswordResetOtp: (input: {
     identifier: string;
     otp: string;
@@ -399,7 +425,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async register(input) {
-        return requestJson<MessageResponse>("/auth/register", {
+        return requestJson<RegistrationStartResponse>("/auth/register", {
           method: "POST",
           body: JSON.stringify({
             fullName: input.fullName,
@@ -409,10 +435,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }),
         });
       },
+      async resendRegistrationOtp(input) {
+        return requestJson<RegistrationStartResponse>("/auth/register/resend-otp", {
+          method: "POST",
+          body: JSON.stringify({
+            registration_token: input.registrationToken,
+            email_or_phone: input.email,
+          }),
+        });
+      },
       async verifyRegistrationOtp(input) {
         const response = await requestJson<AuthResponse>("/auth/register/verify-otp", {
           method: "POST",
           body: JSON.stringify({
+            registration_token: input.registrationToken,
             email_or_phone: input.identifier,
             otp: input.otp,
           }),
@@ -421,12 +457,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return applySession(response.data);
       },
       async requestPasswordReset(input) {
-        return requestJson<MessageResponse>("/auth/forgot-password/request", {
+        return requestJson<MessageResponse & { data?: PasswordResetRequestData }>(
+          "/auth/forgot-password/request",
+          {
           method: "POST",
           body: JSON.stringify({
             email_or_phone: input.identifier,
           }),
-        });
+          },
+        );
       },
       async verifyPasswordResetOtp(input) {
         return requestJson<MessageResponse & { data: PasswordResetVerificationData }>(

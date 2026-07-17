@@ -9,9 +9,26 @@ export type Product = {
   productId: string;
   name: string;
   category: string;
+  sku: string;
+  skuId: string;
+  hsnCode: string;
   variety: string;
   containerSize: string;
   height: string;
+  potMaterial: string;
+  leafColor: string;
+  flowerColor: string;
+  lightRequirement: string;
+  waterRequirement: string;
+  plantPlacement: string;
+  usageArea: string;
+  plantAgeMonths: number | null;
+  productionCapacity: number | null;
+  packagingDetails: string;
+  growthSpeed: string;
+  countryOfOrigin: string;
+  manufacturedBy: string;
+  marketedBy: string;
   price: number;
   mrp: number;
   weight: number;
@@ -31,12 +48,23 @@ export type Product = {
   videoClips: ProductVideoClip[];
   optionGroups: ProductOptionGroup[];
   detailSections: ProductDetailSection[];
+  quantityPricingSlabs: ProductQuantityPricingSlab[];
 };
 
 export type ProductDetailSection = {
   title: string;
   description: string;
+  icon: string;
   sortOrder: number;
+};
+
+export type ProductQuantityPricingSlab = {
+  key: string;
+  label: string;
+  minQuantity: number;
+  maxQuantity: number | null;
+  pricePerUnit: number;
+  note: string;
 };
 
 export type ProductOption = {
@@ -62,11 +90,15 @@ export type ProductOptionGroup = {
   options: ProductOption[];
 };
 
-type ProductApi = Omit<Product, "image" | "images" | "usesImages" | "videoClips"> & {
+type ProductApi = Omit<
+  Product,
+  "image" | "images" | "usesImages" | "videoClips" | "quantityPricingSlabs"
+> & {
   image?: string;
   images?: string[];
   usesImages?: string[];
   videoClips?: Array<Partial<ProductVideoClip> & { image?: string }>;
+  quantityPricingSlabs?: Array<Partial<ProductQuantityPricingSlab>>;
 };
 
 function normalizeProductDetailSections(
@@ -93,6 +125,7 @@ function normalizeProductDetailSections(
       return {
         title,
         description,
+        icon: String(rawSection.icon || "").trim(),
         sortOrder: Number.isFinite(Number(rawSection.sortOrder))
           ? Math.max(0, Math.floor(Number(rawSection.sortOrder)))
           : index,
@@ -240,6 +273,16 @@ type ProductDetailsResponse = {
   };
 };
 
+type LawnGrassPageProductResponse = {
+  message: string;
+  data: {
+    productId: string;
+    product: ProductApi | null;
+    updatedAt: string | null;
+    updatedByStaffAccountId: string | null;
+  };
+};
+
 function normalizeProduct(product: ProductApi): Product {
   const images = [...new Set(
     [product.image, ...(Array.isArray(product.images) ? product.images : [])]
@@ -258,9 +301,32 @@ function normalizeProduct(product: ProductApi): Product {
   return {
     ...product,
     productId: String(product.productId || product.id || "").trim(),
+    sku: String(product.sku || "").trim(),
+    skuId: String(product.skuId || "").trim(),
+    hsnCode: String(product.hsnCode || "").trim(),
     variety: String(product.variety || "").trim(),
     containerSize: String(product.containerSize || "").trim(),
     height: String(product.height || "").trim(),
+    potMaterial: String(product.potMaterial || "").trim(),
+    leafColor: String(product.leafColor || "").trim(),
+    flowerColor: String(product.flowerColor || "").trim(),
+    lightRequirement: String(product.lightRequirement || "").trim(),
+    waterRequirement: String(product.waterRequirement || "").trim(),
+    plantPlacement: String(product.plantPlacement || "").trim(),
+    usageArea: String(product.usageArea || "").trim(),
+    plantAgeMonths:
+      product.plantAgeMonths === null || product.plantAgeMonths === undefined
+        ? null
+        : Math.max(0, Math.floor(Number(product.plantAgeMonths))),
+    productionCapacity:
+      product.productionCapacity === null || product.productionCapacity === undefined
+        ? null
+        : Math.max(0, Math.floor(Number(product.productionCapacity))),
+    packagingDetails: String(product.packagingDetails || "").trim(),
+    growthSpeed: String(product.growthSpeed || "").trim(),
+    countryOfOrigin: String(product.countryOfOrigin || "").trim(),
+    manufacturedBy: String(product.manufacturedBy || "").trim(),
+    marketedBy: String(product.marketedBy || "").trim(),
     mrp: Math.max(Number(product.mrp || 0), Number(product.price || 0)),
     weight: Number(product.weight) > 0 ? Number(product.weight) : 0,
     offer: String(product.offer || "").trim(),
@@ -275,6 +341,39 @@ function normalizeProduct(product: ProductApi): Product {
     tags,
     optionGroups: normalizeProductOptionGroups(product.optionGroups),
     detailSections: normalizeProductDetailSections(product.detailSections),
+    quantityPricingSlabs: Array.isArray(product.quantityPricingSlabs)
+      ? product.quantityPricingSlabs
+          .map((slab, index) => {
+            if (!slab || typeof slab !== "object") {
+              return null;
+            }
+
+            const rawSlab = slab as Partial<ProductQuantityPricingSlab>;
+            const minQuantity = Math.max(1, Math.floor(Number(rawSlab.minQuantity || 1)));
+            const maxQuantity =
+              rawSlab.maxQuantity === null || rawSlab.maxQuantity === undefined
+                ? null
+                : Math.max(minQuantity, Math.floor(Number(rawSlab.maxQuantity)));
+            const pricePerUnit = Number(rawSlab.pricePerUnit);
+            const label =
+              String(rawSlab.label || "").trim() ||
+              (maxQuantity !== null ? `${minQuantity}-${maxQuantity}` : `${minQuantity}+`);
+
+            if (!Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
+              return null;
+            }
+
+            return {
+              key: String(rawSlab.key || label || `slab-${index + 1}`).trim(),
+              label,
+              minQuantity,
+              maxQuantity,
+              pricePerUnit,
+              note: String(rawSlab.note || "").trim(),
+            };
+          })
+          .filter((slab): slab is ProductQuantityPricingSlab => Boolean(slab))
+      : [],
     videoClips: resolveProductVideoClips({
       id: String(product.id || "").trim(),
       productId: String(product.productId || product.id || "").trim(),
@@ -334,4 +433,12 @@ export async function fetchProductById(productId: string) {
 
   const payload = (await response.json()) as ProductDetailsResponse;
   return normalizeProduct(payload.data.product);
+}
+
+export async function fetchLawnGrassPageProduct() {
+  const response = await fetchJson<LawnGrassPageProductResponse>(
+    `${getApiBaseUrl()}/lawn-grass-page`,
+  );
+
+  return response.data.product ? normalizeProduct(response.data.product) : null;
 }

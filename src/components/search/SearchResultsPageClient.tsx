@@ -276,9 +276,9 @@ export default function SearchResultsPageClient({
     <div className="space-y-4">
       <details
         open
-        className="rounded-[0.5rem] border border-[#e3edd8] p-4"
+        className="rounded-[0.5rem] border border-gray-300 p-4"
       >
-        <summary className="cursor-pointer list-none text-sm text-[#214f14]">
+        <summary className="cursor-pointer list-none text-sm text-gray-600">
           Category
         </summary>
         <div className="mt-4 space-y-3">
@@ -288,7 +288,7 @@ export default function SearchResultsPageClient({
             return (
               <label
                 key={category}
-                className="flex items-center gap-3 text-sm text-[#4d6844]"
+                className="flex items-center gap-3 text-sm text-gray-600"
               >
                 <input
                   type="checkbox"
@@ -311,7 +311,7 @@ export default function SearchResultsPageClient({
         open
         className="rounded-[0.5rem] border border-[#e3edd8] p-4"
       >
-        <summary className="cursor-pointer list-none text-sm text-[#214f14]">
+        <summary className="cursor-pointer list-none text-sm text-gray-600">
           Care Tags
         </summary>
         <div className="mt-4 space-y-3">
@@ -321,7 +321,7 @@ export default function SearchResultsPageClient({
             return (
               <label
                 key={badge}
-                className="flex items-center gap-3 text-sm text-[#4d6844]"
+                className="flex items-center gap-3 text-sm text-gray-600"
               >
                 <input
                   type="checkbox"
@@ -344,7 +344,7 @@ export default function SearchResultsPageClient({
         open
         className="rounded-[0.5rem] border border-[#e3edd8] p-4"
       >
-        <summary className="cursor-pointer list-none text-sm text-[#214f14]">
+        <summary className="cursor-pointer list-none text-sm text-gray-600">
           Price
         </summary>
         <div className="mt-4 space-y-3">
@@ -354,7 +354,7 @@ export default function SearchResultsPageClient({
             return (
               <label
                 key={range.id}
-                className="flex items-center gap-3 text-sm text-[#4d6844]"
+                className="flex items-center gap-3 text-sm text-gray-600"
               >
                 <input
                   type="checkbox"
@@ -411,7 +411,7 @@ export default function SearchResultsPageClient({
               <aside className=" shadow-[0_22px_60px_rgba(33,79,20,0.08)] hidden p-5 lg:sticky lg:top-24 lg:block lg:self-start">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm text-[#6b8b58]">
+                    <p className="text-sm text-gray-600">
                       Filter By
                     </p>
                     <h2 className="mt-2 text-2xl text-[#163915]">
@@ -437,7 +437,7 @@ export default function SearchResultsPageClient({
               <div className="shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:px-4">
                 <div className="mb-2 hidden flex-col gap-4 p-4  md:flex md:flex-row md:items-center md:justify-between">
                   {/* LEFT SIDE */}
-                  <p className="text-sm text-[#6b8b58]">
+                  <p className="text-sm text-gray-600">
                     Showing {resultProducts.length} result(s)
                     {query.trim() ? ` for "${query.trim()}"` : ""}
                   </p>
@@ -447,13 +447,13 @@ export default function SearchResultsPageClient({
                     <button
                       type="button"
                       onClick={() => setIsFilterSheetOpen(true)}
-                      className="inline-flex items-center gap-2 rounded-full border border-[#d6e6bd] bg-[#f6faef] px-4 py-2.5 text-sm font-semibold text-[#214f14] lg:hidden"
+                      className="inline-flex items-center gap-2 rounded-full border border-[#d6e6bd] bg-[#f6faef] px-4 py-2.5 text-sm font-semibold text-gray-600 lg:hidden"
                     >
                       <SlidersHorizontal size={16} />
                       Filter
                     </button>
 
-                    <label className="hidden items-center gap-2 whitespace-nowrap text-sm text-[#214f14] md:inline-flex">
+                    <label className="hidden items-center gap-2 whitespace-nowrap text-sm text-gray-600 md:inline-flex">
                       <ArrowUpDown size={16} />
                       Sort by
                     </label>
@@ -467,7 +467,7 @@ export default function SearchResultsPageClient({
                         onClick={() => setIsDesktopSortOpen((open) => !open)}
                         aria-haspopup="listbox"
                         aria-expanded={isDesktopSortOpen}
-                        className="flex w-full items-center justify-between gap-3 rounded-[0.85rem] border border-[#d6e6bd] bg-white px-4 py-3 text-left text-sm font-normal text-[#214f14] shadow-[0_10px_24px_rgba(33,79,20,0.05)] outline-none transition hover:border-[#b8cca3] md:w-auto md:min-w-[240px]"
+                        className="flex w-full items-center justify-between gap-3 rounded-[0.85rem] border border-gray-300 bg-white px-4 py-3 text-left text-sm font-normal text-gray-600 shadow-[0_10px_24px_rgba(33,79,20,0.05)] outline-none transition hover:border-[#b8cca3] md:w-auto md:min-w-[240px]"
                       >
                         <span className="truncate">{activeSortOption.label}</span>
                         <span className="flex items-center text-[#5c7752]">
@@ -634,7 +634,7 @@ export default function SearchResultsPageClient({
               <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7e3cc]" />
               <div className="flex items-center justify-between gap-4 border-b border-[#e4edd9] px-5 py-4">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b8b58]">
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-gray-600">
                     Filter By
                   </p>
                   <h2 className="mt-1 text-xl font-black text-[#163915]">

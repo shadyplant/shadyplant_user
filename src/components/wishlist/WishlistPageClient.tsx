@@ -95,27 +95,27 @@ export default function WishlistPageClient() {
             </div>
           ) : !products.length ? (
             <div className=" mx-auto max-w-3xl p-6 text-center md:p-10">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#4c8d5b]">
                 <Heart size={30} />
               </div>
-              <h2 className="mt-6 text-3xl text-[#163915]">
+              <h2 className="mt-6 text-3xl text-gray-900">
                 Your wishlist is empty
               </h2>
-              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-gray-600">
                 Tap the heart on any product card to save it here for later
                 review.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link
                   href="/"
-                  className="bg-[#4c8b5d] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
+                  className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
                 >
                   Explore products
                   <ArrowRight size={16} />
                 </Link>
                 <Link
                   href="/cart"
-                  className="inline-flex items-center justify-center rounded-full border border-[#d6e6bd] bg-white px-6 py-4 text-sm font-semibold text-[#214f14]"
+                  className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3"
                 >
                   View cart
                 </Link>

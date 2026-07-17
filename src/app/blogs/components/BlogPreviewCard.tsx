@@ -37,14 +37,14 @@ export default function BlogPreviewCard({
         </div>
 
         <div className="min-w-0">
-          <h3 className="text-[17px] font-bold leading-[1.12] tracking-[-0.04em] text-[#242424] md:text-[19px]">
+          <h3 className="text-[17px] font-medium leading-[1.12] tracking-[-0.04em] text-gray-800 md:text-[19px]">
             {title}
           </h3>
-          <p className="mt-2 max-w-[300px] text-[13px] leading-5 text-[#7a7a7a]">
+          <p className="mt-2 max-w-full text-sm leading-5 text-gray-700 ">
             {excerpt}
           </p>
           <div className="mt-3 flex justify-end">
-            <span className="inline-flex items-center gap-2 rounded-none bg-[#a3a3a3] px-3 py-1.5 text-[12px] font-medium text-white transition group-hover:bg-[#8f8f8f]">
+            <span className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-[12px] font-medium text-gray-600 transition group-hover:bg-gray-100">
               Learn more
               <ArrowRight size={14} />
             </span>

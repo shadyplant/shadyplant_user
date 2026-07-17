@@ -13,7 +13,7 @@ export default function NotFound({
   backLink = "/",
 }: NotFoundProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-[#ffffff] font-sans antialiased text-[#1d1d1f] selection:bg-[#4c8d5b]/20 ]">
+    <div className="flex min-h-screen flex-col bg-[#012D1D] font-sans antialiased text-[#1d1d1f] selection:bg-[ #207958]/20 ]">
       <main className="mx-auto flex max-w-xl flex-1 flex-col items-center justify-center px-6 py-24 text-center">
         {/* Custom 404 SVG with Palm Tree */}
         <div className="mb-8 w-full max-w-[320px]">
@@ -25,7 +25,7 @@ export default function NotFound({
             className="h-auto w-full"
           >
             <defs>
-              <style>{`.cls-1 { fill: #fff; } .cls-2 { fill: #4c8d5b; }`}</style>
+              <style>{`.cls-1 { fill: #207958; } .cls-2 { fill:  #ffffff; }`}</style>
             </defs>
             <g id="Layer_1-2" data-name="Layer 1">
               <path
@@ -54,11 +54,11 @@ export default function NotFound({
         </div>
 
         {/* Text matches the image */}
-        <h1 className="mb-4 text-3xl font-semibold tracking-tight text-[#ccc]  sm:text-4xl">
+        <h1 className="mb-4 text-3xl font-semibold tracking-tight text-gray-200 sm:text-4xl">
           {title}
         </h1>
 
-        <p className="mb-10 max-w-md text-base font-normal leading-relaxed text-[#86868b] dark:text-[#86868b] sm:text-lg">
+        <p className="mb-10 max-w-md text-base text-gray-100 sm:text-lg">
           {description}
         </p>
 
@@ -66,7 +66,7 @@ export default function NotFound({
           <Link
             href={backLink}
             // Button color updated to green and design style updated to match image button
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4c8d5b] px-6 py-3 text-base font-medium text-white transition-colors duration-200 hover:bg-[#5aa16b] active:bg-[#437a4e] focus:outline-none focus:ring-2 focus:ring-[#4c8d5b] focus:ring-offset-2 dark:focus:ring-offset-[#161617]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-6 py-3 text-base font-medium text-white transition-colors duration-200 hover:bg-[#46a780] active:bg-[#437a4e] "
           >
             <ArrowLeft className="h-5 w-5" strokeWidth={2} />
             Return Home
@@ -74,8 +74,8 @@ export default function NotFound({
         </div>
       </main>
 
-      <footer className="border-t border-black/5 px-6 py-8 text-center">
-        <p className="text-xs text-[#86868b]">
+      <footer className="border-t border-white/10 px-6 py-8 text-center">
+        <p className="text-xs text-gray-200">
           Copyright © {new Date().getFullYear()} Inc. All rights reserved.
         </p>
       </footer>

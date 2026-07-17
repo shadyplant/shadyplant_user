@@ -41,25 +41,25 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="px-3 py-8 md:px-6 md:py-12">
+    <section className="px-2 py-8 md:px-6 md:py-12">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center justify-center gap-3">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center md:h-7 md:w-7">
+        <div className="mb-4 text-left">
+          <div className="inline-flex items-center justify-center gap-3 px-2">
+            {/* <div className="flex h-6 w-6 shrink-0 items-center justify-center md:h-7 md:w-7">
               <FAQIcon
                 className="h-auto max-h-full w-auto max-w-full"
                 aria-hidden="true"
               />
-            </div>
-            <span className="text-[1.45rem] text-[#163915] md:text-3xl">
-              Frequently asked questions
+            </div> */}
+            <span className="text-base text-gray-800 md:text-3xl">
+              Frequently Asked Questions ?
             </span>
           </div>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
           <div className="hidden overflow-hidden rounded-[1.8rem] lg:block">
-            <div className="relative aspect-[4/4.35] min-h-[280px] w-full md:min-h-[420px]">
+            <div className="relative aspect-[4/4] min-h-[280px] w-full md:min-h-[420px]">
               <Image
                 src="/hero_image.png"
                 alt="Plants arranged indoors"
@@ -78,25 +78,25 @@ export default function FAQSection() {
               return (
                 <div
                   key={item.q}
-                  className="overflow-hidden border-b border-[#d7ddd2]"
+                  className="overflow-hidden border-b border-gray-200"
                 >
                   <button
                     type="button"
                     onClick={() => setOpenIndex(isOpen ? null : index)}
-                    className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left md:px-7"
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left md:px-7"
                   >
-                    <span className="text-sm leading-6 text-[#1b2517] md:text-[15px] lg:text-[17px]">
+                    <span className="text-sm text-black/60 md:text-[15px] lg:text-[17px]">
                       {item.q}
                     </span>
                     {isOpen ? (
                       <Minus
                         size={18}
-                        className="shrink-0 text-[#1b2517]"
+                        className="shrink-0 text-gray-800"
                       />
                     ) : (
                       <Plus
                         size={18}
-                        className="shrink-0 text-[#1b2517]"
+                        className="shrink-0 text-gray-800"
                       />
                     )}
                   </button>
@@ -110,8 +110,8 @@ export default function FAQSection() {
                         transition={{ duration: 0.22 }}
                         className="overflow-hidden"
                       >
-                        <div className="border-t border-[#d7ddd2] px-5 py-4 md:px-7">
-                          <p className="text-sm leading-6 text-[#4e5d4b] md:text-[15px]">
+                        <div className="border-t border-gray-200 px-5 py-4 md:px-7">
+                          <p className="text-xs text-black/80 md:text-[15px]">
                             {item.a}
                           </p>
                         </div>

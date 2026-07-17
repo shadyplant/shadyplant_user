@@ -6,12 +6,29 @@ import { useRouter } from "next/navigation";
 type TopBarProps = {
   className?: string;
   onBack?: () => void;
+  fallbackHref?: string;
 };
 
-export default function TopBar({ className = "", onBack }: TopBarProps) {
+export default function TopBar({
+  className = "",
+  onBack,
+  fallbackHref = "/",
+}: TopBarProps) {
   const router = useRouter();
 
-  const handleBack = onBack ?? (() => router.back());
+  function handleBack() {
+    if (onBack) {
+      onBack();
+      return;
+    }
+
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(fallbackHref);
+  }
 
   return (
     <div className={className}>
@@ -20,7 +37,7 @@ export default function TopBar({ className = "", onBack }: TopBarProps) {
           type="button"
           onClick={handleBack}
           aria-label="Go back"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-[0.5rem] border border-[#d9d9d9] bg-white text-[#1f1f1f] transition hover:bg-[#f6f6f6]"
+          className="inline-flex h-10 w-10 items-center cursor-pointer justify-center rounded-full border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1"
         >
           <ArrowLeft size={20} strokeWidth={2} />
         </button>

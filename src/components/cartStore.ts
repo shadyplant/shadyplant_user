@@ -376,6 +376,9 @@ async function syncGuestCartToAccount(
             variantId: guestItem.variantId || "",
             optionSelections: guestItem.optionSelections || [],
             quantity: guestItem.quantity,
+            unitPrice: guestItem.unitPrice ?? undefined,
+            variantLabel: guestItem.variantLabel || undefined,
+            packLabel: guestItem.packLabel || undefined,
           }),
         });
 
@@ -457,6 +460,9 @@ export function useCartStore() {
     variant?: {
       variantId?: string;
       optionSelections?: CartItem["optionSelections"];
+      unitPrice?: number | null;
+      variantLabel?: string;
+      packLabel?: string;
     },
   ) {
     if (!isAuthenticated || !user?.id) {
@@ -482,13 +488,19 @@ export function useCartStore() {
                 productId,
                 variantId: normalizedVariantId,
                 variantLabel:
-                  Array.isArray(variant?.optionSelections) &&
+                  variant?.variantLabel ||
+                  (Array.isArray(variant?.optionSelections) &&
                   variant.optionSelections.length
                     ? variant.optionSelections
                         .map((selection) => selection.label || selection.optionKey)
                         .join(" / ")
-                    : undefined,
+                    : undefined),
+                packLabel: variant?.packLabel || undefined,
                 optionSelections: variant?.optionSelections || undefined,
+                unitPrice:
+                  variant?.unitPrice === undefined || variant?.unitPrice === null
+                    ? null
+                    : Number(variant.unitPrice),
                 quantity: nextQuantity,
               },
             ],
@@ -502,6 +514,12 @@ export function useCartStore() {
         variantId: variant?.variantId || "",
         optionSelections: variant?.optionSelections || [],
         quantity,
+        unitPrice:
+          variant?.unitPrice === undefined || variant?.unitPrice === null
+            ? undefined
+            : variant.unitPrice,
+        variantLabel: variant?.variantLabel || undefined,
+        packLabel: variant?.packLabel || undefined,
       }),
     });
 

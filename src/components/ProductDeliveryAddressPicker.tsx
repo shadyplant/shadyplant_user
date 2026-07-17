@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Autocomplete,
+  Circle,
   GoogleMap,
   Marker,
   useJsApiLoader,
@@ -23,6 +24,10 @@ import {
   sanitizeFormattedDeliveryAddress,
 } from "@/lib/deliveryAddress";
 import { writeCheckoutDraft } from "@/lib/checkoutSession";
+import {
+  checkShippingServiceability,
+  type ShippingServiceabilityResponse,
+} from "@/lib/shippingServiceability";
 
 const DELIVERY_ADDRESS_EVENT = "delivery-address-updated";
 
@@ -30,6 +35,22 @@ const LIBRARIES: "places"[] = ["places"];
 const DEFAULT_LOCATION = {
   lat: Number(process.env.NEXT_PUBLIC_DELIVERY_ORIGIN_LAT || 25.5138),
   lng: Number(process.env.NEXT_PUBLIC_DELIVERY_ORIGIN_LNG || 90.2142),
+};
+
+const DEFAULT_SERVICE_ZONE_STYLES = {
+  fillColor: "#16a34a",
+  strokeColor: "#166534",
+};
+
+const DEFAULT_RESTRICTION_ZONE_STYLES = {
+  fillColor: "#dc2626",
+  strokeColor: "#991b1b",
+};
+
+const EMPTY_SHIPPING_QUERY = {
+  countryCode: "",
+  stateCode: "",
+  pin: "",
 };
 
 type Position = {
@@ -47,13 +68,21 @@ function getAddressPart(
   );
 }
 
+function getAddressComponent(
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+  type: string,
+) {
+  return (
+    components?.find((component) => component.types.includes(type)) || null
+  );
+}
+
 function buildDeliveryAddress(
   formattedAddress: string,
   components: google.maps.GeocoderAddressComponent[] | undefined,
 ): DeliveryAddress {
-  const sanitizedFormattedAddress = sanitizeFormattedDeliveryAddress(
-    formattedAddress,
-  );
+  const sanitizedFormattedAddress =
+    sanitizeFormattedDeliveryAddress(formattedAddress);
   const streetNumber = getAddressPart(components, "street_number");
   const route = getAddressPart(components, "route");
   const locality =
@@ -80,6 +109,41 @@ function buildDeliveryAddress(
     landmark: "",
     notes: "",
   };
+}
+
+function buildShippingQuery(
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+) {
+  const country = getAddressComponent(components, "country");
+  const state =
+    getAddressComponent(components, "administrative_area_level_1") ||
+    getAddressComponent(components, "administrative_area_level_2");
+  const pin = getAddressPart(components, "postal_code");
+
+  return {
+    countryCode: String(country?.short_name || "")
+      .trim()
+      .toUpperCase(),
+    stateCode: String(state?.short_name || state?.long_name || "")
+      .trim()
+      .toUpperCase(),
+    pin: String(pin || "").trim(),
+  };
+}
+
+function getMissingShippingReason({
+  countryCode,
+  stateCode,
+}: typeof EMPTY_SHIPPING_QUERY) {
+  if (!countryCode) {
+    return "Non-service zone: country was not found for this location.";
+  }
+
+  if (!stateCode) {
+    return "Non-service zone: state was not found for this location.";
+  }
+
+  return "";
 }
 
 function HomeLocationIcon() {
@@ -180,6 +244,12 @@ export default function ProductDeliveryAddressPicker({
   const [statusMessage, setStatusMessage] = useState("");
   const [isLocating, setIsLocating] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [shippingServiceability, setShippingServiceability] =
+    useState<ShippingServiceabilityResponse | null>(null);
+  const [isCheckingShipping, setIsCheckingShipping] = useState(false);
+  const [shippingQuery, setShippingQuery] = useState(EMPTY_SHIPPING_QUERY);
+  const [showServiceOverlay, setShowServiceOverlay] = useState(true);
+  const [showRestrictionOverlay, setShowRestrictionOverlay] = useState(true);
   const [resolvedDeliveryAddress, setResolvedDeliveryAddress] =
     useState<DeliveryAddress>(() =>
       buildDeliveryAddress(effectiveInitialAddress, undefined),
@@ -189,6 +259,17 @@ export default function ProductDeliveryAddressPicker({
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const lastAutoResolvedAddressRef = useRef("");
   const hasAddress = address.trim().length > 0;
+  const canCommitDeliveryAddress = Boolean(
+    hasAddress && shippingServiceability?.serviceable && !isCheckingShipping,
+  );
+  const shouldShowServiceOverlay = Boolean(
+    shippingServiceability?.serviceable && showServiceOverlay,
+  );
+  const shouldShowRestrictionOverlay = Boolean(
+    shippingServiceability &&
+    !shippingServiceability.serviceable &&
+    showRestrictionOverlay,
+  );
   const shouldPersistToProfile =
     persistToProfile ??
     (variant === "field" ||
@@ -203,28 +284,89 @@ export default function ProductDeliveryAddressPicker({
     });
   }, [effectiveInitialAddress]);
 
-  const applyLocation = useCallback((
-    nextPosition: Position,
-    nextAddress: string,
-    nextDeliveryAddress?: DeliveryAddress,
-  ) => {
-    const normalizedDeliveryAddress =
-      nextDeliveryAddress || buildDeliveryAddress(nextAddress, undefined);
-    const displayAddress =
-      formatDeliveryAddress(normalizedDeliveryAddress) ||
-      sanitizeFormattedDeliveryAddress(nextAddress);
-    setMarkerPos(nextPosition);
-    setAddress(displayAddress);
-    setResolvedDeliveryAddress(normalizedDeliveryAddress);
-    emitDeliveryAddressUpdate({
-      address: displayAddress,
-      position: nextPosition,
-      deliveryAddress: normalizedDeliveryAddress,
-    });
-    onAddressChange?.(displayAddress, nextPosition, normalizedDeliveryAddress);
-    mapRef.current?.panTo(nextPosition);
-    setStatusMessage("Delivery point selected.");
-  }, [onAddressChange]);
+  useEffect(() => {
+    const hasAnyShippingInput = Boolean(
+      shippingQuery.countryCode || shippingQuery.stateCode || shippingQuery.pin,
+    );
+    const missingReason = getMissingShippingReason(shippingQuery);
+
+    if (missingReason) {
+      setIsCheckingShipping(false);
+      setShippingServiceability(
+        hasAnyShippingInput
+          ? {
+              serviceable: false,
+              reason: missingReason,
+              matchedRule: null,
+            }
+          : null,
+      );
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadShippingServiceability() {
+      setIsCheckingShipping(true);
+
+      try {
+        const response = await checkShippingServiceability(shippingQuery);
+        if (!cancelled) {
+          setShippingServiceability(response);
+        }
+      } catch {
+        if (!cancelled) {
+          setShippingServiceability({
+            serviceable: false,
+            reason: "Unable to verify serviceability for this location.",
+            matchedRule: null,
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setIsCheckingShipping(false);
+        }
+      }
+    }
+
+    void loadShippingServiceability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shippingQuery]);
+
+  const applyLocation = useCallback(
+    (
+      nextPosition: Position,
+      nextAddress: string,
+      nextDeliveryAddress?: DeliveryAddress,
+      nextShippingQuery?: {
+        countryCode: string;
+        stateCode: string;
+        pin: string;
+      },
+    ) => {
+      const normalizedDeliveryAddress =
+        nextDeliveryAddress || buildDeliveryAddress(nextAddress, undefined);
+      const displayAddress =
+        formatDeliveryAddress(normalizedDeliveryAddress) ||
+        sanitizeFormattedDeliveryAddress(nextAddress);
+      setMarkerPos(nextPosition);
+      setAddress(displayAddress);
+      setResolvedDeliveryAddress(normalizedDeliveryAddress);
+      if (nextShippingQuery) {
+        setShippingServiceability(null);
+        setShippingQuery(nextShippingQuery);
+      } else {
+        setShippingServiceability(null);
+        setShippingQuery(EMPTY_SHIPPING_QUERY);
+      }
+      mapRef.current?.panTo(nextPosition);
+      setStatusMessage("Checking delivery service area...");
+    },
+    [],
+  );
 
   useEffect(() => {
     const normalizedInitialAddress = effectiveInitialAddress.trim();
@@ -242,27 +384,39 @@ export default function ProductDeliveryAddressPicker({
     lastAutoResolvedAddressRef.current = normalizedInitialAddress;
 
     const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address: normalizedInitialAddress }, (results, status) => {
-      if (status !== "OK" || !results?.[0]?.geometry?.location) {
-        setStatusMessage(
-          "Confirm this address on the map to calculate delivery charges.",
+    geocoder.geocode(
+      { address: normalizedInitialAddress },
+      (results, status) => {
+        if (status !== "OK" || !results?.[0]?.geometry?.location) {
+          setStatusMessage(
+            "Confirm this address on the map to calculate delivery charges.",
+          );
+          return;
+        }
+
+        const nextPosition = {
+          lat: results[0].geometry.location.lat(),
+          lng: results[0].geometry.location.lng(),
+        };
+        const nextAddress =
+          results[0].formatted_address || normalizedInitialAddress;
+        const nextDeliveryAddress = buildDeliveryAddress(
+          nextAddress,
+          results[0].address_components,
         );
-        return;
-      }
+        const nextShippingQuery = buildShippingQuery(
+          results[0].address_components,
+        );
 
-      const nextPosition = {
-        lat: results[0].geometry.location.lat(),
-        lng: results[0].geometry.location.lng(),
-      };
-      const nextAddress = results[0].formatted_address || normalizedInitialAddress;
-      const nextDeliveryAddress = buildDeliveryAddress(
-        nextAddress,
-        results[0].address_components,
-      );
-
-      applyLocation(nextPosition, nextAddress, nextDeliveryAddress);
-      setStatusMessage("Saved delivery location confirmed.");
-    });
+        applyLocation(
+          nextPosition,
+          nextAddress,
+          nextDeliveryAddress,
+          nextShippingQuery,
+        );
+        setStatusMessage("Delivery location found. Checking service area...");
+      },
+    );
   }, [
     applyLocation,
     autoResolveInitialAddress,
@@ -287,8 +441,16 @@ export default function ProductDeliveryAddressPicker({
         resolvedAddress,
         results?.[0]?.address_components,
       );
+      const nextShippingQuery = buildShippingQuery(
+        results?.[0]?.address_components,
+      );
 
-      applyLocation(nextPosition, resolvedAddress, nextDeliveryAddress);
+      applyLocation(
+        nextPosition,
+        resolvedAddress,
+        nextDeliveryAddress,
+        nextShippingQuery,
+      );
     });
   }
 
@@ -320,6 +482,7 @@ export default function ProductDeliveryAddressPicker({
         place.formatted_address || place.name || address,
         place.address_components,
       ),
+      buildShippingQuery(place.address_components),
     );
   }
 
@@ -352,6 +515,8 @@ export default function ProductDeliveryAddressPicker({
     setAddress("");
     const clearedDeliveryAddress = buildDeliveryAddress("", undefined);
     setResolvedDeliveryAddress(clearedDeliveryAddress);
+    setShippingServiceability(null);
+    setShippingQuery(EMPTY_SHIPPING_QUERY);
     onAddressChange?.("", undefined, clearedDeliveryAddress);
     emitDeliveryAddressUpdate({
       address: "",
@@ -367,7 +532,9 @@ export default function ProductDeliveryAddressPicker({
     addressInputRef.current?.focus();
   }
 
-  async function persistSelectionToProfile(nextDeliveryAddress: DeliveryAddress) {
+  async function persistSelectionToProfile(
+    nextDeliveryAddress: DeliveryAddress,
+  ) {
     if (!shouldPersistToProfile || !user) {
       return;
     }
@@ -404,7 +571,7 @@ export default function ProductDeliveryAddressPicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="hidden items-center gap-2 border-b-1 border-[#cccccc] px-3 py-2 text-sm text-[#233d1d] transition hover:bg-[#edf5e1] lg:inline-flex"
+        className="hidden items-center gap-2 border-b-1 border-[#cccccc] px-3 py-2 text-sm text-[#233d1d] transition hover:bg-gray-100 lg:inline-flex"
       >
         <MapPin size={16} className="shrink-0 text-[#214f14]" />
         <span className="max-w-[170px] truncate">{address || emptyLabel}</span>
@@ -413,30 +580,32 @@ export default function ProductDeliveryAddressPicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="mx-2.5 flex min-h-8 w-[calc(100%-1.25rem)] items-center gap-1.5 rounded-xl bg-transparent px-2.5 py-1 text-left text-xs text-black md:mx-6 md:w-[calc(100%-3rem)]"
+        className="flex items-center justify-between gap-3 rounded-[0.85rem] border border-[#e4eadb] bg-white px-2 py-1 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#cfd8c3] hover:bg-[#fbfdf8]"
       >
-        <HomeLocationIcon />
-        {address ? (
-          <>
-            <span className="shrink-0 font-bold uppercase">Home</span>
-            <span className="min-w-0 flex-1 truncate">{address}</span>
-          </>
-        ) : (
-          <span className="min-w-0 flex-1 truncate font-semibold">
-            {emptyLabel}
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+          <HomeLocationIcon />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-semibold leading-5 text-[#171410]">
+            {address ? "Your location" : "Set location"}
           </span>
-        )}
-        <ChevronRight size={16} className="shrink-0" />
+          <span className="mt-0.5 block truncate text-[10px] leading-4 text-[#7a7a7a]">
+            {address || emptyLabel}
+          </span>
+        </span>
+
+        <ChevronRight size={16} className="shrink-0 text-[#9a9a9a]" />
       </button>
     ) : variant === "checkout-card" ? (
-      <div className="flex items-start gap-3 rounded-[0.5rem] bg-[#E8F0E0] p-4">
+      <div className="flex items-start gap-3 rounded-[0.5rem] bg-gray-100 p-4">
         <MapPin size={20} className="mt-1 shrink-0 text-[#173d12]" />
         <div className="min-w-0 flex-1">
           <p className="mb-1 text-sm font-semibold ">Delivery To:</p>
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="block w-full text-left text-sm leading-relaxed text-[#111111]"
+            className="block w-full truncate text-left text-sm leading-relaxed text-[#111111] "
           >
             {address || emptyLabel}
           </button>
@@ -451,7 +620,7 @@ export default function ProductDeliveryAddressPicker({
       </div>
     ) : hasAddress ? (
       <section className="mt-5">
-        <h2 className="text-[14px] font-semibold text-[#111111] md:text-[15px]">
+        <h2 className="text-sm font-semibold text-gray-700 md:text-sm">
           Delivery Details
         </h2>
         <button
@@ -468,7 +637,7 @@ export default function ProductDeliveryAddressPicker({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="mt-1.5 block w-full pr-1 text-right text-[11px] font-medium text-[#55ad35] md:text-xs"
+          className="mt-1.5 block w-full pr-1 text-right text-[11px] font-medium text-[#207958] md:text-xs"
         >
           Change your location.
         </button>
@@ -490,7 +659,7 @@ export default function ProductDeliveryAddressPicker({
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="inline-flex h-12 min-w-[100px] items-center justify-center rounded-[6px] bg-[#5b9a63] px-5 text-[13px] font-semibold text-white"
+            className="inline-flex h-12 min-w-[100px] items-center justify-center rounded-[6px] bg-[#207958] px-5 text-[13px] font-semibold text-white transition-colors hover:bg-[#18664a]"
           >
             Check
           </button>
@@ -506,7 +675,7 @@ export default function ProductDeliveryAddressPicker({
       {trigger}
 
       {isOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 px-3 pb-3 pt-8 backdrop-blur-sm sm:items-center sm:p-6">
+        <div className="fixed inset-0 z-[80] flex items-stretch justify-center bg-black/45 backdrop-blur-sm sm:items-center sm:px-6 sm:py-6">
           <button
             type="button"
             className="absolute inset-0 cursor-default"
@@ -514,26 +683,22 @@ export default function ProductDeliveryAddressPicker({
             aria-label="Close location picker"
           />
 
-          <section className="relative flex max-h-[92vh] w-full max-w-[430px] flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-w-3xl sm:rounded-xl">
+          <section className="relative flex h-[100dvh] w-full max-w-none flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-3xl sm:rounded-xl">
             <div className="flex items-start justify-between gap-4 border-b border-[#ececec] px-5 py-4">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6b8b58]">
-                  Delivery point
-                </p>
                 <h2 className="mt-1 text-lg font-bold text-[#171410]">
                   Search or pin location
                 </h2>
               </div>
-           
 
-                <button
-          type="button"
-          onClick={() => setIsOpen(false)}
-          className="absolute right-4 top-4 z-10 cursor-pointer flex h-10 w-10 items-center justify-center rounded-full border border-[#dbe8cd] bg-white text-[#58724f] hover:bg-neutral-50"
-          aria-label="Close sign in prompt"
-        >
-          <X size={18} />
-        </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="absolute right-4 top-4 z-10 cursor-pointer flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 hover:bg-neutral-50"
+                aria-label="Close sign in prompt"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5">
@@ -547,7 +712,7 @@ export default function ProductDeliveryAddressPicker({
                   >
                     <div className="relative">
                       <Search
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6b8b58]"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                         size={17}
                       />
                       <input
@@ -562,21 +727,20 @@ export default function ProductDeliveryAddressPicker({
                             undefined,
                           );
                           setResolvedDeliveryAddress(nextDeliveryAddress);
-                          onAddressChange?.(
-                            nextAddress,
-                            undefined,
-                            nextDeliveryAddress,
-                          );
+                          setShippingServiceability(null);
+                          setShippingQuery({
+                            ...EMPTY_SHIPPING_QUERY,
+                          });
                           setStatusMessage("");
                         }}
                         placeholder="Type address, locality, or landmark"
-                        className="h-12 w-full rounded-xl border border-[#dce8ce] bg-[#fbfdf8] pl-11 pr-12 text-sm text-[#171410] outline-none focus:border-[#aac58d] focus:ring-2 focus:ring-[#dce8ce]"
+                        className="h-12 w-full rounded-xl border border-gray-300 pl-11 pr-12 text-sm text-gray-500 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
                       />
                       {hasAddress ? (
                         <button
                           type="button"
                           onClick={clearAddress}
-                          className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center text-[#6b8b58] transition hover:bg-[#edf5e1] hover:text-[#214f14]"
+                          className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
                           aria-label="Clear address"
                         >
                           <X size={16} />
@@ -597,6 +761,41 @@ export default function ProductDeliveryAddressPicker({
                   </button>
 
                   <div className="mt-4 overflow-hidden rounded-2xl border border-[#dce8ce]">
+                    <div className="flex items-center justify-between gap-3 border-b border-[#e7efde] bg-[#f7fbf2] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#59734f]">
+                      <span>Serviceability on map</span>
+                      <div className="flex items-center gap-2 normal-case tracking-normal">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowServiceOverlay((value) => !value)
+                          }
+                          aria-pressed={showServiceOverlay}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold transition ${
+                            showServiceOverlay
+                              ? "bg-[#e8f4e6] text-[#1f6a34] ring-1 ring-[#8fd19e]"
+                              : "bg-white text-[#7ca287] ring-1 ring-[#dce8ce]"
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-[#1f6a34]" />
+                          Service
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowRestrictionOverlay((value) => !value)
+                          }
+                          aria-pressed={showRestrictionOverlay}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold transition ${
+                            showRestrictionOverlay
+                              ? "bg-[#fdecec] text-[#b42318] ring-1 ring-[#f2a7a7]"
+                              : "bg-white text-[#b98b8b] ring-1 ring-[#efd6d6]"
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-[#b42318]" />
+                          Non-service
+                        </button>
+                      </div>
+                    </div>
                     <GoogleMap
                       mapContainerStyle={{
                         width: "100%",
@@ -615,8 +814,70 @@ export default function ProductDeliveryAddressPicker({
                         fullscreenControl: false,
                       }}
                     >
+                      {shouldShowServiceOverlay ? (
+                        <Circle
+                          center={markerPos}
+                          radius={1200}
+                          options={{
+                            fillColor: DEFAULT_SERVICE_ZONE_STYLES.fillColor,
+                            fillOpacity: 0.16,
+                            strokeColor:
+                              DEFAULT_SERVICE_ZONE_STYLES.strokeColor,
+                            strokeOpacity: 1,
+                            strokeWeight: 3,
+                            clickable: false,
+                            draggable: false,
+                            editable: false,
+                            zIndex: 1,
+                          }}
+                        />
+                      ) : null}
+                      {shouldShowRestrictionOverlay ? (
+                        <Circle
+                          center={markerPos}
+                          radius={1200}
+                          options={{
+                            fillColor:
+                              DEFAULT_RESTRICTION_ZONE_STYLES.fillColor,
+                            fillOpacity: 0.16,
+                            strokeColor:
+                              DEFAULT_RESTRICTION_ZONE_STYLES.strokeColor,
+                            strokeOpacity: 1,
+                            strokeWeight: 3,
+                            clickable: false,
+                            draggable: false,
+                            editable: false,
+                            zIndex: 2,
+                          }}
+                        />
+                      ) : null}
                       <Marker position={markerPos} />
                     </GoogleMap>
+                    <div
+                      className={`border-t px-4 py-2 text-xs font-medium ${
+                        shippingServiceability
+                          ? shippingServiceability.serviceable
+                            ? "border-[#dce8ce] bg-[#eff8ea] text-[#1f6a34]"
+                            : "border-[#f0d1d1] bg-[#fff1f1] text-[#b42318]"
+                          : "border-[#e7efde] bg-[#f7fbf2] text-[#59734f]"
+                      }`}
+                    >
+                      {isCheckingShipping
+                        ? "Checking serviceability..."
+                        : shippingServiceability
+                          ? shippingServiceability.serviceable
+                            ? "Service zone: this location is covered."
+                            : shippingServiceability.reason ||
+                              "Non-service zone: this location is not covered."
+                          : "Select a location to check serviceability."}
+                    </div>
+                    {shippingServiceability?.matchedRule ? (
+                      <div className="border-t border-[#ececec] bg-white px-4 py-2 text-[11px] text-[#59734f]">
+                        Matched rule:{" "}
+                        {shippingServiceability.matchedRule.action}{" "}
+                        {shippingServiceability.matchedRule.ruleType}
+                      </div>
+                    ) : null}
                   </div>
                 </>
               ) : (
@@ -649,6 +910,21 @@ export default function ProductDeliveryAddressPicker({
                     return;
                   }
 
+                  if (isCheckingShipping) {
+                    setStatusMessage(
+                      "Please wait while we check this service area.",
+                    );
+                    return;
+                  }
+
+                  if (!shippingServiceability?.serviceable) {
+                    setStatusMessage(
+                      shippingServiceability?.reason ||
+                        "This location is outside the delivery service area.",
+                    );
+                    return;
+                  }
+
                   onAddressChange?.(
                     address,
                     markerPos,
@@ -668,9 +944,9 @@ export default function ProductDeliveryAddressPicker({
                   void persistSelectionToProfile(resolvedDeliveryAddress);
                   setIsOpen(false);
                 }}
-                disabled={!hasAddress || isSavingProfile}
+                disabled={!canCommitDeliveryAddress || isSavingProfile}
                 className={`h-12 rounded-xl text-sm font-semibold transition ${
-                  hasAddress && !isSavingProfile
+                  canCommitDeliveryAddress && !isSavingProfile
                     ? "bg-[#245d00] text-white hover:bg-[#1b4700]"
                     : "cursor-not-allowed bg-[#dce8ce] text-[#8aa27a]"
                 }`}

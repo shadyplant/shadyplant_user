@@ -17,14 +17,16 @@ export default function ProductCard({ product }: ProductCardProps) {
     product.variety,
     product.containerSize,
     product.height,
-  ].map((value) => String(value || "").trim()).filter(Boolean);
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
 
   return (
-    <article className="group isolate overflow-hidden rounded-[0.5rem] bg-[#ffffff] p-2.5 transition-all duration-300 hover:border-[#b8cdb0] hover:shadow-[0_14px_34px_rgba(23,20,16,0.08)] sm:p-3">
+    <article className="group isolate overflow-hidden rounded-[0.5rem] bg-[#ffffff] p-1 transition-all duration-300 hover:border-[#b8cdb0] hover:shadow-[0_14px_34px_rgba(23,20,16,0.08)] sm:p-3">
       <div className="relative">
         <Link
           href={productHref}
-          className="group/image relative block aspect-[1.00] overflow-hidden rounded-[0.5rem] bg-stone-50"
+          className="group/image relative block aspect-[0.9] overflow-hidden rounded-[0.5rem] bg-stone-50"
         >
           <Image
             src={product.image}
@@ -51,7 +53,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       <div className="relative z-10 pt-3">
         <Link href={productHref} className="block min-w-0">
-          <h3 className="mt-1 line-clamp-1 pr-9 text-base leading-tight tracking-normal text-[#050505] sm:pr-11 sm:text-lg">
+          <h3 className="mt-1 min-h-[2.5rem] pr-9 text-xs font-bold leading-tight tracking-normal text-[#050505] line-clamp-2 sm:min-h-0 sm:line-clamp-none sm:pr-11 sm:text-lg">
             {product.name}
           </h3>
 
@@ -61,11 +63,8 @@ export default function ProductCard({ product }: ProductCardProps) {
             </p>
           ) : (
             <>
-              <p className="mt-1 pr-9 text-sm leading-5 text-[#707070] sm:pr-11 sm:text-base">
-                Min. Qty - {product.minOrderQuantity} Pcs.
-              </p>
               {productHighlights.length ? (
-                <p className="mt-2 line-clamp-1 pr-2 text-[10px] leading-4 text-[#7a7a7a] sm:text-xs">
+                <p className="mt-0 line-clamp-1 pr-2 text-[10px] leading-4 text-[#7a7a7a] sm:text-xs">
                   {productHighlights.join(" | ")}
                 </p>
               ) : null}
@@ -76,20 +75,23 @@ export default function ProductCard({ product }: ProductCardProps) {
         <WishlistButton
           productId={product.id}
           size={26}
-          className="absolute right-0 top-[1.85rem] z-20 shrink-0 p-1 text-[#57ad38] transition-colors sm:right-1 sm:top-[2.35rem]"
+          className="absolute right-0 top-[0.95rem] z-20 shrink-0 p-1 text-[#207958] transition-colors sm:right-1 sm:top-[2.35rem]"
         />
 
         <div className="mt-4 sm:mt-5">
           <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-xl leading-none tracking-normal text-[#050505] sm:text-2xl">
+            <span className="text-base font-medium leading-none tracking-normal text-[#07ab4e] sm:text-2xl">
               {formatCurrency(product.price)}
             </span>
             {product.mrp > product.price ? (
-              <span className="text-sm font-medium leading-none text-[#9b9b9b] line-through sm:text-base">
+              <span className="text-xs leading-none text-[#9b9b9b] line-through sm:text-base">
                 {formatCurrency(product.mrp)}
               </span>
             ) : null}
           </div>
+          <p className="mt-0 pr-9 text-[10px] leading-5 text-[#707070] sm:pr-11 sm:text-xs">
+            Min. Qty - {product.minOrderQuantity} Pcs.
+          </p>
           <ProductCardCartControl
             productId={product.id}
             stock={product.stock}

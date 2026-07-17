@@ -38,7 +38,7 @@ export default function BlogsSection() {
                 aria-hidden="true"
               />
             </div>
-            <span className="text-xl text-[#163915] md:text-3xl">Blogs</span>
+            <span className="text-xl text-gray-800 md:text-3xl">Blogs</span>
           </div>
         </div>
 
@@ -64,13 +64,13 @@ export default function BlogsSection() {
               </div>
 
               <div className="px-4 pb-4 pt-1">
-                <span className="line-clamp-1 text-[1.05rem] leading-[1.2] text-[#1b2517] md:text-[1.12rem]">
+                <span className="line-clamp-1 text-[1.05rem] leading-[1.2] text-gray-800 md:text-[1.12rem]">
                   {post.title}
                 </span>
-                <p className="mt-3 line-clamp-3 text-sm leading-5 text-[#5c6757]">
+                <p className="mt-3 line-clamp-3 text-sm leading-5 text-gray-600">
                   {getArticlePreview(post, 120)}
                 </p>
-                <p className="mt-4 text-sm font-medium text-[#5c6757]">
+                <p className="mt-4 text-sm font-medium text-gray-600">
                   {formatPublishedDate(post.published_date)}
                 </p>
               </div>
@@ -81,7 +81,7 @@ export default function BlogsSection() {
         <div className="mt-4 text-center">
           <Link
             href="/blogs"
-            className="inline-block border border-[#f2f2f2] hover:border-[#f2f2f2] hover:bg-[#f2f2f2]/10 text-sm text-[#214f14] transition-all px-3 py-2 rounded-[0.5rem]"
+            className="inline-block border border-gray-300 hover:border-gray-400 hover:bg-gray-100 text-sm text-gray-600 transition-all px-3 py-2 rounded-full"
           >
             Know more
           </Link>

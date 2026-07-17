@@ -121,7 +121,7 @@ export default function ReviewsSection() {
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               
-              <h2 className="text-xl text-[#163915] sm:text-2xl">
+              <h2 className="text-xl text-gray-800 sm:text-2xl">
                 Verified Reviews
               </h2>
             </div>
@@ -131,7 +131,7 @@ export default function ReviewsSection() {
               <button
                 type="button"
                 onClick={() => scrollReviews("prev")}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d9e1d5] bg-white text-[#163915] transition hover:bg-[#edf4eb]"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-50"
                 aria-label="Previous reviews"
               >
                 <ChevronLeft size={20} />
@@ -139,7 +139,7 @@ export default function ReviewsSection() {
               <button
                 type="button"
                 onClick={() => scrollReviews("next")}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d9e1d5] bg-white text-[#163915] transition hover:bg-[#edf4eb]"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-600 transition hover:bg-gray-50"
                 aria-label="Next reviews"
               >
                 <ChevronRight size={20} />
@@ -155,7 +155,7 @@ export default function ReviewsSection() {
           {reviews.map((item) => (
             <article
               key={`${item.name}-${item.location}`}
-              className="flex w-[72vw] shrink-0 snap-start flex-col justify-between rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md sm:w-[30rem] md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]"
+              className="flex w-[72vw] shrink-0 snap-start flex-col justify-between rounded-2xl border border-zinc-100 bg-white p-6 transition-all duration-300 hover:shadow-md sm:w-[30rem] md:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]"
             >
               <div>
                 {/* User Info Header */}

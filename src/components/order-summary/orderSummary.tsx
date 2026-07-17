@@ -542,22 +542,22 @@ export default function OrderSummaryClient() {
   return (
     <SiteShell hideHeader hideMobileBottomNav>
       <section className="min-h-screen bg-white px-4 pb-28 pt-[5.5rem] sm:px-6 sm:pt-24 md:px-6 md:pb-10 md:pt-28">
-        <div className="fixed inset-x-0 top-0 z-40 border-b border-[#e8ece3] bg-white/95 backdrop-blur">
+        <div className="fixed inset-x-0 top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 md:px-6">
             <button
               type="button"
               onClick={() => router.back()}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#E8F0E0] text-[#173d12] transition hover:bg-[#dcead2]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-200 cursor-pointer"
               aria-label="Go back"
             >
               <ArrowLeft size={21} />
             </button>
-            <h1 className="text-lg font-semibold text-[#173d12] sm:text-xl">
+            <h1 className="text-lg font-semibold text-gray-700 sm:text-xl">
               Order Summary
             </h1>
           </div>
         </div>
-        <div className="mx-auto w-full max-w-[660px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)] md:px-6">
+        <div className="mx-auto w-full max-w-[660px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] md:px-6">
           <div className="mx-auto flex max-w-2xl items-start px-4 pb-7 pt-2 sm:px-6 md:px-8 md:pt-6">
             {steps.map((step, index) => {
               const active = step.id === currentStep;
@@ -566,7 +566,7 @@ export default function OrderSummaryClient() {
               return (
                 <div key={step.id} className="flex flex-1 items-start last:flex-none">
                   <div className="flex min-w-[54px] flex-col items-center gap-2 sm:min-w-[60px]">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-[#C5D6B5] bg-[#4c8b5d] text-white shadow-[0_0_0_2px_rgba(76,139,93,0.18)]" : done ? "bg-[#4c8b5d] text-white" : "bg-[#E8F0E0] text-[#1A1F14]"}`}>
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-gray-100 bg-[#207958] text-white shadow-[0_0_0_2px_rgba(76,139,93,0.18)]" : done ? "bg-[#207958] text-white" : "bg-gray-200 text-[#1A1F14]"}`}>
                       {done ? <Check size={18} strokeWidth={3} /> : step.id}
                     </div>
                     <span className={`text-center text-[10px] leading-tight md:text-xs ${active ? "font-semibold text-[#4c8b5d]" : done ? "font-medium text-[#4c8b5d]" : "font-medium text-[#1A1F14]"}`}>
@@ -574,7 +574,7 @@ export default function OrderSummaryClient() {
                     </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#4c8b5d]" : "bg-[#D8DDD0]"}`} />
+                    <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#4c8b5d]" : "bg-gray-300"}`} />
                   )}
                 </div>
               );
@@ -605,11 +605,11 @@ export default function OrderSummaryClient() {
             <>
               <section className="overflow-hidden rounded-t-lg border border-[#e3e3e3] bg-white">
                 <div className="bg-[#f0f0f080] px-3 py-2">
-                  <h2 className="text-[18px] font-semibold leading-5 text-black">
+                  <h2 className="text-[18px] font-semibold leading-5 text-gray-800">
                     Bill to :
                   </h2>
                 </div>
-                <div className="px-3 py-3 text-[12px] leading-[1.25] text-black">
+                <div className="px-3 py-3 text-[12px] leading-[1.25] text-gray-800">
                   <p>{billingName}</p>
                   {billingAddress ? <p>{billingAddress}</p> : null}
                   {billingLocation ? <p>{billingLocation}</p> : null}
@@ -621,17 +621,17 @@ export default function OrderSummaryClient() {
                 </div>
 
                 <div className="bg-[#f0f0f080] px-3 py-2">
-                  <h2 className="text-[18px] font-semibold leading-5 text-black">
+                  <h2 className="text-[18px] font-semibold leading-5 text-gray-800">
                     Ship to :
                   </h2>
                 </div>
-                <div className="min-h-[70px] px-3 py-3 text-[12px] leading-[1.25] text-black">
+                <div className="min-h-[70px] px-3 py-3 text-[12px] leading-[1.25] text-gray-800">
                   {deliveryAddress || "Delivery address not available."}
                 </div>
               </section>
 
               <section className="mt-4 overflow-hidden rounded-b-lg border border-[#e3e3e3] bg-white">
-                <div className="grid grid-cols-[minmax(0,1fr)_88px_96px] bg-[#f0f0f080] px-3 py-2 text-[14px] font-semibold text-black">
+                <div className="grid grid-cols-[minmax(0,1fr)_88px_96px] bg-[#f0f0f080] px-3 py-2 text-[14px] font-semibold text-gray-800">
                   <span>Items</span>
                   <span className="text-center">Quantity</span>
                   <span className="text-right">Amount</span>
@@ -644,17 +644,17 @@ export default function OrderSummaryClient() {
                       className="grid min-h-[62px] grid-cols-[minmax(0,1fr)_88px_96px] items-center border-b border-[#bfbfbf] py-3 text-[12px] last:border-b-0"
                     >
                       <div className="min-w-0 pr-2">
-                        <p className="line-clamp-2 font-medium leading-tight text-black">
+                        <p className="line-clamp-2 font-medium leading-tight text-gray-800">
                           {item.product.name}
                         </p>
-                        <p className="mt-1 text-[11px] leading-tight text-black">
+                        <p className="mt-1 text-[11px] leading-tight text-gray-800">
                           Rs. {formatInvoiceAmount(item.product.price)}
                         </p>
                       </div>
-                      <div className="text-center text-[16px] font-normal text-black">
+                      <div className="text-center text-[16px] font-normal text-gray-800">
                         {item.quantity} {item.product.unit || "pcs."}
                       </div>
-                      <div className="text-right text-[16px] font-normal text-black">
+                      <div className="text-right text-[16px] font-normal text-gray-800">
                         {formatInvoiceAmount(item.amount)}
                       </div>
                     </article>
@@ -662,9 +662,9 @@ export default function OrderSummaryClient() {
                 </div>
 
                 <div className=" px-3 pt-8">
-                  <div className="border-b border-[#bfbfbf] pb-4">
+                  <div className="border-b border-gray-200 pb-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm md:text-sm font-semibold leading-5 text-[#3c63b5]">
+                      <p className="text-sm md:text-sm font-semibold leading-5 text-[#07ab4e]">
                         Have a coupon?
                       </p>
                       {hasAppliedCoupon ? (
@@ -691,7 +691,7 @@ export default function OrderSummaryClient() {
                           setPersistCouponError(false);
                         }}
                         placeholder="Enter coupon code"
-                        className="h-11 flex-1 rounded-md border border-[#d7d7d7] px-3 text-[13px] font-medium text-black outline-none focus:border-[#214f14]"
+                        className="h-11 flex-1 rounded-md border border-[#d7d7d7] px-3 text-[13px] font-medium text-gray-800 outline-none focus:border-[#214f14]"
                       />
                       <button
                         type="button"
@@ -720,15 +720,15 @@ export default function OrderSummaryClient() {
                     ) : null}
                   </div>
 
-                  <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                  <div className="flex justify-between gap-4 border-b border-gray-200 py-3 text-[14px] text-gray-800">
                     <span className="font-semibold">Sub total</span>
                     <span>{formatInvoiceAmount(itemsSubtotal)}</span>
                   </div>
-                  <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                  <div className="flex justify-between gap-4 border-b border-gray-200 py-3 text-[14px] text-gray-800">
                     <span className="font-semibold">Tax</span>
                     <span>{formatInvoiceAmount(0)}</span>
                   </div>
-                  <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                  <div className="flex justify-between gap-4 border-b border-gray-200 py-3 text-[14px] text-gray-800">
                     <span className="font-semibold">Delivery charge</span>
                     <span>
                       {effectivePreview
@@ -738,16 +738,16 @@ export default function OrderSummaryClient() {
                   </div>
                   {hasAppliedCoupon ? (
                     <>
-                      <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                      <div className="flex justify-between gap-4 border-b border-gray-200 py-3 text-[14px] text-gray-800">
                         <span className="font-semibold">Total amount</span>
                         <span>{formatInvoiceAmount(totalBeforeCoupon)}</span>
                       </div>
-                      <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-[#214f14]">
+                      <div className="flex justify-between gap-4 border-b border-gray-200 py-3 text-[14px] text-[#214f14]">
                         <span className="font-semibold">Coupon Discount</span>
                         <span>-{formatInvoiceAmount(couponDiscountValue)}</span>
                       </div>
                       {hasProductSubtotalDiscount ? (
-                        <div className="flex justify-between gap-4 border-b border-[#bfbfbf] py-3 text-[14px] text-black">
+                        <div className="flex justify-between gap-4 border-b border-gray-200 py-3 text-[14px] text-gray-800">
                           <span className="font-semibold">Sub total after coupon</span>
                           <span>{formatInvoiceAmount(itemsSubtotalAfterCoupon)}</span>
                         </div>
@@ -756,7 +756,7 @@ export default function OrderSummaryClient() {
                   ) : null}
                 </div>
 
-                <div className="flex justify-between gap-4 bg-[#e8e8e870] px-3 py-4 text-[14px] font-semibold text-black">
+                <div className="flex justify-between gap-4 bg-[#e8e8e870] px-3 py-4 text-[14px] font-semibold text-gray-800">
                   <span>Payable amount</span>
                   <span>
                     {effectivePreview ? formatInvoiceAmount(totalAfterCoupon) : "---"}
@@ -805,10 +805,10 @@ export default function OrderSummaryClient() {
               <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e3e3] bg-white px-3 py-3 md:px-0 shadow-[0_-10px_28px_rgba(36,54,27,0.12)] sm:static sm:mt-5 sm:border-t-0 sm:bg-transparent sm:p-0 sm:shadow-none">
                 <div className="mx-auto grid w-full max-w-full grid-cols-[minmax(0,1fr)] gap-4 md:pb-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-center">
                   <div className="min-w-0 py-1">
-                    <span className="block text-sm font-medium text-[#4c8b5d]">
+                    <span className="block text-sm font-medium text-gray-800">
                       Total payable
                     </span>
-                    <span className="block break-all text-[2.2rem] font-medium leading-none text-[#4c8b5d] sm:text-2xl">
+                    <span className="block break-all text-[2.2rem] font-medium leading-none text-[#07ab4e] sm:text-2xl">
                       {effectivePreview ? formatInvoiceAmount(totalAfterCoupon) : "---"}
                     </span>
                   </div>
@@ -817,7 +817,7 @@ export default function OrderSummaryClient() {
                       type="button"
                       onClick={() => void handleContinue(preferredPaymentMethod)}
                       disabled={!effectivePreview || isSubmitting}
-                      className="inline-flex h-[52px] items-center justify-center rounded-[0.85rem] bg-[#4c8b5d] px-6 text-[1.2rem] font-medium text-white transition hover:bg-[#427a50] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[60px] sm:text-[1.35rem]"
+                      className="inline-flex h-[52px] items-center justify-center rounded-[0.85rem] bg-[#207958] px-6 text-[1.2rem] font-medium text-white transition hover:bg-[#427a50] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[60px] sm:text-[1.35rem]"
                     >
                       {isSubmitting ? "Processing..." : "Continue"}
                     </button>

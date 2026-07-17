@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type TouchEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import LawnGrassBulkOrderPopup from "@/components/LawnGrassBulkOrderPopup";
 import type { HomeSliderBanner } from "@/lib/homeSliderBanners";
 
 type HomeSliderProps = {
@@ -14,6 +15,9 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
   const items = slides;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
+  const [isLawnGrassPopupOpen, setIsLawnGrassPopupOpen] = useState(false);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
   const currentIndex = activeIndex >= items.length ? 0 : activeIndex;
 
   useEffect(() => {
@@ -75,6 +79,60 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
     </>
   );
 
+  const getPopupKey = (slide: HomeSliderBanner) => {
+    if (slide.actionType !== "popup") {
+      return "";
+    }
+
+    return String(slide.popupKey || "lawn-grass-estimate").toLowerCase();
+  };
+
+  const isLawnGrassPopupSlide = (slide: HomeSliderBanner) => {
+    return getPopupKey(slide) === "lawn-grass-estimate";
+  };
+
+  const isPopupAction = (slide: HomeSliderBanner) => slide.actionType === "popup";
+
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 1) {
+      return;
+    }
+
+    touchStartXRef.current = event.touches[0]?.clientX ?? null;
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const touchStartX = touchStartXRef.current;
+    const touchStartY = touchStartYRef.current;
+
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+
+    if (touchStartX === null || touchStartY === null) {
+      return;
+    }
+
+    const touchEnd = event.changedTouches[0];
+
+    if (!touchEnd) {
+      return;
+    }
+
+    const deltaX = touchEnd.clientX - touchStartX;
+    const deltaY = touchEnd.clientY - touchStartY;
+
+    if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      goToNext();
+    } else {
+      goToPrevious();
+    }
+  }
+
   return (
     <section className="px-0 pt-0 md:px-0">
       <div className="w-full">
@@ -88,13 +146,28 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
               }`}
               style={{ transform: `translateX(-${activeIndex * 100}%)` }}
               onTransitionEnd={handleTransitionEnd}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
               {[...items, items[0]].map((slide, index) => (
                 <div
                   key={`${slide.title}-${index}`}
                   className="relative h-full w-full shrink-0 overflow-hidden"
                 >
-                  {slide.href ? (
+                  {isLawnGrassPopupSlide(slide) ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsLawnGrassPopupOpen(true)}
+                      className="relative block h-full w-full overflow-hidden text-left"
+                      aria-label={slide.title}
+                    >
+                      {renderSlideImage(slide, index)}
+                    </button>
+                  ) : isPopupAction(slide) ? (
+                    <div className="relative h-full w-full overflow-hidden">
+                      {renderSlideImage(slide, index)}
+                    </div>
+                  ) : slide.href ? (
                     <Link
                       href={slide.href}
                       className="relative block h-full w-full overflow-hidden"
@@ -156,6 +229,10 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
           </div>
         </div>
       </div>
+      <LawnGrassBulkOrderPopup
+        open={isLawnGrassPopupOpen}
+        onOpenChange={setIsLawnGrassPopupOpen}
+      />
     </section>
   );
 }

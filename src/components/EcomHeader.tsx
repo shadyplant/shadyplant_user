@@ -19,6 +19,7 @@ import { getCartCount, useCartItems } from "@/components/cartStore";
 import { DELIVERY_ADDRESS_EVENT } from "@/components/ProductDeliveryAddressPicker";
 import { useProductsStore } from "@/components/productsStore";
 import { formatDeliveryAddress } from "@/lib/deliveryAddress";
+import { readCheckoutDraft } from "@/lib/checkoutSession";
 import { getProductHref } from "@/lib/productUrls";
 import ProductDeliveryAddressPicker from "./ProductDeliveryAddressPicker";
 
@@ -38,7 +39,19 @@ const animatedSearchPlaceholders = [
   "Search for Korean Lawn Grass",
 ] as const;
 
-const stickyHeaderClass = "border-b border-[#e5ece0] bg-white";
+const headerCategoryLinks = [
+  { label: "Plants", href: "/search?category=Plants" },
+  { label: "Seeds", href: "/search?category=Seeds" },
+  { label: "Pots & Planters", href: "/search?category=Pots%20%26%20Planters" },
+  { label: "Plant Care", href: "/search?category=Plant%20Care" },
+  { label: "Gifting", href: "/search?category=Gifting" },
+  { label: "Corporate Gifts", href: "/search?category=Corporate%20Gifts" },
+  { label: "Garden Services", href: "/search?category=Garden%20Services" },
+  { label: "Blog", href: "/blogs" },
+  { label: "Offers", href: "/search?category=Offers" },
+] as const;
+
+const stickyHeaderClass = "border-b border-gray-200 bg-white";
 
 type Suggestion = {
   label: string;
@@ -90,10 +103,14 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
 
   const wishlistHref = isAuthenticated ? "/wishlist" : "/auth?next=/wishlist";
   const cartHref = "/cart";
+  const latestCheckoutDraft = readCheckoutDraft();
   const savedDeliveryAddress =
     formatDeliveryAddress(user?.deliveryAddress) || "";
   const headerDeliveryAddress =
-    liveDeliveryAddress || savedDeliveryAddress || initialDeliveryAddress;
+    liveDeliveryAddress ||
+    latestCheckoutDraft?.deliveryAddress ||
+    savedDeliveryAddress ||
+    initialDeliveryAddress;
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -348,18 +365,18 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
           </form>
 
           {showSuggestions && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-[#d7dfd2] bg-white shadow-xl">
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
               <div className="p-2">
                 <Link
                   href={`/search?q=${encodeURIComponent(searchTerm.trim())}`}
                   onClick={closeOverlays}
-                  className="mb-2 flex items-center justify-between rounded-2xl bg-[#f4f8ef] px-3 py-3 transition-colors hover:bg-[#ebf3e2]"
+                  className="mb-2 flex items-center justify-between rounded-2xl bg-gray-100 px-3 py-3 transition-colors hover:bg-gray-200"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-[#173d12]">
+                    <p className="text-sm font-semibold text-gray-800">
                       View all search results
                     </p>
-                    <p className="text-xs text-[#6b8b58]">
+                    <p className="text-xs text-gray-600">
                       Open filtered results for &quot;{searchTerm.trim()}&quot;
                     </p>
                   </div>
@@ -370,13 +387,13 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                     key={`${suggestion.meta}-${suggestion.label}`}
                     href={suggestion.href}
                     onClick={closeOverlays}
-                    className="flex items-center justify-between rounded-2xl px-3 py-3 transition-colors hover:bg-[#f4f8ef]"
+                    className="flex items-center justify-between rounded-2xl px-3 py-3 transition-colors hover:bg-gray-100"
                   >
                     <div>
-                      <p className="text-sm font-semibold text-[#173d12]">
+                      <p className="text-sm font-semibold text-gray-800">
                         {suggestion.label}
                       </p>
-                      <p className="text-xs text-[#6b8b58]">{suggestion.meta}</p>
+                      <p className="text-xs text-gray-600">{suggestion.meta}</p>
                     </div>
                   </Link>
                 ))}
@@ -393,7 +410,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
       {/* Flash Sale Banner */}
       <div
         ref={flashSaleRef}
-        className="overflow-hidden bg-[linear-gradient(90deg,#ff5a3d_0%,#ff7a22_52%,#ff9f1c_100%)] py-2.5 shadow-[0_8px_20px_rgba(255,106,43,0.28)]"
+        className="overflow-hidden bg-[linear-gradient(90deg,#06331F_0%,#012D1D_52%,#012D1D_100%)] py-2.5 shadow-[0_8px_20px_rgba(255,106,43,0.28)]"
       >
         <div
           className={`flex min-w-full will-change-transform ${
@@ -440,7 +457,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                   width={188}
                   height={54}
                   priority
-                  className="h-8 w-auto md:h-10"
+                  className="h-8 w-auto md:h-10 pl-2"
                 />
                 <span className="sr-only">ShadyPlant</span>
               </Link>
@@ -454,10 +471,6 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
               <div className="flex items-center justify-self-end gap-1.5 md:gap-2.5">
                 <div className="hidden lg:block">
                   <div className=" bg-white px-1.5 py-1">
-                    {/* <MovingBorderButton
-      >
-        Fast orange border
-      </MovingBorderButton> */}
 
                        <ProductDeliveryAddressPicker
                       variant="header-inline"
@@ -523,23 +536,23 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                     </Link>
 
                     <div className="pointer-events-none invisible absolute right-0 top-full z-50 pt-3 opacity-0 transition-all duration-150 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
-                      <div className="min-w-[13rem] overflow-hidden rounded-[0.75rem] border border-[#d8e1d2] bg-white shadow-[0_18px_40px_rgba(23,61,18,0.12)]">
+                      <div className="min-w-[13rem] overflow-hidden rounded-[0.75rem] border border-gray-300 bg-white shadow-[0_18px_40px_rgba(23,61,18,0.12)]">
                         <Link
                           href="/profile"
                           onClick={closeOverlays}
-                          className="flex items-center justify-center px-5 py-4 text-sm font-medium text-[#214f14] transition-colors hover:bg-[#f4f8ef]"
+                          className="flex items-center justify-center px-5 py-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
                         >
                           Profile
                         </Link>
-                        <div className="border-t border-[#e6ede1]" />
+                        <div className="border-t border-gray-300" />
                         <Link
                           href="/order"
                           onClick={closeOverlays}
-                          className="flex items-center justify-center px-5 py-4 text-sm font-medium text-[#214f14] transition-colors hover:bg-[#f4f8ef]"
+                          className="flex items-center justify-center px-5 py-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
                         >
                           Orders
                         </Link>
-                        <div className="border-t border-[#e6ede1]" />
+                        <div className="border-t border-gray-300" />
                         <button
                           type="button"
                           onClick={() => void handleLogout()}
@@ -556,7 +569,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                 {!isAuthenticated && (
                   <Link
                     href="/auth?next=/profile"
-                    className="hidden items-center rounded-full bg-[#4c8b5d] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2c5738] md:inline-flex"
+                    className="hidden items-center rounded-full bg-[#207958] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#46a780] md:inline-flex"
                   >
                     Sign In/up
                   </Link>
@@ -575,6 +588,20 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
 
             {/* Mobile Search */}
             {mobileSearchOpen && renderSearchBox("Search...", true)}
+
+            <div className="mt-3 hidden md:block">
+              <div className="flex items-center justify-center gap-2 overflow-x-auto pt-2.5">
+                {headerCategoryLinks.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="whitespace-nowrap rounded-full border-b-2 border-transparent px-3 py-1.5 text-[0.76rem] font-medium tracking-[0.08em] text-gray-700 uppercase transition-all duration-400 ease-out hover:border-[#173d12] hover:text-[#173d12] lg:px-4 sm:text-sm"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
 
           </div>
         </header>

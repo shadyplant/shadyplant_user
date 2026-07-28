@@ -1,13 +1,15 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Check,
   Circle,
   PackageSearch,
+  X,
   XCircle,
 } from "lucide-react";
 import OrderReviewPrompt from "@/components/orders/OrderReviewPrompt";
@@ -22,6 +24,7 @@ import {
   formatOrderStatus,
   type Order,
 } from "@/components/orders/orderUtils";
+import SpinnerLoader from "../loader/spinner";
 
 function formatOrderDateOnly(value?: string | null) {
   if (!value) {
@@ -121,10 +124,13 @@ function formatTrackingDetailDate(value?: string | null) {
     return value;
   }
 
-  return `Date : ${date.toLocaleDateString("en-GB")}, Time : ${date.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return `Date : ${date.toLocaleDateString("en-GB")}, Time : ${date.toLocaleTimeString(
+    "en-IN",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  )}`;
 }
 
 function formatLongDeliveryDate(value?: string | null) {
@@ -147,17 +153,26 @@ function formatLongDeliveryDate(value?: string | null) {
 
 function resolveTrackingTimestamp(order: Order, key: string) {
   const group = order.trackingTimeline.find((step) => step.key === key);
-  return group?.entries?.[group.entries.length - 1]?.timestamp || group?.occurredAt || null;
+  return (
+    group?.entries?.[group.entries.length - 1]?.timestamp ||
+    group?.occurredAt ||
+    null
+  );
 }
 
 function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
-  const currentStatus = String(order.currentStatus || "").trim().toLowerCase();
+  const currentStatus = String(order.currentStatus || "")
+    .trim()
+    .toLowerCase();
   const basePlacedTimestamp =
     resolveTrackingTimestamp(order, "placed") ||
     resolveTrackingTimestamp(order, "confirmed") ||
     order.createdAt;
   const cancelledTimestamp =
-    resolveTrackingTimestamp(order, "cancelled") || order.cancelledAt || order.updatedAt || null;
+    resolveTrackingTimestamp(order, "cancelled") ||
+    order.cancelledAt ||
+    order.updatedAt ||
+    null;
   const refundStatus = order.refundRequestStatus || null;
   const refundSubmittedAt = order.refundSubmittedAt || order.updatedAt || null;
   const refundResubmitRequestedAt =
@@ -280,7 +295,8 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
     },
     {
       key: "delivered",
-      title: currentStatus === "delivered" ? "Delivered" : "Expected Delivery By",
+      title:
+        currentStatus === "delivered" ? "Delivered" : "Expected Delivery By",
       message:
         currentStatus === "delivered"
           ? "Your order has been delivered successfully."
@@ -321,6 +337,7 @@ export default function OrderDetailsPageClient({
 }: {
   orderId: string;
 }) {
+  const router = useRouter();
   const { fetchWithAuth, isAuthenticated, isReady } = useAuth();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -328,12 +345,27 @@ export default function OrderDetailsPageClient({
   const [isRefundDetailsOpen, setIsRefundDetailsOpen] = useState(false);
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
+  const [isRefundSheetKeyboardOpen, setIsRefundSheetKeyboardOpen] =
+    useState(false);
+  const [refundSheetViewportHeight, setRefundSheetViewportHeight] = useState<
+    number | null
+  >(null);
   const [refundForm, setRefundForm] = useState<RefundFormState>({
     accountHolderName: "",
     bankName: "",
     accountNumber: "",
     confirmAccountNumber: "",
     ifscCode: "",
+  });
+  const refundSheetScrollRef = useRef<HTMLDivElement | null>(null);
+  const refundFieldRefs = useRef<
+    Record<keyof RefundFormState, HTMLInputElement | null>
+  >({
+    accountHolderName: null,
+    bankName: null,
+    accountNumber: null,
+    confirmAccountNumber: null,
+    ifscCode: null,
   });
 
   useEffect(() => {
@@ -389,6 +421,8 @@ export default function OrderDetailsPageClient({
 
   useEffect(() => {
     if (!isRefundFormOpen && !isRefundDetailsOpen) {
+      setIsRefundSheetKeyboardOpen(false);
+      setRefundSheetViewportHeight(null);
       return;
     }
 
@@ -399,13 +433,121 @@ export default function OrderDetailsPageClient({
     };
   }, [isRefundDetailsOpen, isRefundFormOpen]);
 
+  useEffect(() => {
+    if (!isRefundFormOpen || typeof window === "undefined") {
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const isMobileViewport = window.matchMedia("(max-width: 767px)").matches;
+
+    if (!viewport || !isMobileViewport) {
+      setIsRefundSheetKeyboardOpen(false);
+      setRefundSheetViewportHeight(null);
+      return;
+    }
+
+    const updateViewportState = () => {
+      const viewportHeight = Math.round(viewport.height);
+      setRefundSheetViewportHeight(viewportHeight);
+      setIsRefundSheetKeyboardOpen(window.innerHeight - viewportHeight > 120);
+    };
+
+    updateViewportState();
+    viewport.addEventListener("resize", updateViewportState);
+    viewport.addEventListener("scroll", updateViewportState);
+
+    return () => {
+      viewport.removeEventListener("resize", updateViewportState);
+      viewport.removeEventListener("scroll", updateViewportState);
+    };
+  }, [isRefundFormOpen]);
+
+  useEffect(() => {
+    if (!isRefundSheetKeyboardOpen) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      const activeField = document.activeElement as HTMLElement | null;
+      const scrollContainer = refundSheetScrollRef.current;
+
+      if (!activeField || !scrollContainer) {
+        return;
+      }
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const fieldRect = activeField.getBoundingClientRect();
+      const keyboardSafetyGap = 140;
+      const visibleBottom = containerRect.bottom - keyboardSafetyGap;
+
+      if (fieldRect.bottom > visibleBottom) {
+        const delta = fieldRect.bottom - visibleBottom + 24;
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollTop + delta,
+          behavior: "smooth",
+        });
+        return;
+      }
+
+      if (fieldRect.top < containerRect.top + 16) {
+        const delta = containerRect.top + 16 - fieldRect.top;
+        scrollContainer.scrollTo({
+          top: Math.max(0, scrollContainer.scrollTop - delta),
+          behavior: "smooth",
+        });
+      }
+    }, 120);
+  }, [isRefundSheetKeyboardOpen]);
+
+  function focusRefundInput(
+    fieldKey: keyof RefundFormState,
+    event: { currentTarget: HTMLInputElement },
+  ) {
+    setIsRefundSheetKeyboardOpen(true);
+
+    const input = event.currentTarget;
+    window.setTimeout(() => {
+      const scrollContainer = refundSheetScrollRef.current;
+      const element = refundFieldRefs.current[fieldKey] || input;
+
+      if (!scrollContainer || !element) {
+        return;
+      }
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const keyboardSafetyGap = 140;
+      const visibleBottom = containerRect.bottom - keyboardSafetyGap;
+
+      if (elementRect.bottom > visibleBottom) {
+        scrollContainer.scrollTo({
+          top:
+            scrollContainer.scrollTop +
+            (elementRect.bottom - visibleBottom + 24),
+          behavior: "smooth",
+        });
+        return;
+      }
+
+      element.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 80);
+  }
+
   const reviewProduct =
-    order && order.currentStatus === "delivered" ? getReviewProduct(order) : null;
+    order && order.currentStatus === "delivered"
+      ? getReviewProduct(order)
+      : null;
   const canShowInvoice = order ? canDownloadInvoice(order) : false;
   const orderLineItems = order ? resolveOrderLineItems(order) : [];
   const refundAccountDetails = order?.refundAccountDetails || null;
+  const normalizedOrderStatus = String(order?.currentStatus || "")
+    .trim()
+    .toLowerCase();
 
-  async function handleRefundAccountSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleRefundAccountSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
     if (!order || refundSubmitting) {
@@ -457,73 +599,75 @@ export default function OrderDetailsPageClient({
   return (
     <SiteShell hideMobileHeader>
       <>
-      <div className="min-h-screen bg-white">
-        <section className="min-h-screen bg-white px-4 py-4 md:px-8 md:py-12">
-          <div className="mx-auto max-w-5xl">
-            <Link
-              href="/order"
-              className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#dbe8cd] bg-white px-3 py-2 text-xs font-semibold text-[#214f14] transition hover:bg-[#f4fbf2] md:px-4 md:text-sm"
-            >
-              <ArrowLeft size={16} />
-              Back to orders
-            </Link>
-
-            {!isReady || (isAuthenticated && orders === null && !error) ? (
-              <div className="mt-6 rounded-[1.6rem] border border-[#dbe8cd] bg-white p-6 text-sm text-[#58724f]">
-                Loading order details...
-              </div>
-            ) : !isAuthenticated ? (
-              <div className="mt-6 rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
-                <PackageSearch size={28} className="mx-auto text-[#214f14]" />
-                <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                  Sign in to view this order
-                </h2>
-                <p className="mt-3 text-sm text-[#58724f]">
-                  Order details and tracking history are available after login.
-                </p>
-                <Link
-                  href={`/auth?next=/order/${encodeURIComponent(orderId)}`}
-                  className="mt-6 inline-flex rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white"
+        <div className="min-h-screen bg-white">
+          <section className="min-h-screen bg-white px-4 py-0 md:px-8 md:py-12">
+            <div className="mx-auto max-w-5xl">
+              {/* Top bar mobile */}
+              <div className="flex md:hidden border-b border-[#e2e8dc] h-15 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-[#111827]"
+                  aria-label="Go back"
                 >
-                  Continue to sign in
-                </Link>
+                  <ArrowLeft size={24} strokeWidth={2.2} />
+                </button>
+                <h1 className="text-lg text-[#111111]">Order Details</h1>
               </div>
-            ) : error ? (
-              <div className="mt-6 rounded-[1.6rem] border border-[#f2d2d2] bg-[#fff7f7] p-6 text-sm text-[#9c3131]">
-                {error}
-              </div>
-            ) : !order ? (
-              <div className="mt-6 rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
-                <PackageSearch size={28} className="mx-auto text-[#214f14]" />
-                <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
-                  Order not found
-                </h2>
-                <p className="mt-3 text-sm text-[#58724f]">
-                  We could not find the requested order in your account.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-4 md:mt-6 md:space-y-6">
-                <article className="overflow-hidden rounded-[1.2rem] bg-white shadow-[0_18px_45px_rgba(33,79,20,0.06)] md:rounded-[1.8rem]">
-                  <div className="flex flex-col gap-3 border-b border-[#e2eadc] px-4 py-4 md:flex-row md:items-start md:justify-between md:px-6 md:py-5">
-                    <div>
-                      
-                      <h1 className="mt-1 text-[1.25rem] font-semibold text-[#163915] md:mt-2 md:text-2xl">
-                        Order Details
-                      </h1>
-                     
+              {/* Top bar mobile */}
+
+              {!isReady || (isAuthenticated && orders === null && !error) ? (
+                <SpinnerLoader offset={120} />
+              ) : !isAuthenticated ? (
+                <div className="mt-6 rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
+                  <PackageSearch size={28} className="mx-auto text-[#214f14]" />
+                  <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
+                    Sign in to view this order
+                  </h2>
+                  <p className="mt-3 text-sm text-[#58724f]">
+                    Order details and tracking history are available after
+                    login.
+                  </p>
+                  <Link
+                    href={`/auth?next=/order/${encodeURIComponent(orderId)}`}
+                    className="mt-6 inline-flex rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white"
+                  >
+                    Continue to sign in
+                  </Link>
+                </div>
+              ) : error ? (
+                <div className="mt-6 rounded-[1.6rem] border border-[#f2d2d2] bg-[#fff7f7] p-6 text-sm text-[#9c3131]">
+                  {error}
+                </div>
+              ) : !order ? (
+                <div className="mt-6 rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
+                  <PackageSearch size={28} className="mx-auto text-[#214f14]" />
+                  <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
+                    Order not found
+                  </h2>
+                  <p className="mt-3 text-sm text-[#58724f]">
+                    We could not find the requested order in your account.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-0 md:mt-4 space-y-4 md:mt-6 md:space-y-6">
+                  <article className="overflow-hidden rounded-[1.2rem] bg-white md:shadow-[0_18px_45px_rgba(33,79,20,0.06)] pb-20 md:rounded-[1.8rem]">
+                    <div className="flex flex-col gap-3 border-b border-[#e2eadc] px-4 py-4 md:flex-row md:items-start md:justify-between md:px-6 md:py-5">
+                      <div className="hidden md:block">
+                        <h1 className="mt-1 text-[1.25rem] font-semibold text-gray-700 md:mt-2 md:text-2xl">
+                          Order Details
+                        </h1>
+                      </div>
+
+                      <div className="text-left md:text-right">
+                        {canShowInvoice ? (
+                          <OrderInvoiceDownloadButton order={order} />
+                        ) : null}
+                      </div>
                     </div>
 
-                    <div className="text-left md:text-right">
-                      
-                      {canShowInvoice ? (
-                        <OrderInvoiceDownloadButton order={order} />
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 p-4 md:space-y-6 md:p-6">
-                    <div className="p-0 md:p-4">
+                    <div className="space-y-4 p-4 md:space-y-6 md:p-6">
+                      <div className="p-0 md:p-4">
                         <div className="flex flex-col gap-3 border-b border-[#e6ede1] pb-4 md:flex-row md:items-start md:justify-between md:gap-4">
                           <div className="flex items-start gap-3 md:gap-4">
                             <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[0.8rem] bg-[#eef5e3] text-[#214f14] md:h-20 md:w-20 md:rounded-[1rem]">
@@ -536,7 +680,10 @@ export default function OrderDetailsPageClient({
                                   className="object-cover"
                                 />
                               ) : (
-                                <PackageSearch size={24} className="md:h-7 md:w-7" />
+                                <PackageSearch
+                                  size={24}
+                                  className="md:h-7 md:w-7"
+                                />
                               )}
                             </div>
 
@@ -545,9 +692,18 @@ export default function OrderDetailsPageClient({
                                 Order ID : {order.orderNumber || order.id}
                               </p>
                               <div className="mt-2 space-y-1 text-[12px] text-[#4f4f4f] md:mt-3 md:space-y-1.5 md:text-sm">
-                                <p>Order Status : {formatOrderStatus(order.currentStatus)}</p>
-                                <p>Order Date &amp; Time : {formatDateTime(order.createdAt)}</p>
-                                <p>Expected Delivery Date : {formatOrderDateOnly(order.deliveryDate)}</p>
+                                <p>
+                                  Order Status :{" "}
+                                  {formatOrderStatus(order.currentStatus)}
+                                </p>
+                                <p>
+                                  Order Date &amp; Time :{" "}
+                                  {formatDateTime(order.createdAt)}
+                                </p>
+                                <p>
+                                  Expected Delivery Date :{" "}
+                                  {formatOrderDateOnly(order.deliveryDate)}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -556,7 +712,9 @@ export default function OrderDetailsPageClient({
                             <p className="text-[1.1rem] font-semibold text-[#232323] md:text-2xl">
                               {formatCurrency(order.pricing.total)}
                             </p>
-                            <p className="mt-2 text-xs text-[#aaaaaa] md:mt-8 md:text-sm">View details</p>
+                            <p className="mt-2 text-xs text-[#aaaaaa] md:mt-8 md:text-sm">
+                              View details
+                            </p>
                           </div>
                         </div>
 
@@ -580,7 +738,10 @@ export default function OrderDetailsPageClient({
                                     className="object-cover"
                                   />
                                 ) : (
-                                  <PackageSearch size={18} className="md:h-[22px] md:w-[22px]" />
+                                  <PackageSearch
+                                    size={18}
+                                    className="md:h-[22px] md:w-[22px]"
+                                  />
                                 )}
                               </div>
 
@@ -593,8 +754,12 @@ export default function OrderDetailsPageClient({
                                 </p>
                                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.85rem] font-medium text-[#4a4a4a] md:mt-2 md:block md:text-[1.05rem]">
                                   {formatCurrency(item.unitPrice)}
-                                  <span className="md:hidden">{item.quantity} Pcs.</span>
-                                  <span className="md:hidden">{formatCurrency(item.subtotal)}</span>
+                                  <span className="md:hidden">
+                                    {item.quantity} Pcs.
+                                  </span>
+                                  <span className="md:hidden">
+                                    {formatCurrency(item.subtotal)}
+                                  </span>
                                 </div>
                               </div>
 
@@ -617,286 +782,386 @@ export default function OrderDetailsPageClient({
                             </span>
                           </div>
                         </div>
-                    </div>
-
-                    <div className="p-0 md:p-4">
-                      <h2 className="text-[1rem] font-medium text-[#353535] md:text-[1.1rem]">
-                        Order Updates
-                      </h2>
-                      <div className="mt-4 border-t border-[#e7e7e7]" />
-
-                      <div className="mt-6 space-y-0 md:mt-8">
-                        {buildStorefrontTrackingSteps(order).map((step, index, steps) => {
-                          const nextStep = steps[index + 1];
-                          const nextStepReached =
-                            nextStep?.state === "complete" || nextStep?.state === "current";
-                          const isErrorStep = step.tone === "error";
-                          const showCompletedTick =
-                            !isErrorStep &&
-                            (step.state === "complete" || step.key === "refunded");
-
-                          return (
-                            <div
-                              key={`${order.id}-${step.key}`}
-                              className="relative flex gap-4 pb-7 last:pb-0 md:gap-7 md:pb-10"
-                            >
-                              {index !== steps.length - 1 ? (
-                                <div
-                                  className={`absolute left-[10px] top-[22px] bottom-0 w-px md:left-[12px] md:top-[26px] ${
-                                    nextStepReached
-                                      ? "bg-[#8bc53f]"
-                                      : "bg-[repeating-linear-gradient(to_bottom,#bdbdbd_0,#bdbdbd_3px,transparent_3px,transparent_6px)]"
-                                  }`}
-                                />
-                              ) : null}
-
-                              <div className="relative z-10 shrink-0">
-                                {isErrorStep ? (
-                                  <XCircle
-                                    size={22}
-                                    className="rounded-full text-[#c83b3b]"
-                                  />
-                                ) : showCompletedTick ? (
-                                  <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#8bc53f] text-white">
-                                    <Check size={14} strokeWidth={3} />
-                                  </span>
-                                ) : (
-                                  <Circle
-                                    size={22}
-                                    className="rounded-full text-[#8bc53f]"
-                                  />
-                                )}
-                              </div>
-
-                              <div className="min-w-0 flex-1 pt-0.5">
-                                <p className="text-[0.95rem] font-semibold text-[#353535] md:text-[1.15rem]">
-                                  {step.title}
-                                </p>
-                                <p className="mt-3 text-[0.92rem] leading-6 text-[#4b4b4b] md:mt-7 md:text-[1.05rem]">
-                                  {step.message}
-                                </p>
-                                {step.timestamp ? (
-                                  <p className="mt-1 text-[11px] text-[#9a9a9a] md:text-sm">
-                                    {formatTrackingDetailDate(step.timestamp)}
-                                  </p>
-                                ) : null}
-                                {step.secondaryMessage ? (
-                                  <p className="mt-3 text-[0.92rem] leading-6 text-[#4b4b4b] md:mt-4 md:text-[1.05rem]">
-                                    {step.secondaryMessage}
-                                  </p>
-                                ) : null}
-                                {step.secondaryTimestamp ? (
-                                  <p className="mt-1 text-[11px] text-[#9a9a9a] md:text-sm">
-                                    {formatTrackingDetailDate(step.secondaryTimestamp)}
-                                  </p>
-                                ) : null}
-                                {step.actionLabel ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (step.actionType === "open_refund_form") {
-                                        setRefundError(null);
-                                        setIsRefundFormOpen(true);
-                                        return;
-                                      }
-
-                                      setIsRefundDetailsOpen(true);
-                                    }}
-                                    className="mt-3 inline-flex rounded-[0.45rem] bg-[#4f8f5f] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#447c52] md:mt-4 md:px-4 md:text-sm"
-                                  >
-                                    {step.actionLabel}
-                                  </button>
-                                ) : null}
-                              </div>
-                            </div>
-                          );
-                        })}
                       </div>
-                    </div>
 
-                    {reviewProduct ? (
                       <div className="p-0 md:p-4">
-                        <OrderReviewPrompt
-                          productId={reviewProduct.productId}
-                          productName={reviewProduct.productName}
-                        />
+                        <h2 className="text-[1rem] font-medium text-[#353535] md:text-[1.1rem]">
+                          Order Updates
+                        </h2>
+                        <div className="mt-4 border-t border-[#e7e7e7]" />
+
+                        <div className="mt-6 space-y-0 md:mt-8">
+                          {buildStorefrontTrackingSteps(order).map(
+                            (step, index, steps) => {
+                              const nextStep = steps[index + 1];
+                              const nextStepReached =
+                                nextStep?.state === "complete" ||
+                                nextStep?.state === "current";
+                              const isErrorStep = step.tone === "error";
+                              const showCompletedTick =
+                                !isErrorStep &&
+                                (step.state === "complete" ||
+                                  step.key === "refunded" ||
+                                  step.key === "placed" ||
+                                  (step.key === "shipped" &&
+                                    normalizedOrderStatus === "shipped") ||
+                                  (step.key === "out_for_delivery" &&
+                                    normalizedOrderStatus ===
+                                      "out_for_delivery") ||
+                                  (step.key === "delivered" &&
+                                    normalizedOrderStatus === "delivered"));
+
+                              return (
+                                <div
+                                  key={`${order.id}-${step.key}`}
+                                  className="relative flex gap-4 pb-7 last:pb-0 md:gap-7 md:pb-10"
+                                >
+                                  {index !== steps.length - 1 ? (
+                                    <div
+                                      className={`absolute left-[10px] top-[22px] bottom-0 w-px md:left-[12px] md:top-[26px] ${
+                                        nextStepReached
+                                          ? "bg-[#8bc53f]"
+                                          : "bg-[repeating-linear-gradient(to_bottom,#bdbdbd_0,#bdbdbd_3px,transparent_3px,transparent_6px)]"
+                                      }`}
+                                    />
+                                  ) : null}
+
+                                  <div className="relative z-10 shrink-0">
+                                    {isErrorStep ? (
+                                      <XCircle
+                                        size={22}
+                                        className="rounded-full text-[#c83b3b]"
+                                      />
+                                    ) : showCompletedTick ? (
+                                      <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#8bc53f] text-white">
+                                        <Check size={14} strokeWidth={3} />
+                                      </span>
+                                    ) : (
+                                      <Circle
+                                        size={22}
+                                        className="rounded-full text-[#8bc53f]"
+                                      />
+                                    )}
+                                  </div>
+
+                                  <div className="min-w-0 flex-1 pt-0.5">
+                                    <p className="text-[0.95rem] font-semibold text-[#353535] md:text-[1.15rem]">
+                                      {step.title}
+                                    </p>
+                                    <p className="mt-3 text-[0.92rem] leading-6 text-[#4b4b4b] md:mt-7 md:text-[1.05rem]">
+                                      {step.message}
+                                    </p>
+                                    {step.timestamp ? (
+                                      <p className="mt-1 text-[11px] text-[#9a9a9a] md:text-sm">
+                                        {formatTrackingDetailDate(
+                                          step.timestamp,
+                                        )}
+                                      </p>
+                                    ) : null}
+                                    {step.secondaryMessage ? (
+                                      <p className="mt-3 text-[0.92rem] leading-6 text-[#4b4b4b] md:mt-4 md:text-[1.05rem]">
+                                        {step.secondaryMessage}
+                                      </p>
+                                    ) : null}
+                                    {step.secondaryTimestamp ? (
+                                      <p className="mt-1 text-[11px] text-[#9a9a9a] md:text-sm">
+                                        {formatTrackingDetailDate(
+                                          step.secondaryTimestamp,
+                                        )}
+                                      </p>
+                                    ) : null}
+                                    {step.actionLabel ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (
+                                            step.actionType ===
+                                            "open_refund_form"
+                                          ) {
+                                            setRefundError(null);
+                                            setIsRefundFormOpen(true);
+                                            return;
+                                          }
+
+                                          setIsRefundDetailsOpen(true);
+                                        }}
+                                        className="mt-3 inline-flex rounded-full bg-[#207958] px-4 py-3 text-xs font-semibold text-white transition hover:bg-[#447c52] md:mt-4 md:px-4 md:text-sm"
+                                      >
+                                        {step.actionLabel}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              );
+                            },
+                          )}
+                        </div>
                       </div>
-                    ) : null}
+
+                      {reviewProduct ? (
+                        <div className="p-0 md:p-4">
+                          <OrderReviewPrompt
+                            productId={reviewProduct.productId}
+                            productName={reviewProduct.productName}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </article>
                 </div>
-                </article>
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
-      {isRefundFormOpen ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4 backdrop-blur-[2px]">
-          <button
-            type="button"
-            aria-label="Close refund account form"
-            className="absolute inset-0"
-            onClick={() => setIsRefundFormOpen(false)}
-          />
-          <div className="relative z-10 w-full max-w-2xl rounded-[1.6rem] bg-white p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-3xl font-medium text-[#2f2f2f]">
-                  Account Details
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRefundFormOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#46653f]"
-              >
-                <XCircle size={18} />
-              </button>
+              )}
             </div>
-
-            <div className="mt-4 border-t border-[#dddddd]" />
-
-            <form className="mt-6 space-y-5" onSubmit={handleRefundAccountSubmit}>
-              <label className="block">
-                <span className="text-sm text-[#6f6f6f]">Name as on Account</span>
-                <input
-                  value={refundForm.accountHolderName}
-                  onChange={(event) =>
-                    setRefundForm((current) => ({
-                      ...current,
-                      accountHolderName: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-none border border-[#d7d7d7] px-4 py-3 text-base text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-[#6f6f6f]">Bank Name</span>
-                <input
-                  value={refundForm.bankName}
-                  onChange={(event) =>
-                    setRefundForm((current) => ({
-                      ...current,
-                      bankName: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-none border border-[#d7d7d7] px-4 py-3 text-base text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-[#6f6f6f]">Account Number</span>
-                <input
-                  value={refundForm.accountNumber}
-                  onChange={(event) =>
-                    setRefundForm((current) => ({
-                      ...current,
-                      accountNumber: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-none border border-[#d7d7d7] px-4 py-3 text-base text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-[#6f6f6f]">Confirm Account Number</span>
-                <input
-                  value={refundForm.confirmAccountNumber}
-                  onChange={(event) =>
-                    setRefundForm((current) => ({
-                      ...current,
-                      confirmAccountNumber: event.target.value,
-                    }))
-                  }
-                  className="mt-2 w-full rounded-none border border-[#d7d7d7] px-4 py-3 text-base text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm text-[#6f6f6f]">IFSC Code</span>
-                <input
-                  value={refundForm.ifscCode}
-                  onChange={(event) =>
-                    setRefundForm((current) => ({
-                      ...current,
-                      ifscCode: event.target.value.toUpperCase(),
-                    }))
-                  }
-                  className="mt-2 w-full rounded-none border border-[#d7d7d7] px-4 py-3 text-base uppercase text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
-                />
-              </label>
-
-              {refundError ? (
-                <p className="text-sm font-medium text-[#b43f2a]">{refundError}</p>
-              ) : null}
-
-              <div className="flex justify-end">
+          </section>
+        </div>
+        {isRefundFormOpen ? (
+          <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/45 backdrop-blur-[2px] md:items-center md:px-4">
+            <button
+              type="button"
+              aria-label="Close refund account form"
+              className="absolute inset-0"
+              onClick={() => setIsRefundFormOpen(false)}
+            />
+            <div
+              className={`relative z-10 flex w-full flex-col bg-white shadow-[0_-12px_60px_rgba(0,0,0,0.18)] md:max-w-2xl md:rounded-[1.6rem] md:p-6 md:pb-6 md:shadow-[0_24px_80px_rgba(0,0,0,0.18)] ${
+                isRefundSheetKeyboardOpen
+                  ? "h-[100dvh] rounded-none p-4 pt-3"
+                  : "max-h-[88vh] rounded-t-[1.6rem] p-4"
+              }`}
+              style={
+                refundSheetViewportHeight
+                  ? {
+                      height: isRefundSheetKeyboardOpen
+                        ? `${refundSheetViewportHeight}px`
+                        : undefined,
+                      maxHeight: isRefundSheetKeyboardOpen
+                        ? `${refundSheetViewportHeight}px`
+                        : undefined,
+                    }
+                  : undefined
+              }
+            >
+              <div className="flex w-full items-center justify-center">
+                <div className="mb-3 h-1.5 w-12 rounded-full bg-[#e7e7e7] md:hidden" />
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-medium text-gray-800 md:text-3xl">
+                    Account Details
+                  </h3>
+                </div>
                 <button
-                  type="submit"
-                  disabled={refundSubmitting}
-                  className="inline-flex min-w-[160px] items-center justify-center bg-[#8ed59d] px-6 py-3 text-xl font-medium text-[#163915] transition hover:bg-[#7ecc90] disabled:cursor-not-allowed disabled:opacity-70"
+                  type="button"
+                  onClick={() => setIsRefundFormOpen(false)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-700"
                 >
-                  {refundSubmitting ? "Submitting..." : "Submit"}
+                  <X size={18} />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
 
-      {isRefundDetailsOpen && refundAccountDetails ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4 backdrop-blur-[2px]">
-          <button
-            type="button"
-            aria-label="Close refund account details"
-            className="absolute inset-0"
-            onClick={() => setIsRefundDetailsOpen(false)}
-          />
-          <div className="relative z-10 w-full max-w-xl rounded-[1.6rem] bg-white p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-3xl font-medium text-[#2f2f2f]">
-                  Account Details
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRefundDetailsOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#46653f]"
+              <div className="mt-4 border-t border-gray-200" />
+
+              <div
+                ref={refundSheetScrollRef}
+                className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+                  isRefundSheetKeyboardOpen
+                    ? "pb-[calc(1rem+env(safe-area-inset-bottom))]"
+                    : "pb-[calc(1rem+env(safe-area-inset-bottom))]"
+                }`}
+                style={{
+                  scrollPaddingBottom: isRefundSheetKeyboardOpen
+                    ? "220px"
+                    : "120px",
+                }}
               >
-                <XCircle size={18} />
-              </button>
-            </div>
+                <form
+                  className="mt-6 space-y-5 px-3 pb-28 md:pb-6"
+                  onSubmit={handleRefundAccountSubmit}
+                >
+                  <label className="block">
+                    <span className="text-sm text-[#6f6f6f]">
+                      Name as on Account
+                    </span>
+                    <input
+                      ref={(node) => {
+                        refundFieldRefs.current.accountHolderName = node;
+                      }}
+                      onFocus={(event) =>
+                        focusRefundInput("accountHolderName", event)
+                      }
+                      value={refundForm.accountHolderName}
+                      onChange={(event) =>
+                        setRefundForm((current) => ({
+                          ...current,
+                          accountHolderName: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-sm border border-gray-400 px-4 py-3 text-base text-gray-800 outline-none focus:border-[#93cf9e]"
+                    />
+                  </label>
 
-            <div className="mt-4 border-t border-[#dddddd]" />
+                  <label className="block">
+                    <span className="text-sm text-[#6f6f6f]">Bank Name</span>
+                    <input
+                      ref={(node) => {
+                        refundFieldRefs.current.bankName = node;
+                      }}
+                      onFocus={(event) => focusRefundInput("bankName", event)}
+                      value={refundForm.bankName}
+                      onChange={(event) =>
+                        setRefundForm((current) => ({
+                          ...current,
+                          bankName: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-sm border border-gray-400 px-4 py-3 text-base text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
+                    />
+                  </label>
 
-            <div className="mt-6 space-y-4 text-[#2f2f2f]">
-              <div>
-                <p className="text-sm text-[#6f6f6f]">Name as on Account</p>
-                <p className="mt-2 text-lg">{refundAccountDetails.accountHolderName || "-"}</p>
+                  <label className="block">
+                    <span className="text-sm text-[#6f6f6f]">
+                      Account Number
+                    </span>
+                    <input
+                      ref={(node) => {
+                        refundFieldRefs.current.accountNumber = node;
+                      }}
+                      onFocus={(event) =>
+                        focusRefundInput("accountNumber", event)
+                      }
+                      value={refundForm.accountNumber}
+                      onChange={(event) =>
+                        setRefundForm((current) => ({
+                          ...current,
+                          accountNumber: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-sm border border-gray-400 px-4 py-3 text-base text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm text-[#6f6f6f]">
+                      Confirm Account Number
+                    </span>
+                    <input
+                      ref={(node) => {
+                        refundFieldRefs.current.confirmAccountNumber = node;
+                      }}
+                      onFocus={(event) =>
+                        focusRefundInput("confirmAccountNumber", event)
+                      }
+                      value={refundForm.confirmAccountNumber}
+                      onChange={(event) =>
+                        setRefundForm((current) => ({
+                          ...current,
+                          confirmAccountNumber: event.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full rounded-sm border border-gray-400 px-4 py-3 text-base text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm text-[#6f6f6f]">IFSC Code</span>
+                    <input
+                      ref={(node) => {
+                        refundFieldRefs.current.ifscCode = node;
+                      }}
+                      onFocus={(event) => focusRefundInput("ifscCode", event)}
+                      value={refundForm.ifscCode}
+                      onChange={(event) =>
+                        setRefundForm((current) => ({
+                          ...current,
+                          ifscCode: event.target.value.toUpperCase(),
+                        }))
+                      }
+                      className="mt-2 w-full rounded-sm border border-gray-400 px-4 py-3 text-base uppercase text-[#2f2f2f] outline-none focus:border-[#93cf9e]"
+                    />
+                  </label>
+
+                  {refundError ? (
+                    <p className="text-sm font-medium text-[#b43f2a]">
+                      {refundError}
+                    </p>
+                  ) : null}
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={refundSubmitting}
+                      className="inline-flex min-w-[160px] items-center justify-center rounded-full bg-[#207958] px-6 py-3 text-base font-medium text-white transition hover:bg-[#7ecc90] disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {refundSubmitting ? "Submitting..." : "Submit"}
+                    </button>
+                  </div>
+                  <div className="h-20 md:hidden" />
+                </form>
               </div>
-              <div>
-                <p className="text-sm text-[#6f6f6f]">Bank Name</p>
-                <p className="mt-2 text-lg">{refundAccountDetails.bankName || "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#6f6f6f]">Account Number</p>
-                <p className="mt-2 text-lg">{refundAccountDetails.accountNumber || "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#6f6f6f]">IFSC Code</p>
-                <p className="mt-2 text-lg uppercase">{refundAccountDetails.ifscCode || "-"}</p>
-              </div>
-              {order?.refundRequestNote ? (
-                <div>
-                  <p className="text-sm text-[#6f6f6f]">Admin Note</p>
-                  <p className="mt-2 text-base">{order.refundRequestNote}</p>
-                </div>
-              ) : null}
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+
+        {isRefundDetailsOpen && refundAccountDetails ? (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4 backdrop-blur-[2px]">
+            <button
+              type="button"
+              aria-label="Close refund account details"
+              className="absolute inset-0"
+              onClick={() => setIsRefundDetailsOpen(false)}
+            />
+            <div className="relative z-10 w-full max-w-xl rounded-[1.6rem] bg-white p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-3xl font-medium text-[#2f2f2f]">
+                    Account Details
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsRefundDetailsOpen(false)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#46653f]"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+
+              <div className="mt-4 border-t border-[#dddddd]" />
+
+              <div className="mt-6 space-y-4 text-[#2f2f2f]">
+                <div>
+                  <p className="text-sm text-[#6f6f6f]">Name as on Account</p>
+                  <p className="mt-2 text-lg">
+                    {refundAccountDetails.accountHolderName || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-[#6f6f6f]">Bank Name</p>
+                  <p className="mt-2 text-lg">
+                    {refundAccountDetails.bankName || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-[#6f6f6f]">Account Number</p>
+                  <p className="mt-2 text-lg">
+                    {refundAccountDetails.accountNumber || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-[#6f6f6f]">IFSC Code</p>
+                  <p className="mt-2 text-lg uppercase">
+                    {refundAccountDetails.ifscCode || "-"}
+                  </p>
+                </div>
+                {order?.refundRequestNote ? (
+                  <div>
+                    <p className="text-sm text-[#6f6f6f]">Admin Note</p>
+                    <p className="mt-2 text-base">{order.refundRequestNote}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </>
     </SiteShell>
   );

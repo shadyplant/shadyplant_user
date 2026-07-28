@@ -24,6 +24,7 @@ import {
   sanitizeFormattedDeliveryAddress,
 } from "@/lib/deliveryAddress";
 import { writeCheckoutDraft } from "@/lib/checkoutSession";
+import { requestAppLocation } from "@/lib/nativeShare";
 import {
   checkShippingServiceability,
   type ShippingServiceabilityResponse,
@@ -235,6 +236,8 @@ export default function ProductDeliveryAddressPicker({
   const hasInitialPosition =
     Number.isFinite(Number(initialPosition?.lat)) &&
     Number.isFinite(Number(initialPosition?.lng));
+  // Is input field on focus state
+  const [isAddressFocused, setIsAddressFocused] = useState(false);
 
   const [isOpen, setIsOpen] = useState(false);
   const [address, setAddress] = useState(effectiveInitialAddress);
@@ -487,27 +490,25 @@ export default function ProductDeliveryAddressPicker({
   }
 
   function useCurrentLocation() {
-    if (!navigator.geolocation) {
-      setStatusMessage("Location access is not available on this browser.");
-      return;
-    }
-
     setIsLocating(true);
     setStatusMessage("Fetching your current location...");
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    requestAppLocation(
+      (location) => {
         setIsLocating(false);
         reverseGeocode({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
+          lat: location.latitude,
+          lng: location.longitude,
         });
       },
-      () => {
+      (error) => {
         setIsLocating(false);
-        setStatusMessage("Allow location permission or search manually.");
+        setStatusMessage(
+          error === "native_bridge_unavailable"
+            ? "Location access is not available on this browser."
+            : "Allow location permission or search manually.",
+        );
       },
-      { enableHighAccuracy: true, timeout: 10000 },
     );
   }
 
@@ -580,7 +581,7 @@ export default function ProductDeliveryAddressPicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex items-center justify-between gap-3 rounded-[0.85rem] border border-[#e4eadb] bg-white px-2 py-1 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#cfd8c3] hover:bg-[#fbfdf8]"
+        className="flex items-center justify-between gap-3 rounded-[0.5rem] border border-[#e4eadb] bg-white px-2 py-1 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#cfd8c3] hover:bg-[#fbfdf8]"
       >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center">
           <HomeLocationIcon />
@@ -598,14 +599,13 @@ export default function ProductDeliveryAddressPicker({
         <ChevronRight size={16} className="shrink-0 text-[#9a9a9a]" />
       </button>
     ) : variant === "checkout-card" ? (
-      <div className="flex items-start gap-3 rounded-[0.5rem] bg-gray-100 p-4">
-        <MapPin size={20} className="mt-1 shrink-0 text-[#173d12]" />
+      <div className="flex items-center gap-3 rounded-[0.5rem] p-0">
         <div className="min-w-0 flex-1">
-          <p className="mb-1 text-sm font-semibold ">Delivery To:</p>
+          {/* <p className="mb-1 text-sm font-semibold ">Delivery To:</p> */}
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="block w-full truncate text-left text-sm leading-relaxed text-[#111111] "
+            className="block w-full truncate text-left text-xs leading-tight text-[#111111]"
           >
             {address || emptyLabel}
           </button>
@@ -613,9 +613,9 @@ export default function ProductDeliveryAddressPicker({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="shrink-0 rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#3B5E2B] shadow-sm transition hover:bg-[#F7F8F4]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#3B5E2B] transition hover:bg-[#F7F8F4]"
         >
-          Change
+          <LocateFixed size={18} />
         </button>
       </div>
     ) : hasAddress ? (
@@ -715,10 +715,13 @@ export default function ProductDeliveryAddressPicker({
                         className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                         size={17}
                       />
+
                       <input
                         ref={addressInputRef}
                         type="text"
                         value={address}
+                        onFocus={() => setIsAddressFocused(true)}
+                        onBlur={() => setIsAddressFocused(false)}
                         onChange={(event) => {
                           const nextAddress = event.target.value;
                           setAddress(nextAddress);
@@ -734,34 +737,44 @@ export default function ProductDeliveryAddressPicker({
                           setStatusMessage("");
                         }}
                         placeholder="Type address, locality, or landmark"
-                        className="h-12 w-full rounded-xl border border-gray-300 pl-11 pr-12 text-sm text-gray-500 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                        className="h-12 w-full rounded-xl border border-gray-300 pl-11 pr-24 text-sm text-gray-500 outline-none transition focus:border-gray-500"
                       />
-                      {hasAddress ? (
+
+                      <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                        {hasAddress && isAddressFocused ? (
+                          <button
+                            type="button"
+                            onClick={clearAddress}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
+                            aria-label="Clear address"
+                          >
+                            <X size={16} />
+                          </button>
+                        ) : null}
+
                         <button
                           type="button"
-                          onClick={clearAddress}
-                          className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
-                          aria-label="Clear address"
+                          onClick={useCurrentLocation}
+                          disabled={isLocating}
+                          aria-label="Use current location"
+                          title={
+                            isLocating
+                              ? "Fetching current location..."
+                              : "Use current location"
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-[#214f14] transition hover:bg-gray-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          <X size={16} />
+                          <LocateFixed
+                            size={16}
+                            className={isLocating ? "animate-pulse" : ""}
+                          />
                         </button>
-                      ) : null}
+                      </div>
                     </div>
                   </Autocomplete>
 
-                  <button
-                    type="button"
-                    onClick={useCurrentLocation}
-                    className="mt-3 flex h-11 w-full items-center cursor-pointer justify-center gap-2 rounded-xl bg-[#edf5e1] text-sm font-semibold text-[#214f14]"
-                  >
-                    <LocateFixed size={17} />
-                    {isLocating
-                      ? "Fetching location..."
-                      : "Use current location"}
-                  </button>
-
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-[#dce8ce]">
-                    <div className="flex items-center justify-between gap-3 border-b border-[#e7efde] bg-[#f7fbf2] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#59734f]">
+                  <div className="mt-4 overflow-hidden rounded-xl md:rounded-2xl border border-[#dce8ce]">
+                    <div className="flex items-center justify-between gap-3 border-b border-[#e7efde] px-4 py-2 text-[11px] font-medium text-gray-700">
                       <span>Serviceability on map</span>
                       <div className="flex items-center gap-2 normal-case tracking-normal">
                         <button
@@ -859,7 +872,7 @@ export default function ProductDeliveryAddressPicker({
                           ? shippingServiceability.serviceable
                             ? "border-[#dce8ce] bg-[#eff8ea] text-[#1f6a34]"
                             : "border-[#f0d1d1] bg-[#fff1f1] text-[#b42318]"
-                          : "border-[#e7efde] bg-[#f7fbf2] text-[#59734f]"
+                          : "border-[#e7efde] bg-white text-gray-600"
                       }`}
                     >
                       {isCheckingShipping
@@ -899,7 +912,7 @@ export default function ProductDeliveryAddressPicker({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="h-12 rounded-xl border border-[#dce8ce] text-sm font-semibold text-[#214f14]"
+                className="h-12 rounded-sm border border-gray-200 text-sm font-semibold text-gray-800"
               >
                 Cancel
               </button>
@@ -945,10 +958,10 @@ export default function ProductDeliveryAddressPicker({
                   setIsOpen(false);
                 }}
                 disabled={!canCommitDeliveryAddress || isSavingProfile}
-                className={`h-12 rounded-xl text-sm font-semibold transition ${
+                className={`h-12 rounded-sm text-sm font-semibold transition ${
                   canCommitDeliveryAddress && !isSavingProfile
-                    ? "bg-[#245d00] text-white hover:bg-[#1b4700]"
-                    : "cursor-not-allowed bg-[#dce8ce] text-[#8aa27a]"
+                    ? "bg-[#207958] text-white hover:bg-[#1b4700]"
+                    : "cursor-not-allowed bg-[#20795840] text-gray-400"
                 }`}
               >
                 {isSavingProfile ? "Saving..." : "Done"}

@@ -11,6 +11,8 @@ type ProductCardCartControlProps = {
   productId: string;
   stock: number;
   minOrderQuantity: number;
+  tone?: "green" | "neutral";
+  compact?: boolean;
 };
 
 function AddCartIcon() {
@@ -80,6 +82,8 @@ export default function ProductCardCartControl({
   productId,
   stock,
   minOrderQuantity,
+  tone = "green",
+  compact = false,
 }: ProductCardCartControlProps) {
   const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
   const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
@@ -97,6 +101,14 @@ export default function ProductCardCartControl({
       : Math.max(1, minOrderQuantity);
   const displayQuantity = Math.max(effectiveMinimumQuantity, quantity);
   const inputValue = draftQuantity ?? String(displayQuantity);
+  const isNeutralTone = tone === "neutral";
+  const isCompact = compact;
+  const addButtonClassName = isNeutralTone
+    ? `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#4b5563] px-3 text-base font-bold tracking-normal text-white transition hover:bg-[#374151] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg cursor-pointer`
+    : `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#207958] px-3 text-white transition hover:bg-[#07ab4e] sm:h-12 sm:text-lg cursor-pointer`;
+  const notifyButtonClassName = isNeutralTone
+    ? `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#cfd5db] bg-transparent px-3 text-base font-bold tracking-normal text-[#4b5563] transition hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg`
+    : `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#55ad35] bg-transparent px-3 text-base font-bold tracking-normal text-[#2f6d1d] transition hover:bg-[#07ab4e] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg`;
 
   function swallowCardNavigation(
     event:
@@ -203,7 +215,7 @@ export default function ProductCardCartControl({
             ? "Stock notification already requested"
             : "Get stock notification"
         }
-        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#55ad35] bg-transparent px-3 text-base font-bold tracking-normal text-[#2f6d1d] transition hover:bg-[#07ab4e] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg"
+        className={notifyButtonClassName}
       >
         <span>
           {hasRequestedNotify
@@ -224,7 +236,7 @@ export default function ProductCardCartControl({
         onMouseDown={swallowCardNavigation}
         onTouchStart={swallowCardNavigation}
         onClick={() => void addFirstItem()}
-        className="relative z-30 mt-4 flex h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#207958] px-3 text-white transition hover:bg-[#07ab4e] sm:h-12 sm:text-lg cursor-pointer"
+        className={addButtonClassName}
       >
         <span>Add to cart</span>
         <AddCartIcon />
@@ -232,16 +244,16 @@ export default function ProductCardCartControl({
     );
   }
 
-  return (
-    <QuantityStepper
-      value={inputValue}
-      min={effectiveMinimumQuantity}
-      max={availableStock}
+    return (
+      <QuantityStepper
+        value={inputValue}
+        min={effectiveMinimumQuantity}
+        max={availableStock}
       ariaLabel="Cart quantity"
       decreaseAriaLabel="Decrease cart quantity"
       increaseAriaLabel="Increase cart quantity"
-      className="relative z-30 mt-4 transition"
-      increaseDisabled={quantity >= availableStock}
+      className={`relative z-30 mt-4 transition ${isCompact ? "w-auto max-w-[14rem]" : ""}`}
+        increaseDisabled={quantity >= availableStock}
       onMouseDown={swallowCardNavigation}
       onTouchStart={swallowCardNavigation}
       onInputFocus={(event) => {

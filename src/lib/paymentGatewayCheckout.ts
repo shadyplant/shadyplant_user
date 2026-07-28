@@ -188,5 +188,5 @@ export async function openPaymentGatewayCheckout(options: {
     throw new Error("Payment gateway redirect URL is missing.");
   }
 
-  window.location.assign(redirectUrl);
+  window.location.replace(redirectUrl);
 }

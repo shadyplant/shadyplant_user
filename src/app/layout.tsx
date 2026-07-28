@@ -1,9 +1,11 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { AppEnvironmentProvider } from "@/components/app-environment/AppEnvironmentProvider";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import MaintenanceNotice from "@/components/MaintenanceNotice";
 import SignInPromptModal from "@/components/auth/SignInPromptModal";
 import { appMono, appSans } from "@/lib/fonts";
+import { resolveAppEnvironment } from "@/lib/environment";
 import { isMaintenanceModeEnabled } from "@/lib/siteMode";
 import "./globals.css";
 
@@ -12,34 +14,50 @@ export const metadata: Metadata = {
   description: "E-commerce storefront for plants, lawn grass, and nursery essentials.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const appEnvironment = await resolveAppEnvironment();
+
   if (isMaintenanceModeEnabled()) {
     return (
-      <html lang="en" className="h-full antialiased">
+      <html
+        lang="en"
+        className="h-full antialiased"
+        data-is-app={appEnvironment.isApp ? "true" : "false"}
+        data-app-platform={appEnvironment.platform}
+      >
         <body
           className={`${appSans.variable} ${appMono.variable} min-h-full flex flex-col font-sans`}
         >
-          <MaintenanceNotice />
+          <AppEnvironmentProvider initialEnvironment={appEnvironment}>
+            <MaintenanceNotice />
+          </AppEnvironmentProvider>
         </body>
       </html>
     );
   }
 
   return (
-    <html lang="en" className="h-full antialiased">
+    <html
+      lang="en"
+      className="h-full antialiased"
+      data-is-app={appEnvironment.isApp ? "true" : "false"}
+      data-app-platform={appEnvironment.platform}
+    >
       <body
         className={`${appSans.variable} ${appMono.variable} min-h-full flex flex-col font-sans`}
       >
-        <AuthProvider>
-          {children}
-          <Suspense fallback={null}>
-            <SignInPromptModal />
-          </Suspense>
-        </AuthProvider>
+        <AppEnvironmentProvider initialEnvironment={appEnvironment}>
+          <AuthProvider>
+            {children}
+            <Suspense fallback={null}>
+              <SignInPromptModal />
+            </Suspense>
+          </AuthProvider>
+        </AppEnvironmentProvider>
       </body>
     </html>
   );

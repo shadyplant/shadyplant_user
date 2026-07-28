@@ -117,6 +117,7 @@ export async function renderProductDetailsPage({
             <div className="min-h-screen w-full">
               <MobileProductImageCarousel
                 images={product.images}
+                productId={product.id}
                 productName={product.name}
                 rating={
                   hasRatings
@@ -254,7 +255,7 @@ export async function renderProductDetailsPage({
                         <WishlistButton
                           productId={product.id}
                           size={25}
-                          className="p-1 rounded-lg bg-white/60 shadow-md backdrop-blur text-gray-600"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
                         />
 
                         <ShareButton
@@ -264,7 +265,7 @@ export async function renderProductDetailsPage({
                               : undefined
                           }
                           productName={product.name}
-                          className="p-1 rounded-lg bg-white/60 shadow-md backdrop-blur text-gray-600"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
                         />
                       </>
                     }

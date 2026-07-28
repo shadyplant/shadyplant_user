@@ -85,7 +85,7 @@ export default function OrderInvoiceDownloadButton({
         type="button"
         onClick={handleDownload}
         disabled={isGenerating}
-        className={`inline-flex min-w-[190px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.5rem] border border-[#dbe8cd] bg-white px-4 py-2 text-[0.9rem] font-semibold text-[#214f14] transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-70 md:text-[0.95rem] ${className}`.trim()}
+        className={`inline-flex min-w-[190px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.5rem] border border-gray-200 bg-white px-4 py-2 text-[0.9rem] font-semibold text-gray-700 transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-70 md:text-[0.95rem] ${className}`.trim()}
       >
         {isGenerating ? (
           <Loader2 size={20} className="h-5 w-5 shrink-0 animate-spin" />

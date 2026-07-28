@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpDown,
+  Heart,
   ListFilter,
+  ShoppingBasket,
   SlidersHorizontal,
   X,
 } from "lucide-react";
@@ -154,7 +156,9 @@ export default function SearchResultsPageClient({
       const matchesPrice =
         !selectedPriceRanges.length ||
         selectedPriceRanges.some((rangeId) =>
-          priceRanges.find((range) => range.id === rangeId)?.matches(product.price),
+          priceRanges
+            .find((range) => range.id === rangeId)
+            ?.matches(product.price),
         );
 
       return matchesQuery && matchesCategory && matchesBadge && matchesPrice;
@@ -212,7 +216,8 @@ export default function SearchResultsPageClient({
   useEffect(() => {
     const previousBackground = document.body.style.background;
     const previousBackgroundImage = document.body.style.backgroundImage;
-    const previousBackgroundAttachment = document.body.style.backgroundAttachment;
+    const previousBackgroundAttachment =
+      document.body.style.backgroundAttachment;
 
     document.body.style.background = "#ffffff";
     document.body.style.backgroundImage = "none";
@@ -274,10 +279,7 @@ export default function SearchResultsPageClient({
 
   const filterGroups = (
     <div className="space-y-4">
-      <details
-        open
-        className="rounded-[0.5rem] border border-gray-300 p-4"
-      >
+      <details open className="rounded-[0.5rem] border border-gray-200 p-4">
         <summary className="cursor-pointer list-none text-sm text-gray-600">
           Category
         </summary>
@@ -307,10 +309,7 @@ export default function SearchResultsPageClient({
         </div>
       </details>
 
-      <details
-        open
-        className="rounded-[0.5rem] border border-[#e3edd8] p-4"
-      >
+      <details open className="rounded-[0.5rem] border border-gray-200 p-4">
         <summary className="cursor-pointer list-none text-sm text-gray-600">
           Care Tags
         </summary>
@@ -340,10 +339,7 @@ export default function SearchResultsPageClient({
         </div>
       </details>
 
-      <details
-        open
-        className="rounded-[0.5rem] border border-[#e3edd8] p-4"
-      >
+      <details open className="rounded-[0.5rem] border border-gray-200 p-4">
         <summary className="cursor-pointer list-none text-sm text-gray-600">
           Price
         </summary>
@@ -384,11 +380,11 @@ export default function SearchResultsPageClient({
             sticky={false}
             onSearch={(nextQuery) => pushSearchState({ query: nextQuery })}
           />
-          <div className="grid h-[46px] grid-cols-[1fr_auto_1fr] items-center border-t border-[#f1f1f1]">
+          <div className="grid h-[46px] grid-cols-[1fr_auto_1fr] items-center border-t border-gray-100">
             <button
               type="button"
               onClick={() => setIsSortSheetOpen(true)}
-              className="flex h-full items-center justify-center gap-2 text-sm font-bold text-[#111111]"
+              className="flex h-full items-center justify-center gap-2 text-sm font-bold text-gray-700"
             >
               <ArrowUpDown size={15} strokeWidth={1.8} />
               Sort
@@ -397,7 +393,7 @@ export default function SearchResultsPageClient({
             <button
               type="button"
               onClick={() => setIsFilterSheetOpen(true)}
-              className="flex h-full items-center justify-center gap-2 text-sm font-bold text-[#111111]"
+              className="flex h-full items-center justify-center gap-2 text-sm font-bold text-gray-700"
             >
               <SlidersHorizontal size={15} strokeWidth={1.8} />
               Filter
@@ -405,16 +401,14 @@ export default function SearchResultsPageClient({
           </div>
         </div>
 
-        <section className="px-4 py-5 md:px-6 md:py-12">
+        <section className="px-2 py-5 md:px-6 md:py-12">
           <div className="mx-auto max-w-7xl">
             <div className="grid gap-0 lg:grid-cols-[290px_minmax(0,1fr)] lg:items-start">
               <aside className=" shadow-[0_22px_60px_rgba(33,79,20,0.08)] hidden p-5 lg:sticky lg:top-24 lg:block lg:self-start">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm text-gray-600">
-                      Filter By
-                    </p>
-                    <h2 className="mt-2 text-2xl text-[#163915]">
+                    <p className="text-sm text-gray-600">Filter By</p>
+                    <h2 className="mt-2 text-2xl text-gray-700">
                       Refine results
                     </h2>
                   </div>
@@ -434,7 +428,7 @@ export default function SearchResultsPageClient({
                 <div className="mt-6">{filterGroups}</div>
               </aside>
 
-              <div className="shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:px-4">
+              <div className="md:shadow-[0_22px_60px_rgba(33,79,20,0.08)] md:px-4">
                 <div className="mb-2 hidden flex-col gap-4 p-4  md:flex md:flex-row md:items-center md:justify-between">
                   {/* LEFT SIDE */}
                   <p className="text-sm text-gray-600">
@@ -469,7 +463,9 @@ export default function SearchResultsPageClient({
                         aria-expanded={isDesktopSortOpen}
                         className="flex w-full items-center justify-between gap-3 rounded-[0.85rem] border border-gray-300 bg-white px-4 py-3 text-left text-sm font-normal text-gray-600 shadow-[0_10px_24px_rgba(33,79,20,0.05)] outline-none transition hover:border-[#b8cca3] md:w-auto md:min-w-[240px]"
                       >
-                        <span className="truncate">{activeSortOption.label}</span>
+                        <span className="truncate">
+                          {activeSortOption.label}
+                        </span>
                         <span className="flex items-center text-[#5c7752]">
                           <SlidersHorizontal size={16} />
                         </span>
@@ -512,7 +508,6 @@ export default function SearchResultsPageClient({
 
                 {hasActiveFilters ? (
                   <div className="mb-5 hidden flex-wrap gap-2 md:flex">
-
                     {selectedCategories.map((category) => (
                       <button
                         key={category}
@@ -586,30 +581,28 @@ export default function SearchResultsPageClient({
                     ))}
                   </div>
                 ) : (
-                <div className="flex flex-col items-center justify-center bg-white px-6 py-16 text-center sm:py-24">
-  <h2 className="text-xl font-medium tracking-tight text-[#163915]">
-    No products found
-  </h2>
-  <p className="mt-2 max-w-sm text-sm text-zinc-500">
-    Try adjusting your keywords, removing some filters, or starting fresh.
-  </p>
-  
-  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-    <button
-      type="button"
-      onClick={() => router.push("/search")}
-      className="inline-flex items-center justify-center rounded-md bg-[#4c8b5d] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#4c8b5d]/80 focus:outline-none focus:ring-2 focus:ring-[#163915] focus:ring-offset-2"
-    >
-      Clear all filters
-    </button>
-    <Link
-      href="/"
-      className="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#163915] focus:ring-offset-2"
-    >
-      Back to home
-    </Link>
-  </div>
-</div>
+                  <div className="flex flex-col items-center justify-center bg-white px-6 py-16 text-center sm:py-24">
+                    {/* --------------- */}
+                    <div className="mx-auto max-w-3xl p-8 text-center md:p-10">
+                      <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full  ">
+                        <ShoppingBasket size={30} />
+                      </div>
+                      <h2 className="mt-6 text-2xl md:text-3xl text-gray-800">
+                        No products Found
+                      </h2>
+                      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                        <button
+                          onClick={() => router.push("/search")}
+                          className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-4 text-sm text-gray-700"
+                        >
+                          Clear All Filters
+                        </button>
+                      </div>
+                    </div>
+                    {/* --------------- */}
+
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row"></div>
+                  </div>
                 )}
               </div>
             </div>
@@ -631,20 +624,20 @@ export default function SearchResultsPageClient({
             />
 
             <div className="relative w-full rounded-t-[1.8rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
-              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7e3cc]" />
+              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-gray-200" />
               <div className="flex items-center justify-between gap-4 border-b border-[#e4edd9] px-5 py-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-gray-600">
                     Filter By
                   </p>
-                  <h2 className="mt-1 text-xl font-black text-[#163915]">
+                  <h2 className="mt-1 text-xl text-gray-700">
                     Refine results
                   </h2>
                 </div>
 
                 <button
                   type="button"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#4e6d46]"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500"
                   aria-label="Close filters"
                   onClick={() => setIsFilterSheetOpen(false)}
                 >
@@ -663,14 +656,14 @@ export default function SearchResultsPageClient({
                     router.push("/search");
                     setIsFilterSheetOpen(false);
                   }}
-                  className="rounded-full border border-[#cfe0b5] px-5 py-3 text-sm font-bold text-[#214f14]"
+                  className="rounded-full border border-gray-200 px-5 py-3 text-sm text-gray-700"
                 >
                   Clear all
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsFilterSheetOpen(false)}
-                  className="rounded-full bg-[#214f14] px-5 py-3 text-sm font-bold text-white"
+                  className="rounded-full bg-[#207958] px-5 py-3 text-sm text-white"
                 >
                   Show results
                 </button>
@@ -720,7 +713,9 @@ export default function SearchResultsPageClient({
                       setIsSortSheetOpen(false);
                     }}
                     className={`flex w-full items-center justify-between border-b border-[#f0f0f0] py-4 text-left text-sm font-semibold last:border-b-0 ${
-                      sort === option.value ? "text-[#214f14]" : "text-[#222222]"
+                      sort === option.value
+                        ? "text-[#214f14]"
+                        : "text-[#222222]"
                     }`}
                   >
                     {option.label}

@@ -105,7 +105,7 @@ export default async function LawnGrassPage() {
     : fallbackRecommendations;
 
   return (
-    <SiteShell hideMobileBottomNav>
+    <SiteShell hideMobileBottomNav hideMobileHeader>
       <LawnGrassBulkOrderPageClient
         product={product}
         recommendations={displayRecommendations}

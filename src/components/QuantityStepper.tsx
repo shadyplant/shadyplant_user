@@ -2,6 +2,7 @@
 
 import { Minus, Plus } from "lucide-react";
 import {
+  type CSSProperties,
   type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -27,6 +28,9 @@ type QuantityStepperProps = {
   onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   onMouseDown?: (event: MouseEvent<HTMLElement>) => void;
   onTouchStart?: (event: TouchEvent<HTMLElement>) => void;
+  iconSize?: number;
+  iconStrokeWidth?: number;
+  compact?: boolean;
 };
 
 function joinClassNames(...classNames: Array<string | undefined | false>) {
@@ -52,6 +56,9 @@ export default function QuantityStepper({
   onInputKeyDown,
   onMouseDown,
   onTouchStart,
+  iconSize = 19,
+  iconStrokeWidth = 2.7,
+  compact = false,
 }: QuantityStepperProps) {
   function handleInputFocus(event: FocusEvent<HTMLInputElement>) {
     onInputFocus?.(event);
@@ -68,8 +75,17 @@ export default function QuantityStepper({
 
   return (
     <div
+      style={
+        compact
+          ? ({
+              height: "1.75rem",
+              gridTemplateColumns: "1.45rem minmax(4ch,1fr) 1.45rem",
+            } as CSSProperties)
+          : undefined
+      }
       className={joinClassNames(
         "grid h-11 w-full shrink-0 grid-cols-[2.75rem_minmax(8ch,1fr)_2.75rem] items-center overflow-hidden rounded-[0.5rem] border border-[#4c8d5b] bg-white text-[#0d9a55] sm:h-12 sm:grid-cols-[3rem_minmax(9ch,1fr)_3rem]",
+        compact && "sm:h-12 sm:grid-cols-[3rem_minmax(9ch,1fr)_3rem] rounded-sm",
         className,
       )}
     >
@@ -80,9 +96,12 @@ export default function QuantityStepper({
         onTouchStart={onTouchStart}
         onClick={() => void onDecrease()}
         disabled={decreaseDisabled}
-        className="flex h-full touch-manipulation items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
+        className={joinClassNames(
+          "flex h-full touch-manipulation items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50",
+          compact && "text-[0.7rem]",
+        )}
       >
-        <Minus size={19} strokeWidth={2.7} />
+        <Minus size={iconSize} strokeWidth={iconStrokeWidth} />
       </button>
 
       <input
@@ -111,9 +130,12 @@ export default function QuantityStepper({
         onTouchStart={onTouchStart}
         onClick={() => void onIncrease()}
         disabled={increaseDisabled}
-        className="flex h-full touch-manipulation items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50"
+        className={joinClassNames(
+          "flex h-full touch-manipulation items-center justify-center bg-[#e7f9e7] transition hover:bg-[#d7f1d7] disabled:cursor-not-allowed disabled:opacity-50",
+          compact && "text-[0.7rem]",
+        )}
       >
-        <Plus size={21} strokeWidth={2.7} />
+        <Plus size={iconSize} strokeWidth={iconStrokeWidth} />
       </button>
     </div>
   );

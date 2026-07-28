@@ -42,6 +42,8 @@ import {
 } from "@/lib/validation";
 import { getProductHref } from "@/lib/productUrls";
 import QuantityStepper from "@/components/QuantityStepper";
+import { span } from "framer-motion/client";
+import SpinnerLoader from "../loader/spinner";
 
 const CART_DELIVERY_OFFSET_DAYS = 5;
 
@@ -155,10 +157,8 @@ function BillDetailsCard({
 
   return (
     <section className="rounded-b-md pt-2">
-      <h2 className="px-1 pb-3 text-[16px] text-[#111111]">
-        Bill details
-      </h2>
-      <div className="rounded-xl bg-white p-4 border border-[#d9d9d9] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <h2 className="px-1 pb-3 text-[16px] text-[#111111]">Bill details</h2>
+      <div className="rounded-xl bg-white p-4 border border-[#d9d9d9] shadow-[0_30px_90px_rgba(0,0,0,0.07)]">
         <div className="space-y-3 text-[13px] text-[#111111]">
           <div className="flex items-center justify-between gap-4">
             <span className="border-b border-dotted border-[#111111] leading-4">
@@ -170,13 +170,11 @@ function BillDetailsCard({
           <div className="flex items-center justify-between gap-4">
             <span>Delivery Charge</span>
             <span className="inline-flex min-w-[5.75rem] justify-end font-semibold tabular-nums">
-              {deliveryFee === null ? (
-                "---"
-              ) : deliveryFee ? (
-                formatCurrency(deliveryFee)
-              ) : (
-                "Free"
-              )}
+              {deliveryFee === null
+                ? "---"
+                : deliveryFee
+                  ? formatCurrency(deliveryFee)
+                  : "Free"}
             </span>
           </div>
           <div className="border-t border-dashed border-[#e5e7eb]" />
@@ -238,7 +236,9 @@ export default function CartPageClient() {
     );
   const [checkoutPreview, setCheckoutPreview] =
     useState<CheckoutPreview | null>(null);
-  const [guestDeliveryCharge, setGuestDeliveryCharge] = useState<number | null>(null);
+  const [guestDeliveryCharge, setGuestDeliveryCharge] = useState<number | null>(
+    null,
+  );
   const [isDeliveryQuoteLoading, setIsDeliveryQuoteLoading] = useState(false);
   const [deliveryQuoteError, setDeliveryQuoteError] = useState<string | null>(
     null,
@@ -246,12 +246,7 @@ export default function CartPageClient() {
   const [showDeliveryAddressAlert, setShowDeliveryAddressAlert] =
     useState(false);
   const lastAutoResolvedDeliveryAddressRef = useRef("");
-  const {
-    fetchWithAuth,
-    isAuthenticated,
-    updateProfile,
-    user,
-  } = useAuth();
+  const { fetchWithAuth, isAuthenticated, updateProfile, user } = useAuth();
   const {
     items: cartItems,
     clearItems,
@@ -294,7 +289,9 @@ export default function CartPageClient() {
     }
 
     const nextFormattedAddress = formatDeliveryAddress(savedDeliveryAddress);
-    setSelectedDeliveryAddress(sanitizeFormattedDeliveryAddress(nextFormattedAddress));
+    setSelectedDeliveryAddress(
+      sanitizeFormattedDeliveryAddress(nextFormattedAddress),
+    );
     setSelectedDeliveryAddressDetails(savedDeliveryAddress);
     writeCheckoutDraft({
       deliveryAddress: nextFormattedAddress,
@@ -310,9 +307,7 @@ export default function CartPageClient() {
       }
 
       const nextAddress =
-        typeof event.detail?.address === "string"
-          ? event.detail.address
-          : "";
+        typeof event.detail?.address === "string" ? event.detail.address : "";
       const nextPosition =
         event.detail?.position &&
         Number.isFinite(Number(event.detail.position.lat)) &&
@@ -338,7 +333,10 @@ export default function CartPageClient() {
       });
     }
 
-    window.addEventListener(DELIVERY_ADDRESS_EVENT, handleDeliveryAddressUpdate);
+    window.addEventListener(
+      DELIVERY_ADDRESS_EVENT,
+      handleDeliveryAddressUpdate,
+    );
 
     return () => {
       window.removeEventListener(
@@ -444,16 +442,18 @@ export default function CartPageClient() {
             geocode: (
               request: { address: string },
               callback: (
-                results: Array<{
-                  formatted_address?: string;
-                  address_components?: unknown;
-                  geometry?: {
-                    location?: {
-                      lat: () => number;
-                      lng: () => number;
-                    };
-                  };
-                }> | undefined,
+                results:
+                  | Array<{
+                      formatted_address?: string;
+                      address_components?: unknown;
+                      geometry?: {
+                        location?: {
+                          lat: () => number;
+                          lng: () => number;
+                        };
+                      };
+                    }>
+                  | undefined,
                 status: string,
               ) => void,
             ) => void;
@@ -488,7 +488,9 @@ export default function CartPageClient() {
       writeCheckoutDraft({
         deliveryAddress: normalizedAddress,
         deliveryAddressDetails:
-          selectedDeliveryAddressDetails || readCheckoutDraft()?.deliveryAddressDetails || null,
+          selectedDeliveryAddressDetails ||
+          readCheckoutDraft()?.deliveryAddressDetails ||
+          null,
         deliveryPosition: nextPosition,
       });
     });
@@ -540,19 +542,24 @@ export default function CartPageClient() {
           setCheckoutPreview(response.data.preview);
           setGuestDeliveryCharge(null);
         } else {
-          const response = await requestJson<DeliveryQuoteResponse>("/calc-delivery", {
-            method: "POST",
-            body: JSON.stringify({
-              weight: totalWeightKg,
-              lat: resolvedDeliveryPosition.lat,
-              lng: resolvedDeliveryPosition.lng,
-              state: selectedDeliveryAddressDetails?.state || "",
-            }),
-            signal: controller.signal,
-          });
+          const response = await requestJson<DeliveryQuoteResponse>(
+            "/calc-delivery",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                weight: totalWeightKg,
+                lat: resolvedDeliveryPosition.lat,
+                lng: resolvedDeliveryPosition.lng,
+                state: selectedDeliveryAddressDetails?.state || "",
+              }),
+              signal: controller.signal,
+            },
+          );
 
           if (!response.ok || !response.success) {
-            throw new Error(response.message || "Unable to calculate delivery charge.");
+            throw new Error(
+              response.message || "Unable to calculate delivery charge.",
+            );
           }
 
           setGuestDeliveryCharge(
@@ -841,16 +848,14 @@ export default function CartPageClient() {
             >
               <ArrowLeft size={24} strokeWidth={2.2} />
             </button>
-            <h1 className="text-lg text-[#111111]">
-              Shopping Cart
-            </h1>
+            <h1 className="text-lg text-[#111111]">Shopping Cart</h1>
           </div>
 
           <div
             ref={mobileDeliveryAddressRef}
-            className={`mt-3 rounded-xl transition ${
+            className={` rounded-xl transition ${
               showDeliveryAddressAlert
-                ? "border border-[#d93025] bg-[#fff6f5] p-2"
+                ? "border border-[#d93025] bg-[#fff6f5] p-0 md:p-2"
                 : "border border-transparent"
             }`}
           >
@@ -863,6 +868,30 @@ export default function CartPageClient() {
               onAddressChange={handleDeliveryAddressChange}
               onDone={handleDeliveryAddressDone}
             />
+            {!hasCheckoutAddress && (
+              <div className="w-full">
+                <style>{`
+    @keyframes shimmerSweep {
+      0% { transform: translateX(-150%) rotate(12deg); }
+      100% { transform: translateX(400%) rotate(12deg); }
+    }
+  `}</style>
+
+                <span className="relative inline-block overflow-hidden rounded-xs bg-[#ff0f0f10] px-3 py-1 text-xs font-medium text-[#ff0f0f]">
+                  <span className="relative z-10">
+                    Please pin your delivery location
+                  </span>
+
+                  <span
+                    className="absolute top-0 left-0 z-20 h-full w-16 bg-gradient-to-r from-transparent via-white/90 to-transparent blur-[1px]"
+                    style={{
+                      animation: "shimmerSweep 1.6s ease-in-out infinite",
+                    }}
+                    aria-hidden="true"
+                  />
+                </span>
+              </div>
+            )}
             {!showDeliveryAddressAlert &&
             hasCheckoutAddress &&
             !hasDeliveryCoordinates ? (
@@ -873,43 +902,50 @@ export default function CartPageClient() {
           </div>
 
           {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
-            <div className="mt-8 rounded-lg border border-[#e2e8dc] bg-[#fbfdf8] p-5 text-center">
-              <p className="text-sm font-bold text-[#111111]">
-                Loading your cart
-              </p>
-              <p className="mt-1 text-xs text-[#5c7752]">
-                Pulling your saved items.
-              </p>
-            </div>
+            <SpinnerLoader offset={130} />
           ) : !items.length ? (
-            <div className="mt-30 p-5 text-center">
-                <p className="mt-3 text-sm text-[#909090]">
-                Your cart is empty
-              </p>
-              <ShoppingCart className="mx-auto my-4 text-[#909090]" size={28} />
-                        <Link
-                href="/"
-                className=" inline-flex h-12 items-center justify-center rounded-full bg-[#4c8d5b] px-5 text-sm font-bold text-white"
-              >
-                Start shopping 
-              </Link>
+            <div className=" mx-auto max-w-3xl p-6 text-center md:p-10 min-h-[calc(100vh-180px)] flex flex-col items-center justify-center ">
+              <div>
+                <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full">
+                  <ShoppingCart size={30} />
+                </div>
+                <h2 className="mt-6 text-2xl text-gray-900">
+                  Your cart is empty
+                </h2>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  <Link
+                    href="/"
+                    className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
+                  >
+                    Shop Now
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
+              </div>
             </div>
           ) : (
             <>
-              <div className="mt-8 border-t border-[#eeeeee] pt-5">
-                <h2 className="text-[14px] font-black text-[#111111]">
+              {/* <div className="mt-0 border-t border-[#eeeeee] pt-2">
+                <h2 className="text-[14px] text-[#111111]">
                   Items ({itemCount})
                 </h2>
-              </div>
+              </div> */}
 
               <div className="mt-4 space-y-5">
                 {items.map((item) => {
                   const productHref = getProductHref(item.product);
+                  const productHighlights = [
+                    item.product.variety,
+                    item.product.containerSize,
+                    item.product.height,
+                  ]
+                    .map((value) => String(value || "").trim())
+                    .filter(Boolean);
 
                   return (
                     <article
                       key={item.id}
-                      className="rounded-md border border-[#d9d9d9] bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                      className="rounded-lg border border-[#d9d9d9] bg-white p-3 shadow-[0_30px_90px_rgba(0,0,0,0.03)]"
                     >
                       <div className="grid grid-cols-[84px_minmax(0,1fr)_auto] gap-3 min-[390px]:grid-cols-[96px_minmax(0,1fr)_auto] sm:grid-cols-[108px_minmax(0,1fr)_auto] sm:gap-4">
                         <Link
@@ -928,16 +964,21 @@ export default function CartPageClient() {
                         <div className="min-w-0">
                           <Link
                             href={productHref}
-                            className="line-clamp-1 text-[19px] font-semibold leading-6 text-[#111827] min-[390px]:text-[22px] min-[390px]:leading-7 sm:text-[24px]"
+                            className="line-clamp-1 text-base leading-6 text-gray-800 min-[390px]:text-[22px] min-[390px]:leading-7 sm:text-[24px]"
                           >
                             {item.product.name}
                           </Link>
+                          {productHighlights.length ? (
+                            <p className="mt-1 line-clamp-1 text-[12px] leading-4 text-[#7a7a7a] min-[390px]:text-[13px]">
+                              {productHighlights.join(" | ")}
+                            </p>
+                          ) : null}
                           {item.variantLabel || item.packLabel ? (
                             <p className="mt-1 text-[11px] font-medium text-[#58724f] min-[390px]:text-[12px]">
                               {item.variantLabel || item.packLabel}
                             </p>
                           ) : null}
-                          <p className="mt-1 text-[21px] font-black leading-none tracking-[-0.02em] text-[#111111] min-[390px]:text-[24px]">
+                          <p className="mt-1 text-lg font-semibold leading-none tracking-[-0.02em] text-gray-700 min-[390px]:text-[24px]">
                             {formatCurrency(item.subtotal)}
                           </p>
                           <p className="mt-2 text-[12px] font-medium text-[#202020]">
@@ -960,8 +1001,8 @@ export default function CartPageClient() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_12rem] items-center gap-2 min-[390px]:grid-cols-[minmax(0,1fr)_13.5rem] min-[390px]:gap-3 sm:grid-cols-[minmax(0,1fr)_20rem] lg:grid-cols-[minmax(0,1fr)_22.5rem] xl:grid-cols-[minmax(0,1fr)_25rem]">
-                        <div className="flex min-w-0 items-center gap-3 text-[12px] font-semibold text-[#30343b] min-[390px]:gap-5 min-[390px]:text-[14px] sm:gap-7">
+                      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_7.25rem] items-center gap-2 min-[390px]:grid-cols-[minmax(0,1fr)_8rem] min-[390px]:gap-2 min-[390px]:items-center sm:grid-cols-[minmax(0,1fr)_20rem] lg:grid-cols-[minmax(0,1fr)_22.5rem] xl:grid-cols-[minmax(0,1fr)_25rem]">
+                        <div className="flex min-w-0 items-center gap-3 text-[10px] font-semibold text-[#30343b] min-[390px]:gap-2 min-[390px]:text-[11px] sm:gap-7 sm:text-sm">
                           <button
                             type="button"
                             onClick={() => void removeItem(item.id)}
@@ -989,11 +1030,18 @@ export default function CartPageClient() {
                           decreaseDisabled={
                             item.quantity <= getItemMinimumQuantity(item)
                           }
-                          increaseDisabled={item.quantity >= item.availableStock}
+                          increaseDisabled={
+                            item.quantity >= item.availableStock
+                          }
+                          iconSize={11}
+                          iconStrokeWidth={2.1}
+                          compact
                           onInputFocus={() =>
                             updateDraftQuantity(item.id, String(item.quantity))
                           }
-                          onChange={(value) => updateDraftQuantity(item.id, value)}
+                          onChange={(value) =>
+                            updateDraftQuantity(item.id, value)
+                          }
                           onCommit={(value) => commitQuantity(item, value)}
                           onDecrease={() => decreaseQuantity(item)}
                           onIncrease={() => increaseQuantity(item)}
@@ -1015,21 +1063,21 @@ export default function CartPageClient() {
                 />
               </div>
 
-              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7eb] bg-white px-4 py-3">
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7eb] bg-white px-4 py-3 shadow-[0_-10px_28px_rgba(36,54,27,0.12)]">
                 <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] text-[#5c7752]">Total payable</p>
-                    <p className="text-lg font-black text-[#111111]">
+                    <p className="text-[11px] text-gray-500">Total payable</p>
+                    <p className="text-[1.9rem] font-medium text-gray-800 text-[#111111]">
                       {total === null ? "---" : formatCurrency(total)}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleCheckoutClick}
-                    className={`flex h-11 min-w-[150px] items-center justify-center rounded-md px-5 text-sm font-black transition ${
+                    className={`flex h-11 min-w-[150px] items-center justify-center rounded-md px-5 text-[1.2rem] sm:text-[1.35rem] transition ${
                       canProceedToCheckout
-                        ? "bg-[#214f14] text-white hover:bg-[#163915]"
-                        : "border border-[#d6e6bd] bg-white text-[#214f14] hover:bg-[#f4fbf2]"
+                        ? "bg-[#207958] text-white hover:bg-[#163915]"
+                        : "border border-gray-200 bg-white text-gray-300 hover:bg-[#f4fbf2]"
                     }`}
                   >
                     Place order
@@ -1044,29 +1092,29 @@ export default function CartPageClient() {
 
       <section className="hidden px-4 py-8 md:block md:px-6 md:py-0">
         <div className="mx-auto max-w-7xl">
-         <div className="flex items-center justify-between md:px-6 md:py-2">
-  {/* Back Button */}
-  <button
-    type="button"
-    onClick={() => router.back()}
-    className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 cursor-pointer"
-  >
-    <ArrowLeft size={16} />
-    Back
-  </button>
+          <div className="flex items-center justify-between md:px-6 md:py-2">
+            {/* Back Button */}
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 cursor-pointer"
+            >
+              <ArrowLeft size={16} />
+              Back
+            </button>
 
-  {/* Clear Cart */}
-  {items.length > 0 && (
-    <button
-      type="button"
-      onClick={() => void clearItems()}
-      className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-5 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
-    >
-      <Trash2 size={16} />
-      Clear Cart
-    </button>
-  )}
-</div>
+            {/* Clear Cart */}
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void clearItems()}
+                className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-5 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+              >
+                <Trash2 size={16} />
+                Clear Cart
+              </button>
+            )}
+          </div>
 
           <div
             ref={desktopDeliveryAddressRef}
@@ -1096,9 +1144,7 @@ export default function CartPageClient() {
 
           {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
             <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] backdrop-blur-[16px] md:p-10">
-              <h2 className="text-3xl  text-[#163915]">
-                Loading your cart
-              </h2>
+              <h2 className="text-3xl  text-[#163915]">Loading your cart</h2>
               <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
                 Pulling your saved cart from the server.
               </p>
@@ -1123,7 +1169,7 @@ export default function CartPageClient() {
                   Back to home
                 </Link>
 
-                   <Link
+                <Link
                   href="/"
                   className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
                 >
@@ -1137,6 +1183,13 @@ export default function CartPageClient() {
               <div className="space-y-4">
                 {items.map((item) => {
                   const productHref = getProductHref(item.product);
+                  const productHighlights = [
+                    item.product.variety,
+                    item.product.containerSize,
+                    item.product.height,
+                  ]
+                    .map((value) => String(value || "").trim())
+                    .filter(Boolean);
 
                   return (
                     <article
@@ -1164,6 +1217,11 @@ export default function CartPageClient() {
                           >
                             {item.product.name}
                           </Link>
+                          {productHighlights.length ? (
+                            <p className="mt-1 line-clamp-1 text-sm leading-5 text-[#7a7a7a]">
+                              {productHighlights.join(" | ")}
+                            </p>
+                          ) : null}
                           {item.variantLabel || item.packLabel ? (
                             <p className="mt-1 text-sm font-medium text-[#58724f]">
                               {item.variantLabel || item.packLabel}
@@ -1222,11 +1280,15 @@ export default function CartPageClient() {
                           decreaseDisabled={
                             item.quantity <= getItemMinimumQuantity(item)
                           }
-                          increaseDisabled={item.quantity >= item.availableStock}
+                          increaseDisabled={
+                            item.quantity >= item.availableStock
+                          }
                           onInputFocus={() =>
                             updateDraftQuantity(item.id, String(item.quantity))
                           }
-                          onChange={(value) => updateDraftQuantity(item.id, value)}
+                          onChange={(value) =>
+                            updateDraftQuantity(item.id, value)
+                          }
                           onCommit={(value) => commitQuantity(item, value)}
                           onDecrease={() => decreaseQuantity(item)}
                           onIncrease={() => increaseQuantity(item)}
@@ -1273,13 +1335,11 @@ export default function CartPageClient() {
                         Delivery
                       </span>
                       <span className="inline-flex min-w-[5.75rem] justify-end font-semibold tabular-nums text-gray-800">
-                        {deliveryFee === null ? (
-                          "---"
-                        ) : deliveryFee === 0 ? (
-                          "Free"
-                        ) : (
-                          formatCurrency(deliveryFee)
-                        )}
+                        {deliveryFee === null
+                          ? "---"
+                          : deliveryFee === 0
+                            ? "Free"
+                            : formatCurrency(deliveryFee)}
                       </span>
                     </div>
                   </div>
@@ -1291,7 +1351,6 @@ export default function CartPageClient() {
                         {total === null ? "---" : formatCurrency(total)}
                       </span>
                     </div>
-                 
                   </div>
                 </div>
 
@@ -1315,8 +1374,6 @@ export default function CartPageClient() {
                     Explore more products
                   </Link>
                 </div>
-
-                
               </aside>
             </div>
           )}
@@ -1345,7 +1402,6 @@ export default function CartPageClient() {
           </div>
         </div>
       </div>
-
     </SiteShell>
   );
 }

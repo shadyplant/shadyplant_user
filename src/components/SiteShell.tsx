@@ -21,13 +21,13 @@ export default function SiteShell({
   headerInitialAddress = "",
 }: SiteShellProps) {
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen overflow-x-hidden">
       {!hideHeader ? (
         <div className={hideMobileHeader ? "hidden md:block" : ""}>
           <EcomHeader initialDeliveryAddress={headerInitialAddress} />
         </div>
       ) : null}
-      <main>{children}</main>
+      <main className="overflow-x-hidden">{children}</main>
       {showFooter ? <SiteFooter /> : null}
       <div className={hideMobileBottomNav ? "hidden md:block" : ""}>
         <MobileBottomNav />

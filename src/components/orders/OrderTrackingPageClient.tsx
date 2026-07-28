@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowRight,
   ChevronRight,
   Clock3,
   Download,
@@ -58,9 +59,7 @@ function getReviewProduct(order: Order, previewProduct: Product | null) {
     previewItem?.productId ||
     "";
   const productName =
-    previewProduct?.name ||
-    order.orderItems?.[0]?.name ||
-    "Delivered item";
+    previewProduct?.name || order.orderItems?.[0]?.name || "Delivered item";
 
   return productId ? { productId, productName } : null;
 }
@@ -107,19 +106,29 @@ function OrderPreviewCard({
 }) {
   const currentStep = getCurrentTrackingStep(order);
   const orderHref = getOrderHref(order.id);
-  const previewImage = previewProduct?.image || order.orderItems?.[0]?.image || null;
+  const previewImage =
+    previewProduct?.image || order.orderItems?.[0]?.image || null;
   const thumbnailPreview = buildOrderThumbnailPreview(order, previewImage);
   const reviewProduct = isDelivered(order)
     ? getReviewProduct(order, previewProduct)
     : null;
-  const currentStatus = String(order.currentStatus || "").trim().toLowerCase();
-  const isRefunded = String(order.currentStatus || "").trim().toLowerCase() === "refunded";
+  const currentStatus = String(order.currentStatus || "")
+    .trim()
+    .toLowerCase();
+  const isRefunded =
+    String(order.currentStatus || "")
+      .trim()
+      .toLowerCase() === "refunded";
   const canShowInvoice =
     !isRefunded &&
-    String(order.paymentStatus || "").trim().toLowerCase() === "paid";
+    String(order.paymentStatus || "")
+      .trim()
+      .toLowerCase() === "paid";
   const isCancelled = currentStatus === "cancelled";
   const isPaidOrder =
-    String(order.paymentStatus || "").trim().toLowerCase() === "paid";
+    String(order.paymentStatus || "")
+      .trim()
+      .toLowerCase() === "paid";
   const showRefundAction = isCancelled && isPaidOrder;
   const refundActionLabel =
     order.refundRequestStatus === "refunded"
@@ -300,7 +309,8 @@ function OrderPreviewCard({
               </Link>
               <div className="mt-2.5 space-y-1 text-[0.9rem] leading-6 text-[#4a4a4a] md:text-[0.96rem]">
                 <p>
-                  Order Status : {currentStep?.title || formatOrderStatus(order.currentStatus)}
+                  Order Status :{" "}
+                  {currentStep?.title || formatOrderStatus(order.currentStatus)}
                 </p>
                 <p>Order Date &amp; Time : {formatDateTime(order.createdAt)}</p>
                 <p>
@@ -309,18 +319,24 @@ function OrderPreviewCard({
                     : `Expected Delivery Date : ${formatOrderDateOnly(order.deliveryDate)}`}
                 </p>
                 <p className="line-clamp-1">
-                  Delivery Address : {formatAddress(order) || "Address unavailable"}
+                  Delivery Address :{" "}
+                  {formatAddress(order) || "Address unavailable"}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-5 lg:min-w-[340px] lg:justify-between">
-            <Link href={orderHref} className="text-left lg:text-right lg:self-end">
+            <Link
+              href={orderHref}
+              className="text-left lg:text-right lg:self-end"
+            >
               <p className="text-[1rem] font-bold text-gray-700 md:text-[1.1rem]">
                 {formatCurrency(order.pricing.total)}
               </p>
-              <p className="mt-1 text-[0.82rem] text-gray-500 md:text-[0.88rem]">View details</p>
+              <p className="mt-1 text-[0.82rem] text-gray-500 md:text-[0.88rem]">
+                View details
+              </p>
             </Link>
 
             <div className="flex flex-nowrap items-center gap-3 lg:justify-end">
@@ -497,9 +513,11 @@ export default function OrderTrackingPageClient() {
         <section className="min-h-screen bg-white px-4 py-4 md:px-8 md:py-12">
           <div className="mx-auto max-w-5xl">
             <div className="mb-6">
-              <h2 className="text-[1.2rem] text-gray-900 md:text-3xl">Your Orders</h2>
+              <h2 className="text-[1.2rem] text-gray-900 md:text-3xl">
+                Your Orders
+              </h2>
               <div className="mt-4 flex items-center gap-2">
-                <label className="flex flex-1 items-center gap-2 rounded-[0.7rem] border border-[#dedede] bg-white px-3 py-2.5">
+                <label className="flex h-[42px] flex-1 items-center gap-2 rounded-[0.7rem] border border-gray-200 bg-white px-3">
                   <Search size={16} className="shrink-0 text-[#8f8f8f]" />
                   <input
                     type="search"
@@ -514,7 +532,7 @@ export default function OrderTrackingPageClient() {
                 <button
                   type="button"
                   onClick={() => setIsMobileFilterOpen(true)}
-                  className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-[0.7rem] border border-[#dedede] bg-white text-[#6f6f6f] md:hidden"
+                  className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-[0.7rem] border border-gray-200 bg-white text-[#6f6f6f] md:hidden"
                   aria-label="Filter orders by status"
                 >
                   <SlidersHorizontal size={18} />
@@ -573,24 +591,25 @@ export default function OrderTrackingPageClient() {
             </div>
 
             {!isReady || (isAuthenticated && orders === null && !error) ? (
-              <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-6 text-sm text-[#58724f]">
-                Loading your orders...
+              <div className="space-y-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <OrderPreviewCardSkeleton key={index} />
+                ))}
               </div>
             ) : !isAuthenticated ? (
-              <div className="rounded-[1.6rem] border border-[#dbe8cd] bg-white p-8 text-center shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
-                <PackageSearch size={28} className="mx-auto text-[#214f14]" />
-                <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#163915]">
+              <div className=" p-8 text-center flex flex-col gap-5">
+                <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full  ">
+                  <PackageSearch size={28} />
+                </div>
+                <h2 className="text-2xl md:text-3xl text-gray-800">
                   Sign in to view your orders
                 </h2>
-                <p className="mt-3 text-sm text-[#58724f]">
-                  Your order timeline and delivery history are available after
-                  login.
-                </p>
                 <Link
                   href="/auth?next=/order"
-                  className="mt-6 inline-flex rounded-full bg-[#214f14] px-5 py-3 text-sm font-semibold text-white"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#207958] px-6 py-4 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
                 >
                   Continue to sign in
+                  <ArrowRight size={16} />
                 </Link>
               </div>
             ) : error ? (
@@ -619,21 +638,46 @@ export default function OrderTrackingPageClient() {
                 </div>
 
                 {!filteredOrders.length ? (
-                  <div className="rounded-[1.6rem] p-8 text-center">
-                    <PackageSearch
-                      size={28}
-                      className="mx-auto text-gray-400"
-                    />
-                    <h2 className="mt-4 text-2xl text-gray-500">
-                      No orders found
-                    </h2>
-                    <Link
-                      href="/"
-                      className="mt-6 inline-flex rounded-full bg-[#207958] px-6 py-3 text-sm font-semibold text-white"
-                    >
-                      Shop Now
-                    </Link>
-                  </div>
+                  // <div className="rounded-[1.6rem] p-8 text-center">
+                  //   <PackageSearch
+                  //     size={28}
+                  //     className="mx-auto text-gray-400"
+                  //   />
+                  //   <h2 className="mt-4 text-2xl text-gray-500">
+                  //     No orders found
+                  //   </h2>
+                  //   <Link
+                  //     href="/"
+                  //     className="mt-6 inline-flex rounded-full bg-[#207958] px-6 py-3 text-sm font-semibold text-white"
+                  //   >
+                  //     Shop Now
+                  //   </Link>
+                  // </div>
+
+
+                  <div className=" mx-auto max-w-3xl p-6 text-center md:p-10">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full">
+                <PackageSearch size={30} />
+              </div>
+              <h2 className="mt-6 text-3xl text-gray-900">
+                Empty
+              </h2>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Link
+                  href="/"
+                  className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
+                >
+                  Shop Now
+                  <ArrowRight size={16} />
+                </Link>
+                <Link
+                  href="/cart"
+                  className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3"
+                >
+                  View cart
+                </Link>
+              </div>
+            </div>
                 ) : (
                   <div className="space-y-4">
                     {filteredOrders.map((order) => {
@@ -713,5 +757,64 @@ export default function OrderTrackingPageClient() {
         </div>
       ) : null}
     </SiteShell>
+  );
+}
+
+function OrderPreviewCardSkeleton() {
+  return (
+    <article className="animate-pulse rounded-[0.8rem] bg-white p-2 shadow-[0_16px_36px_rgba(33,79,20,0.05)] md:p-4">
+      <div className="rounded-[1rem] px-2 py-2 md:px-4 md:py-4">
+        {/* Mobile */}
+        <div className="flex items-center gap-3 py-2 md:hidden">
+          <div className="relative h-[84px] w-[84px] shrink-0">
+            <div className="absolute left-1 top-2 h-[62px] w-[62px] rotate-[-8deg] rounded-[0.45rem] bg-gray-200" />
+            <div className="absolute left-4 top-0 h-[62px] w-[62px] rotate-[4deg] rounded-[0.45rem] bg-gray-300" />
+            <div className="absolute left-0 top-6 h-[62px] w-[62px] rotate-[6deg] rounded-[0.45rem] bg-gray-400" />
+          </div>
+
+          <div className="flex-1 space-y-3">
+            <div className="h-3 w-32 rounded bg-gray-200" />
+            <div className="h-3 w-28 rounded bg-gray-200" />
+            <div className="h-4 w-20 rounded bg-gray-300" />
+          </div>
+
+          <div className="h-6 w-6 rounded-full bg-gray-200" />
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden gap-5 md:grid lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="flex gap-5">
+            <div className="relative h-[116px] w-[116px] shrink-0">
+              <div className="absolute left-1 top-2 h-[82px] w-[82px] rotate-[-8deg] rounded-[0.45rem] bg-gray-200" />
+              <div className="absolute left-5 top-0 h-[82px] w-[82px] rotate-[4deg] rounded-[0.45rem] bg-gray-300" />
+              <div className="absolute left-0 top-9 h-[82px] w-[82px] rotate-[6deg] rounded-[0.45rem] bg-gray-400" />
+            </div>
+
+            <div className="flex-1 pt-1">
+              <div className="h-5 w-56 rounded bg-gray-300" />
+
+              <div className="mt-5 space-y-3">
+                <div className="h-4 w-48 rounded bg-gray-200" />
+                <div className="h-4 w-60 rounded bg-gray-200" />
+                <div className="h-4 w-56 rounded bg-gray-200" />
+                <div className="h-4 w-full max-w-md rounded bg-gray-200" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-between items-end">
+            <div>
+              <div className="ml-auto h-6 w-24 rounded bg-gray-300" />
+              <div className="mt-2 ml-auto h-3 w-20 rounded bg-gray-200" />
+            </div>
+
+            <div className="flex gap-3">
+              <div className="h-11 w-40 rounded-[0.55rem] bg-gray-200" />
+              <div className="h-11 w-44 rounded-[0.55rem] bg-gray-200" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }

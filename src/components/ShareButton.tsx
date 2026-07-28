@@ -3,6 +3,8 @@
 import { Check, Copy, Mail, MessageCircle, QrCode, Share2, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useAppEnvironment } from "@/components/app-environment/AppEnvironmentProvider";
+import { shareViaNativeApp } from "@/lib/nativeShare";
 
 type ShareButtonProps = {
   url?: string;
@@ -15,6 +17,7 @@ export default function ShareButton({
   productName,
   className = "",
 }: ShareButtonProps) {
+  const { isApp } = useAppEnvironment();
   const [status, setStatus] = useState<"idle" | "copied" | "error">("idle");
   const [open, setOpen] = useState(false);
 
@@ -36,6 +39,17 @@ export default function ShareButton({
   }, [href]);
 
   const handleShare = async () => {
+    if (
+      isApp &&
+      shareViaNativeApp({
+        title: productName || document.title,
+        url: href,
+        text: shareText,
+      })
+    ) {
+      return;
+    }
+
     setOpen(true);
   };
 
@@ -70,7 +84,7 @@ export default function ShareButton({
     typeof document !== "undefined" && open
       ? createPortal(
           <div
-            className="fixed inset-0 z-[130] flex items-end justify-center bg-[#0f170c]/18 px-3 py-4 backdrop-blur-[6px] md:items-center md:px-6 md:py-6"
+            className="fixed inset-0 z-[130] flex items-end justify-center bg-[#0f170c]/18 px-2 py-2 backdrop-blur-[6px] md:items-center md:px-6 md:py-6"
             role="dialog"
             aria-modal="true"
             aria-label="Share product"
@@ -82,40 +96,42 @@ export default function ShareButton({
               aria-label="Close share options"
             />
 
-            <section className="relative z-[1] w-full max-w-[44rem] overflow-hidden rounded-[1rem] border border-[#e8e8e8] bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)]">
-              <div className="flex items-start justify-between gap-4 border-b border-[#e8e8e8] bg-white px-5 py-4 md:px-7">
+            <section className="relative z-[1] w-full max-w-[44rem] overflow-hidden rounded-t-[1.4rem] border border-[#e8e8e8] bg-white shadow-[0_-18px_60px_rgba(0,0,0,0.18)] md:rounded-[1rem] md:shadow-[0_30px_90px_rgba(0,0,0,0.22)]">
+              <div className="flex items-start justify-between gap-3 border-b border-[#e8e8e8] bg-white px-4 py-4 md:gap-4 md:px-7">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6b8b58]">
                     Share product
                   </p>
-                  <h2 className="mt-1 line-clamp-2 text-lg font-bold leading-snug text-[#171410]">
+                  <h2 className="mt-1 line-clamp-2 text-[1rem] font-bold leading-snug text-[#171410] md:text-lg">
                     {productName || "Product"}
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e4e4e4] text-[#666666] transition hover:bg-neutral-50"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e4e4e4] text-[#666666] transition hover:bg-neutral-50 md:h-10 md:w-10"
                   aria-label="Close share popup"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="max-h-[calc(92vh-74px)] overflow-y-auto p-4 md:p-6">
+              <div className="max-h-[calc(92vh-74px)] overflow-y-auto px-3 py-4 md:p-6">
                 <div className="grid gap-4 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-                  <div>
-                    <div className="rounded-2xl border border-[#e7e7e7] bg-[#fafafa] px-3 py-2.5">
-                      <p className="truncate text-xs text-[#5f5f5f]">{href}</p>
+                  <div className="min-w-0">
+                    <div className="max-w-full overflow-hidden rounded-2xl border border-[#e7e7e7] bg-[#fafafa] px-3 py-2.5">
+                      <p className="line-clamp-2 break-all text-[11px] leading-4 text-[#5f5f5f]">
+                        {href}
+                      </p>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-3 gap-3">
+                    <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-3">
                       <button
                         type="button"
                         onClick={handleCopy}
-                        className="flex flex-col items-center gap-2 rounded-2xl border border-[#e7e7e7] bg-white px-2 py-3 text-xs font-semibold text-[#171410] transition hover:-translate-y-0.5 hover:border-[#cfd8c0]"
+                        className="flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-2xl border border-[#e7e7e7] bg-white px-1 py-1.5 text-[10px] font-semibold text-[#171410] transition hover:-translate-y-0.5 hover:border-[#cfd8c0] sm:min-h-[92px] sm:px-2 sm:py-3 sm:text-xs"
                       >
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14] sm:h-10 sm:w-10">
                           {status === "copied" ? <Check size={18} /> : <Copy size={18} />}
                         </span>
                         {status === "copied" ? "Copied" : "Copy"}
@@ -125,9 +141,9 @@ export default function ShareButton({
                         href={whatsappHref}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex flex-col items-center gap-2 rounded-2xl border border-[#e7e7e7] bg-white px-2 py-3 text-xs font-semibold text-[#171410] transition hover:-translate-y-0.5 hover:border-[#cfe7d3]"
+                        className="flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-2xl border border-[#e7e7e7] bg-white px-1 py-1.5 text-[10px] font-semibold text-[#171410] transition hover:-translate-y-0.5 hover:border-[#cfe7d3] sm:min-h-[92px] sm:px-2 sm:py-3 sm:text-xs"
                       >
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f8ed] text-[#168a3f]">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#e8f8ed] text-[#168a3f] sm:h-10 sm:w-10">
                           <MessageCircle size={18} />
                         </span>
                         WhatsApp
@@ -135,9 +151,9 @@ export default function ShareButton({
 
                       <a
                         href={emailHref}
-                        className="flex flex-col items-center gap-2 rounded-2xl border border-[#e7e7e7] bg-white px-2 py-3 text-xs font-semibold text-[#171410] transition hover:-translate-y-0.5 hover:border-[#dbe4f2]"
+                        className="flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-2xl border border-[#e7e7e7] bg-white px-1 py-1.5 text-[10px] font-semibold text-[#171410] transition hover:-translate-y-0.5 hover:border-[#dbe4f2] sm:min-h-[92px] sm:px-2 sm:py-3 sm:text-xs"
                       >
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#eef4fc] text-[#2c6db3]">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#eef4fc] text-[#2c6db3] sm:h-10 sm:w-10">
                           <Mail size={18} />
                         </span>
                         Email
@@ -149,7 +165,7 @@ export default function ShareButton({
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-[#e7e7e7] bg-white p-4">
+                  <div className="rounded-2xl border border-[#e7e7e7] bg-white p-4 md:p-4">
                     <div className="flex items-center gap-2 text-sm font-bold text-[#171410]">
                       <QrCode size={17} />
                       Scan QR code

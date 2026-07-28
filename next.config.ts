@@ -16,7 +16,7 @@ const contentSecurityPolicy = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.chatbase.co https://sdk.cashfree.com",
-  "connect-src 'self' https: http://localhost:8080 http://127.0.0.1:8080 ws://localhost:* ws://127.0.0.1:* https://maps.googleapis.com https://maps.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.googleapis.com https://www.chatbase.co",
+  "connect-src 'self' https: http://localhost:8080 http://127.0.0.1:8080 http://192.168.1.34:8080 ws://192.168.1.34:* ws://localhost:* ws://127.0.0.1:* https://maps.googleapis.com https://maps.gstatic.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.googleapis.com https://www.chatbase.co",
   "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://*.web.app https://www.chatbase.co https://chatbase.co https://sdk.cashfree.com https://sandbox.cashfree.com",
 ].join("; ");
 

@@ -7,6 +7,7 @@ import Link from "next/link";
 import ProductCard from "./ProductCard";
 import { ChevronLeft } from "lucide-react";
 import SiteFooter from "./SiteFooter";
+import MobileSearchHeader from "./MobileSearchHeader";
 import Slider, { Banner, getBanners } from "./slider/Slider";
 
 type LawnGrassBulkOrderPageClientProps = {
@@ -44,12 +45,13 @@ export default function LawnGrassBulkOrderPageClient({
 
   return (
     <main className="min-h-screen">
+      <MobileSearchHeader />
       <div className="mx-auto flex w-full max-w-7xl px-4 flex-col gap-0 md:gap-0">
-        {BackButtonBar()}
+        <div className="hidden md:block">{BackButtonBar()}</div>
 
-        <Slider banners={banners} autoPlay intervalMs={5000}/>
+        {/* <Slider banners={banners} autoPlay intervalMs={5000}/> */}
 
-        <section className="bg-white md:pt-5">
+        <section className="bg-white pt-2 md:pt-5">
           <LawnGrassBulkOrderEstimator
             product={product}
           />
@@ -59,7 +61,7 @@ export default function LawnGrassBulkOrderPageClient({
           recommendations,
         })}
 
-      </div>
+      </div>f
 
        <SiteFooter />
     </main>

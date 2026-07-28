@@ -85,7 +85,7 @@ export default function SeeInActionCarousel({
           Real life view
         </h2>
         <p className="mt-0.5 text-[11px] leading-4 text-[#555555] md:text-sm">
-          Real customer-style clips and previews for {productName}
+          Real clips and previews for {productName}
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export default function SeeInActionCarousel({
                 type="button"
                 onClick={() => openImage(index)}
                 aria-label={`Open ${productName} real life view ${index + 1}`}
-                className="relative h-[360px] w-[230px] shrink-0 snap-start select-none overflow-hidden rounded-2xl shadow-sm md:h-[500px] md:w-[300px]"
+                className="relative h-[280px] w-[230px] shrink-0 snap-start select-none overflow-hidden rounded-2xl shadow-sm md:h-[500px] md:w-[300px]"
               >
                 <Image
                   src={image}
@@ -168,7 +168,7 @@ export default function SeeInActionCarousel({
                       <button
                         type="button"
                         onClick={goToPrevious}
-                        className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#e4e4e4] bg-white text-[#171410] shadow-md transition hover:bg-neutral-50 md:left-4 md:h-11 md:w-11"
+                        className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-300 bg-white/20 backdrop-blur text-white shadow-md transition hover:bg-neutral-50 md:left-4 md:h-11 md:w-11"
                         aria-label="Show previous real life image"
                       >
                         <ChevronLeft size={20} className="md:hidden" />
@@ -177,22 +177,22 @@ export default function SeeInActionCarousel({
                       <button
                         type="button"
                         onClick={goToNext}
-                        className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#e4e4e4] bg-white text-[#171410] shadow-md transition hover:bg-neutral-50 md:right-4 md:h-11 md:w-11"
+                        className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-300 bg-white/20 backdrop-blur text-white shadow-md transition hover:bg-neutral-50 md:right-4 md:h-11 md:w-11"
                         aria-label="Show next real life image"
                       >
                         <ChevronRight size={20} className="md:hidden" />
                         <ChevronRight size={22} className="hidden md:block" />
                       </button>
 
-                      <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-full border border-white/70 bg-white/90 px-3 py-2 shadow-sm backdrop-blur">
+                      <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-full border border-white/70 bg-white/90 px-1.5 py-1 shadow-sm backdrop-blur">
                         {galleryImages.map((image, index) => (
                           <button
                             key={`${image}-dot-${index}`}
                             type="button"
                             onClick={() => setActiveIndex(index)}
                             aria-label={`Show ${productName} real life view ${index + 1}`}
-                            className={`h-2.5 rounded-full transition ${
-                              index === activeIndex ? "w-5 bg-[#171410]" : "w-2.5 bg-[#171410]/35"
+                            className={`h-2 rounded-full transition ${
+                              index === activeIndex ? "w-5 bg-[#171410]" : "w-2 bg-[#171410]/35"
                             }`}
                           />
                         ))}

@@ -35,8 +35,8 @@ export default function ProductCard({ product }: ProductCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover transition duration-500 group-hover/image:scale-105"
           />
-          <span className="pointer-events-none absolute right-1 top-1 bg-white/92 px-[0.1rem] py-[0.1rem] text-xs font-semibold px-[0.3rem] rounded-[0.25rem] tracking-[0.1em] text-[#214f14] opacity-0 backdrop-blur transition-opacity duration-200 group-hover/image:opacity-100 group-focus-within/image:opacity-100 group-active/image:opacity-100">
-            Real Image
+          <span className="pointer-events-none absolute left-2 top-2 bg-white/92 px-[0.1rem] py-[0.1rem] text-[10px] font-semibold px-[0.3rem] rounded-[0.25rem] text-[#214f14] opacity-0 backdrop-blur transition-opacity duration-200 group-hover/image:opacity-100 group-focus-within/image:opacity-100 group-active/image:opacity-100">
+            Original
           </span>
           <div className="absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-md bg-white/70 px-1 py-0.5 text-[#111111] shadow-[0_6px_18px_rgba(0,0,0,0.12)] backdrop-blur-md md:bottom-2 md:left-2 md:gap-1.5 md:rounded-lg md:px-2 md:py-1">
             <Star
@@ -49,11 +49,17 @@ export default function ProductCard({ product }: ProductCardProps) {
             </span>
           </div>
         </Link>
+
+        <WishlistButton
+          productId={product.id}
+          size={21}
+          className="absolute right-2 top-2 z-20 shrink-0 rounded-full bg-white/70 p-1 shadow-[0_6px_18px_rgba(0,0,0,0.12)] backdrop-blur transition-colors hover:bg-white/90 sm:right-2.5 sm:top-2.5"
+        />
       </div>
 
       <div className="relative z-10 pt-3">
         <Link href={productHref} className="block min-w-0">
-          <h3 className="mt-1 min-h-[2.5rem] pr-9 text-xs font-bold leading-tight tracking-normal text-[#050505] line-clamp-2 sm:min-h-0 sm:line-clamp-none sm:pr-11 sm:text-lg">
+          <h3 className="mt-1 min-h-[2.2rem] text-sm font-bold  tracking-normal text-[#050505] line-clamp-2 sm:min-h-0 sm:line-clamp-none  sm:text-lg">
             {product.name}
           </h3>
 
@@ -64,7 +70,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           ) : (
             <>
               {productHighlights.length ? (
-                <p className="mt-0 line-clamp-1 pr-2 text-[10px] leading-4 text-[#7a7a7a] sm:text-xs">
+                <p className="mt-0 line-clamp-1 pr-2 text-[12px] leading-4 text-[#7a7a7a] sm:text-xs">
                   {productHighlights.join(" | ")}
                 </p>
               ) : null}
@@ -72,24 +78,18 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </Link>
 
-        <WishlistButton
-          productId={product.id}
-          size={26}
-          className="absolute right-0 top-[0.95rem] z-20 shrink-0 p-1 text-[#207958] transition-colors sm:right-1 sm:top-[2.35rem]"
-        />
-
-        <div className="mt-4 sm:mt-5">
+        <div className="mt-2 md:mt-4 sm:mt-5">
           <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-base font-medium leading-none tracking-normal text-[#07ab4e] sm:text-2xl">
+            <span className="text-base font-medium text-[#07ab4e] sm:text-2xl">
               {formatCurrency(product.price)}
             </span>
             {product.mrp > product.price ? (
-              <span className="text-xs leading-none text-[#9b9b9b] line-through sm:text-base">
+              <span className="text-[14px] font-semidbold text-[#9b9b9b] line-through sm:text-base">
                 {formatCurrency(product.mrp)}
               </span>
             ) : null}
           </div>
-          <p className="mt-0 pr-9 text-[10px] leading-5 text-[#707070] sm:pr-11 sm:text-xs">
+          <p className="mt-0 text-[12px] text-[#707070]  sm:text-xs">
             Min. Qty - {product.minOrderQuantity} Pcs.
           </p>
           <ProductCardCartControl

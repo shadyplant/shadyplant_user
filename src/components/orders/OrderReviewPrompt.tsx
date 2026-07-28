@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Loader2, MessageSquare, Pencil, Star, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { type ApiResponse } from "@/lib/api";
@@ -128,8 +135,11 @@ export default function OrderReviewPrompt({
   const [body, setBody] = useState("");
   const [isExpandedDesktop, setIsExpandedDesktop] = useState(false);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+  const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false);
+  const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const mobileTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loadMyReview = useCallback(async () => {
     if (!isReady || !isAuthenticated || !productId) {
@@ -158,6 +168,8 @@ export default function OrderReviewPrompt({
 
   useEffect(() => {
     if (!isMobileSheetOpen) {
+      setIsMobileKeyboardOpen(false);
+      setMobileKeyboardInset(0);
       return;
     }
 
@@ -168,8 +180,42 @@ export default function OrderReviewPrompt({
     };
   }, [isMobileSheetOpen]);
 
+  useEffect(() => {
+    if (!isMobileSheetOpen || typeof window === "undefined") {
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    if (!viewport) {
+      return;
+    }
+
+    const getKeyboardOpenState = () => {
+      const viewportHeight = viewport.height || window.innerHeight;
+      const keyboardInset = Math.max(
+        0,
+        window.innerHeight - viewportHeight - viewport.offsetTop,
+      );
+      setMobileKeyboardInset(keyboardInset);
+      return keyboardInset > 120;
+    };
+
+    const updateKeyboardState = () => {
+      setIsMobileKeyboardOpen(getKeyboardOpenState());
+    };
+
+    updateKeyboardState();
+    viewport.addEventListener("resize", updateKeyboardState);
+    viewport.addEventListener("scroll", updateKeyboardState);
+
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardState);
+      viewport.removeEventListener("scroll", updateKeyboardState);
+    };
+  }, [isMobileSheetOpen]);
+
   const activeRating = hoveredRating || rating;
-  const canSubmit = rating > 0 && body.trim().length > 9;
+  const canSubmit = rating > 0 && body.trim().length > 3;
   const hasReview = Boolean(review);
   const reviewStatus = review?.status ?? null;
   const cardHeading = hasReview ? "Rate and Review us" : "Rate this order";
@@ -192,6 +238,8 @@ export default function OrderReviewPrompt({
       setRating(starValue);
     }
     setIsMobileSheetOpen(true);
+    setIsMobileKeyboardOpen(false);
+    setMobileKeyboardInset(0);
     setSubmitError(null);
   }
 
@@ -235,7 +283,7 @@ export default function OrderReviewPrompt({
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
           <p className="text-[1.05rem] font-semibold text-[#353535]">
-            {hasReview ? "Rate and Review us" : "Rate this order"}
+            {hasReview ? "Rate and Review us" : ""}
           </p>
           {!isMobile ? (
             <p className="mt-1 text-sm text-[#6e8664]">{productName}</p>
@@ -254,22 +302,48 @@ export default function OrderReviewPrompt({
         </div>
 
         <textarea
+          ref={mobileTextareaRef}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder="Write your review"
           rows={isMobile ? 4 : 3}
-          className="w-full resize-none rounded-2xl border border-[#dce8ce] bg-white px-4 py-3 text-sm leading-6 text-[#163915] outline-none transition placeholder:text-[#a0af97] focus:border-[#9dc07b] focus:ring-4 focus:ring-[#edf7e8]"
+          onFocus={() => {
+            if (!isMobile) {
+              return;
+            }
+
+            setIsMobileKeyboardOpen(true);
+            window.setTimeout(() => {
+              mobileTextareaRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            }, 120);
+          }}
+          onBlur={() => {
+            if (!isMobile) {
+              return;
+            }
+
+            window.setTimeout(() => {
+              const activeElement = document.activeElement;
+              if (activeElement !== mobileTextareaRef.current) {
+                setIsMobileKeyboardOpen(false);
+              }
+            }, 80);
+          }}
+          className="w-full resize-none rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm leading-6 text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-[#9dc07b] focus:ring-4 focus:ring-[#edf7e8]"
         />
 
         {submitError ? (
           <p className="text-sm font-medium text-[#b43f2a]">{submitError}</p>
         ) : null}
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-3 md:justify-start">
           <button
             type="submit"
             disabled={!canSubmit || isSubmitting}
-            className="inline-flex items-center justify-center gap-2 rounded-[0.5rem] bg-[#4f8f5f] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#173f10] disabled:cursor-not-allowed disabled:bg-[#cbd8c1]"
+            className="inline-flex items-center justify-center gap-2 rounded-[0.5rem] bg-[#207958] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#173f10] disabled:cursor-not-allowed disabled:bg-[#20795840]"
           >
             {isSubmitting ? (
               <Loader2 size={16} className="animate-spin" />
@@ -305,7 +379,7 @@ export default function OrderReviewPrompt({
 
   return (
     <>
-      <section className="border-t border-gray-300 p-4">
+      <section className="border-t border-gray-300 p-0 md:p-4">
         <div className="mt-4 hidden md:block">
           {isExpandedDesktop ? (
             renderFormContent(false)
@@ -367,7 +441,7 @@ export default function OrderReviewPrompt({
         <button
           type="button"
           onClick={() => openEditorForMobile()}
-          className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-[#dce8ce] bg-white px-4 py-3 text-left md:hidden"
+          className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-left md:hidden"
         >
           <div className="min-w-0">
             <div className="flex items-center gap-3">
@@ -402,32 +476,39 @@ export default function OrderReviewPrompt({
       </section>
 
       {isMobileSheetOpen ? (
-        <div className="fixed inset-0 z-[95] flex items-end bg-black/45 px-0 backdrop-blur-[2px] md:hidden">
+        <div className="fixed inset-0 z-[95] flex items-start overflow-y-auto bg-black/45 px-0 backdrop-blur-[2px] md:hidden">
           <button
             type="button"
             className="absolute inset-0"
             aria-label="Close review editor"
             onClick={() => setIsMobileSheetOpen(false)}
           />
-          <div className="relative w-full rounded-t-[1.9rem] bg-white px-5 pb-6 pt-3 shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
-            <div className="mx-auto h-1.5 w-12 rounded-full bg-[#d8e3cd]" />
+          <div
+            className="relative mt-auto w-full rounded-t-[1.9rem] bg-white px-5 pt-3 shadow-[0_-18px_70px_rgba(0,0,0,0.22)]"
+            style={{
+              paddingBottom: isMobileKeyboardOpen
+                ? `calc(${Math.max(mobileKeyboardInset + 160, 340)}px + env(safe-area-inset-bottom))`
+                : "calc(1rem + env(safe-area-inset-bottom))",
+            }}
+          >
+            <div className="mx-auto h-1.5 w-12 rounded-full bg-gray-200" />
             <div className="mt-4 flex items-start justify-between gap-4">
               <div>
-                <p className="text-lg font-black text-[#163915]">
+                <p className="text-lg font-medium text-gray-800">
                   {cardHeading}
                 </p>
-                <p className="mt-1 text-sm text-[#6e8664]">{productName}</p>
+                <p className="mt-1 text-sm text-gray-500">{productName}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsMobileSheetOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#46653f]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-700"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="mt-5">{renderFormContent(true)}</div>
+            <div className="mt-5 pb-4">{renderFormContent(true)}</div>
           </div>
         </div>
       ) : null}

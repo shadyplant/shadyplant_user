@@ -3,15 +3,19 @@
 import Image from "next/image";
 import { Star } from "lucide-react";
 import { useRef, useState } from "react";
+import ShareButton from "@/components/ShareButton";
+import WishlistButton from "@/components/WishlistButton";
 
 type MobileProductImageCarouselProps = {
   images: string[];
+  productId: string;
   productName: string;
   rating?: string;
 };
 
 export default function MobileProductImageCarousel({
   images,
+  productId,
   productName,
   rating,
 }: MobileProductImageCarouselProps) {
@@ -95,9 +99,22 @@ export default function MobileProductImageCarousel({
           )}
         </div>
 
-        <span className="absolute right-3 top-3 px-2.5 py-1 text-[9px] bg-white font-black uppercase tracking-[0.18em] text-[#214f14]">
-          Real Image
+        <span className="absolute left-3 top-3 z-20 rounded-sm bg-white px-2 py-1 text-[10px] text-[#214f14] shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
+          Original
         </span>
+
+        <div className="absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
+          <WishlistButton
+            productId={productId}
+            size={18}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
+          />
+          <ShareButton
+            productName={productName}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
+          />
+        </div>
+
         {rating ? (
           <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-md bg-white/50 px-2 py-1 text-xs font-black text-[#171410] shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md">
             <Star size={13} fill="currentColor" className="text-[#f4b400]" />
@@ -121,8 +138,8 @@ export default function MobileProductImageCarousel({
                   aria-pressed={isActive}
                   className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-white transition ${
                     isActive
-                      ? "border-[#214f14] ring-2 ring-[#214f14]/15"
-                      : "border-[#d6e6bd] hover:border-[#8ca773]"
+                      ? "border-2 border-gray-600"
+                      : "border-gray-300 hover:border-[#8ca773]"
                   }`}
                 >
                   <Image

@@ -107,8 +107,9 @@ export default function ProductImageGallery({
     select-none
   "
 >
-  Real Image
+  Original
 </span>
+
           <div className="relative aspect-square min-h-[280px] sm:min-h-[420px] lg:min-h-[560px] xl:min-h-[620px]">
             <Image
               src={activeImage}

@@ -7,7 +7,6 @@ import {
   Crown,
   Heart,
   LogOut,
-  Menu,
   Search,
   ShoppingCart,
   UserRound,
@@ -23,7 +22,7 @@ import { readCheckoutDraft } from "@/lib/checkoutSession";
 import { getProductHref } from "@/lib/productUrls";
 import ProductDeliveryAddressPicker from "./ProductDeliveryAddressPicker";
 
-const TOP_OFFER_MARQUEE_IS_ANIMATED = false;
+const TOP_OFFER_MARQUEE_IS_ANIMATED = true;
 
 const flashSaleMessages = [
   "Off on ₹700+",
@@ -59,25 +58,18 @@ type Suggestion = {
   href: string;
 };
 
-function formatCollectionLabel(value: string) {
-  return value
-    .split(/[\s_-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
-}
-
 type EcomHeaderProps = {
   initialDeliveryAddress?: string;
 };
 
-export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderProps) {
+export default function EcomHeader({
+  initialDeliveryAddress = "",
+}: EcomHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, logout, user } = useAuth();
 
   // Main States
-  const [menuOpen, setMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -124,7 +116,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
           product.category,
           product.badge,
           product.description,
-        ].some((value) => value.toLowerCase().includes(normalizedSearch))
+        ].some((value) => value.toLowerCase().includes(normalizedSearch)),
       )
       .map((product) => ({
         label: product.name,
@@ -133,21 +125,6 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
       }))
       .slice(0, 6);
   }, [normalizedSearch, products]);
-
-  const collectionLinks = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(
-        products
-          .map((product) => String(product.category || "").trim())
-          .filter(Boolean),
-      ),
-    );
-
-    return uniqueCategories.slice(0, 6).map((category) => ({
-      label: formatCollectionLabel(category),
-      href: `/search?category=${encodeURIComponent(category)}`,
-    }));
-  }, [products]);
 
   const showSuggestions = isSearchFocused && suggestions.length > 0;
 
@@ -172,9 +149,12 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
       }, 1350);
     } else if (isDeleting) {
       if (typedPlaceholder.length > 0) {
-        timeout = setTimeout(() => {
-          setTypedPlaceholder((prev) => prev.slice(0, -1));
-        }, 35 + Math.random() * 25); // Natural delete speed
+        timeout = setTimeout(
+          () => {
+            setTypedPlaceholder((prev) => prev.slice(0, -1));
+          },
+          35 + Math.random() * 25,
+        ); // Natural delete speed
       } else {
         timeout = setTimeout(() => {
           setIsDeleting(false);
@@ -185,9 +165,14 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
       }
     } else {
       if (typedPlaceholder.length < currentText.length) {
-        timeout = setTimeout(() => {
-          setTypedPlaceholder(currentText.slice(0, typedPlaceholder.length + 1));
-        }, 60 + Math.random() * 50); // Natural typing variation
+        timeout = setTimeout(
+          () => {
+            setTypedPlaceholder(
+              currentText.slice(0, typedPlaceholder.length + 1),
+            );
+          },
+          60 + Math.random() * 50,
+        ); // Natural typing variation
       } else {
         timeout = setTimeout(() => {
           setPauseAtEnd(true);
@@ -202,20 +187,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
   }, [typedPlaceholder, placeholderIndex, isDeleting, pauseAtEnd, searchTerm]);
 
   useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [menuOpen]);
-
-  useEffect(() => {
     const resetOverlayState = window.setTimeout(() => {
-      setMenuOpen(false);
       setMobileSearchOpen(false);
     }, 0);
 
@@ -270,7 +242,8 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
     const updateMeasurements = () => {
       setHeaderHeight(headerElement.getBoundingClientRect().height);
 
-      const flashSaleHeight = flashSaleElement?.getBoundingClientRect().height || 0;
+      const flashSaleHeight =
+        flashSaleElement?.getBoundingClientRect().height || 0;
       setIsHeaderPinned(window.scrollY > flashSaleHeight);
     };
 
@@ -293,10 +266,9 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
       window.removeEventListener("resize", updateMeasurements);
       window.removeEventListener("scroll", updateMeasurements);
     };
-  }, [menuOpen, mobileSearchOpen]);
+  }, [mobileSearchOpen]);
 
   function closeOverlays() {
-    setMenuOpen(false);
     setMobileSearchOpen(false);
     setIsSearchFocused(false);
   }
@@ -320,8 +292,10 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
   }
 
   function renderSearchBox(defaultPlaceholder: string, mobile = false) {
-    const baseText = mobile || searchTerm.trim() ? defaultPlaceholder : typedPlaceholder;
-    const cursor = !searchTerm.trim() && baseText ? (showCursor ? " |" : "  ") : "";
+    const baseText =
+      mobile || searchTerm.trim() ? defaultPlaceholder : typedPlaceholder;
+    const cursor =
+      !searchTerm.trim() && baseText ? (showCursor ? " |" : "  ") : "";
     const displayText = baseText + cursor;
 
     return (
@@ -345,7 +319,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
           >
             <input
               ref={mobile ? mobileSearchInputRef : undefined}
-              type="search"
+              type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
@@ -365,12 +339,12 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
           </form>
 
           {showSuggestions && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
               <div className="p-2">
                 <Link
                   href={`/search?q=${encodeURIComponent(searchTerm.trim())}`}
                   onClick={closeOverlays}
-                  className="mb-2 flex items-center justify-between rounded-2xl bg-gray-100 px-3 py-3 transition-colors hover:bg-gray-200"
+                  className="mb-2 flex items-center justify-between rounded-md bg-gray-100 px-3 py-3 transition-colors hover:bg-gray-200"
                 >
                   <div>
                     <p className="text-sm font-semibold text-gray-800">
@@ -418,7 +392,9 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
               ? "animate-[flash-sale-marquee_24s_linear_infinite] hover:[animation-play-state:paused]"
               : "w-full justify-center"
           }`}
-          style={{ width: TOP_OFFER_MARQUEE_IS_ANIMATED ? "max-content" : undefined }}
+          style={{
+            width: TOP_OFFER_MARQUEE_IS_ANIMATED ? "max-content" : undefined,
+          }}
         >
           {(TOP_OFFER_MARQUEE_IS_ANIMATED ? [0, 1] : [0]).map((groupIndex) => (
             <div
@@ -432,7 +408,9 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                   className="inline-flex shrink-0 items-center pl-5 text-[0.7rem] leading-none font-medium tracking-[0.01em] text-[#fff9f2] md:text-[0.9rem]"
                 >
                   {message}
-                  <span className="ml-5 text-[0.75rem] text-[#fff1a8] md:text-[0.85rem]">✦</span>
+                  <span className="ml-5 text-[0.75rem] text-[#fff1a8] md:text-[0.85rem]">
+                    ✦
+                  </span>
                 </span>
               ))}
             </div>
@@ -471,8 +449,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
               <div className="flex items-center justify-self-end gap-1.5 md:gap-2.5">
                 <div className="hidden lg:block">
                   <div className=" bg-white px-1.5 py-1">
-
-                       <ProductDeliveryAddressPicker
+                    <ProductDeliveryAddressPicker
                       variant="header-inline"
                       initialAddress={headerDeliveryAddress}
                       emptyLabel="Set your Location"
@@ -483,15 +460,28 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                 <button
                   type="button"
                   onClick={() => setMobileSearchOpen((open) => !open)}
-                  className="flex h-10 w-10 items-center justify-center md:hidden"
+                  className="flex h-10 w-10 items-center justify-center md:hidden text-gray-500"
                   aria-label={mobileSearchOpen ? "Close search" : "Open search"}
                 >
                   {mobileSearchOpen ? <X size={20} /> : <Search size={20} />}
                 </button>
 
                 <Link
+                  href={cartHref}
+                  className="relative flex h-11 w-11 items-center justify-center rounded-full text-gray-500 transition hover:bg-[#f7faf5] hover:text-[#4c8b5d] md:hidden"
+                  aria-label="View cart"
+                >
+                  <ShoppingCart size={20} />
+                  {cartCount > 0 && (
+                    <span className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#4c8b5d] px-1 text-center text-[10px] leading-4 text-white">
+                      {displayCartCount}
+                    </span>
+                  )}
+                </Link>
+
+                <Link
                   href={wishlistHref}
-                  className={`flex h-11 w-11 items-center justify-center rounded-full bg-white transition-colors ${
+                  className={`hidden h-11 w-11 items-center justify-center rounded-full bg-white transition-colors md:flex ${
                     pathname === "/wishlist"
                       ? "text-[#4c8b5d]"
                       : "text-[#8a857f] hover:bg-[#f7faf5] hover:text-[#4c8b5d]"
@@ -527,7 +517,7 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                       }`}
                       aria-label="View profile"
                     >
-                      <UserRound size={21}  />
+                      <UserRound size={21} />
                       {user?.isVip ? (
                         <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#f5edc4] text-[#7b5b08] shadow-sm">
                           <Crown size={10} fill="currentColor" />
@@ -574,15 +564,6 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                     Sign In/up
                   </Link>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen((open) => !open)}
-                  className="flex h-10 w-10 items-center justify-center md:hidden"
-                  aria-label={menuOpen ? "Close menu" : "Open menu"}
-                >
-                  {menuOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
               </div>
             </div>
 
@@ -602,123 +583,8 @@ export default function EcomHeader({ initialDeliveryAddress = "" }: EcomHeaderPr
                 ))}
               </div>
             </div>
-
           </div>
         </header>
-
-        {menuOpen ? (
-          <div className="fixed inset-0 z-[45] md:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/20"
-            aria-label="Close navigation menu"
-            onClick={() => setMenuOpen(false)}
-          />
-
-          <aside className="absolute right-0 top-0 flex h-full w-[86vw] max-w-[390px] flex-col overflow-hidden bg-white shadow-[-14px_0_34px_rgba(0,0,0,0.08)]">
-            <div className="bg-[#045326] px-4 pb-5 pt-6 text-white">
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setMenuOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center text-white"
-                aria-label="Close navigation menu"
-              >
-                <X size={27} strokeWidth={1.8} />
-              </button>
-            </div>
-
-            {isAuthenticated ? (
-              <div className="mt-2 text-center">
-                <div className="flex justify-center">
-                  <span className="inline-flex h-[72px] w-[72px] shrink-0 rounded-full bg-[#c8c8c8]" />
-                </div>
-                  <div className="mt-3 min-w-0">
-                    <p className="truncate text-[0.92rem] font-semibold text-white">
-                      {user?.fullName || "Account"}
-                    </p>
-                    <p className="mt-1 truncate text-[0.72rem] text-white/90">
-                      {user?.email || user?.phoneNumber || ""}
-                    </p>
-                  </div>
-
-                <div className="mt-6 grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => void handleLogout()}
-                    className="inline-flex h-12 items-center justify-center rounded-[0.55rem] border border-[#e2e2e2] bg-white text-[0.88rem] font-semibold text-[#c54b4b]"
-                  >
-                    Log Out
-                  </button>
-                  <Link
-                    href="/profile"
-                    onClick={closeOverlays}
-                    className="inline-flex h-12 items-center justify-center rounded-[0.55rem] border border-white bg-transparent text-[0.88rem] font-semibold text-white"
-                  >
-                    View Profile
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-2 text-center">
-                <div className="flex justify-center">
-                  <span className="inline-flex h-[72px] w-[72px] shrink-0 rounded-full bg-[#c8c8c8]" />
-                </div>
-                  <div className="mt-3 min-w-0">
-                    <p className="text-[0.92rem] font-semibold text-white">
-                      Hello Dude!
-                    </p>
-                    <p className="mx-auto mt-1 max-w-[220px] text-[0.76rem] leading-5 text-white/90">
-                      Create an account or log in to stay updated on your
-                      orders and grab exclusive discounts.
-                    </p>
-                  </div>
-
-                <Link
-                  href="/auth?next=/profile"
-                  onClick={closeOverlays}
-                  className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-[0.55rem] bg-white text-[0.88rem] font-semibold text-[#1d5d34]"
-                >
-                  Login / Signup
-                </Link>
-              </div>
-            )}
-            </div>
-
-            <div className="px-4 pb-8 pt-14">
-              <Link
-                href="/search"
-                onClick={closeOverlays}
-                className="block text-[0.95rem] font-semibold text-[#222222]"
-              >
-                All Collection
-              </Link>
-              <div className="mt-2 h-px bg-[#2d2d2d]" />
-
-              <div className="mt-3">
-                {(collectionLinks.length
-                  ? collectionLinks
-                  : [
-                      { label: "Best Selling", href: "/search" },
-                      { label: "Indoor Plants", href: "/search" },
-                      { label: "Saplings", href: "/search" },
-                      { label: "Outdoor Plants", href: "/search" },
-                    ]).map((collection) => (
-                  <Link
-                    key={collection.label}
-                    href={collection.href}
-                    onClick={closeOverlays}
-                    className="block border-b border-[#cfcfcf] py-3 text-[0.88rem] text-[#777777]"
-                  >
-                    {collection.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </aside>
-          </div>
-        ) : null}
-
       </div>
       <div
         aria-hidden="true"

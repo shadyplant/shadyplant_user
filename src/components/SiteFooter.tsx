@@ -1,14 +1,23 @@
-import React from 'react';
+"use client";
+
 import Link from 'next/link';
 import { 
   Headphones, 
   Truck, 
   ShieldCheck
 } from 'lucide-react';
+import { useAppEnvironment } from "@/components/app-environment/AppEnvironmentProvider";
 
 export default function SiteFooter() {
+  const { isApp } = useAppEnvironment();
+
+  // The native WebView shell already provides its own navigation and chrome.
+  if (isApp) {
+    return null;
+  }
+
   return (
-    <footer className="w-full bg-[#012d1d] text-gray-200 text-sm mt-12">
+    <footer className="site-footer w-full bg-[#012d1d] text-gray-200 text-sm mt-12">
 
 
       {/* Main Footer Content */}

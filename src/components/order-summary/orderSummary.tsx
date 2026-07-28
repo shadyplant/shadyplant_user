@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BadgePercent, Check, Loader2, ShoppingCart } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgePercent,
+  Check,
+  Loader2,
+  ShoppingCart,
+} from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCartStore } from "@/components/cartStore";
 import CheckoutPageFooter from "@/components/checkout/CheckoutPageFooter";
@@ -32,6 +38,7 @@ import {
 } from "@/lib/checkoutSession";
 import { DELIVERY_ADDRESS_EVENT } from "@/components/ProductDeliveryAddressPicker";
 import { normalizeDeliveryAddress } from "@/lib/validation";
+import CompactSpinnerLoader from "../loader/compact_spinner";
 
 type Step = 1 | 2 | 3;
 
@@ -122,11 +129,13 @@ function formatInvoiceAmount(amount: number) {
   }).format(amount);
 }
 
-function hasPosition(position: CheckoutPosition | null | undefined): position is CheckoutPosition {
+function hasPosition(
+  position: CheckoutPosition | null | undefined,
+): position is CheckoutPosition {
   return Boolean(
     position &&
-      Number.isFinite(Number(position.lat)) &&
-      Number.isFinite(Number(position.lng)),
+    Number.isFinite(Number(position.lat)) &&
+    Number.isFinite(Number(position.lng)),
   );
 }
 
@@ -151,7 +160,12 @@ export default function OrderSummaryClient() {
   const [hasHandledGatewayReturn, setHasHandledGatewayReturn] = useState(false);
   const [checkoutDraft, setCheckoutDraft] = useState(() => readCheckoutDraft());
   const [billingDetailsDraft] = useState(() => readBillingDetailsDraft());
-  const { fetchWithAuth, isAuthenticated, isReady: isAuthReady, user } = useAuth();
+  const {
+    fetchWithAuth,
+    isAuthenticated,
+    isReady: isAuthReady,
+    user,
+  } = useAuth();
   const {
     items: cartItems,
     isLoading: isCartLoading,
@@ -201,9 +215,11 @@ export default function OrderSummaryClient() {
       ? billingDetailsDraft
       : user?.billingDetails,
   );
-  const billingName = billingDetails.name.trim() || user?.fullName || "Customer";
+  const billingName =
+    billingDetails.name.trim() || user?.fullName || "Customer";
   const billingAddress = billingDetails.address.trim();
-  const billingContact = billingDetails.contact.trim() || user?.phoneNumber || "";
+  const billingContact =
+    billingDetails.contact.trim() || user?.phoneNumber || "";
   const billingLocation = [billingDetails.city, billingDetails.state]
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -222,9 +238,7 @@ export default function OrderSummaryClient() {
       }
 
       const nextAddress =
-        typeof event.detail?.address === "string"
-          ? event.detail.address
-          : "";
+        typeof event.detail?.address === "string" ? event.detail.address : "";
       const nextPosition =
         event.detail?.position &&
         Number.isFinite(Number(event.detail.position.lat)) &&
@@ -251,7 +265,10 @@ export default function OrderSummaryClient() {
       setCheckoutDraft(nextDraft);
     }
 
-    window.addEventListener(DELIVERY_ADDRESS_EVENT, handleDeliveryAddressUpdate);
+    window.addEventListener(
+      DELIVERY_ADDRESS_EVENT,
+      handleDeliveryAddressUpdate,
+    );
 
     return () => {
       window.removeEventListener(
@@ -264,22 +281,26 @@ export default function OrderSummaryClient() {
   const pollPaymentAttempt = useCallback(
     async (paymentAttemptId: string) => {
       for (let attempt = 0; attempt < 10; attempt += 1) {
-        const response = await fetchWithAuth<ApiResponse<{ paymentAttempt: PaymentAttemptStatus }>>(
-          `/payments/attempts/${paymentAttemptId}`,
-        );
+        const response = await fetchWithAuth<
+          ApiResponse<{ paymentAttempt: PaymentAttemptStatus }>
+        >(`/payments/attempts/${paymentAttemptId}`);
         const paymentAttempt = response.data.paymentAttempt;
 
         if (paymentAttempt.status === "completed" && paymentAttempt.orderId) {
           clearPaymentGatewayCheckoutSession();
           cleanupPaymentGatewayReturnUrl();
-          router.replace(`/order-success/${encodeURIComponent(paymentAttempt.orderId)}`);
+          router.replace(
+            `/order-success/${encodeURIComponent(paymentAttempt.orderId)}`,
+          );
           return true;
         }
 
         if (paymentAttempt.status === "failed") {
           clearPaymentGatewayCheckoutSession();
           cleanupPaymentGatewayReturnUrl();
-          setStatusMessage("Payment failed before order confirmation. Please try again.");
+          setStatusMessage(
+            "Payment failed before order confirmation. Please try again.",
+          );
           return false;
         }
 
@@ -310,7 +331,9 @@ export default function OrderSummaryClient() {
 
     let isActive = true;
     setIsSubmitting(true);
-    setStatusMessage("Waiting for secure payment verification from the server...");
+    setStatusMessage(
+      "Waiting for secure payment verification from the server...",
+    );
 
     void (async () => {
       try {
@@ -348,7 +371,10 @@ export default function OrderSummaryClient() {
   ]);
 
   const canRequestPreview =
-    isAuthenticated && hasPosition(deliveryPosition) && Boolean(deliveryAddress) && items.length > 0;
+    isAuthenticated &&
+    hasPosition(deliveryPosition) &&
+    Boolean(deliveryAddress) &&
+    items.length > 0;
 
   useEffect(() => {
     if (!canRequestPreview) {
@@ -365,21 +391,26 @@ export default function OrderSummaryClient() {
       user?.deliveryAddress,
     );
 
-    void fetchWithAuth<ApiResponse<{ preview: CheckoutPreview }>>("/checkout/preview", {
-      method: "POST",
-      body: JSON.stringify({
-        deliveryAddress: deliveryAddressPayload,
-        deliveryLocation: deliveryPosition,
-        state: deliveryAddressPayload.state,
-        couponCode: appliedCouponCode || undefined,
-      }),
-    })
+    void fetchWithAuth<ApiResponse<{ preview: CheckoutPreview }>>(
+      "/checkout/preview",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          deliveryAddress: deliveryAddressPayload,
+          deliveryLocation: deliveryPosition,
+          state: deliveryAddressPayload.state,
+          couponCode: appliedCouponCode || undefined,
+        }),
+      },
+    )
       .then((response) => {
         if (isActive) {
           setPreview(response.data.preview);
           const appliedCouponCodeFromResponse =
             response.data.preview.appliedCoupon?.code || "";
-          const hasAppliedCouponInResponse = Boolean(appliedCouponCodeFromResponse);
+          const hasAppliedCouponInResponse = Boolean(
+            appliedCouponCodeFromResponse,
+          );
           if (hasAppliedCouponInResponse || !persistCouponError) {
             setCouponError("");
           }
@@ -435,7 +466,11 @@ export default function OrderSummaryClient() {
   const effectivePreview = canRequestPreview ? preview : null;
 
   async function handleContinue(paymentMethod: CheckoutPaymentMethod) {
-    if (!effectivePreview || !hasPosition(deliveryPosition) || !deliveryAddress) {
+    if (
+      !effectivePreview ||
+      !hasPosition(deliveryPosition) ||
+      !deliveryAddress
+    ) {
       router.push("/cart");
       return;
     }
@@ -455,35 +490,37 @@ export default function OrderSummaryClient() {
       state: deliveryAddressPayload.state,
       billingDetails,
       deliveryDate: effectivePreview.suggestedDeliveryDate,
-      returnPath: "/order-summary",
+      returnPath: "/order-success/pending",
       couponCode: appliedCouponCode || undefined,
       paymentMethod,
     };
 
     try {
       if (paymentMethod === "cash_on_delivery") {
-        const response = await fetchWithAuth<ApiResponse<{ order: { id: string } }>>("/checkout/cod", {
+        const response = await fetchWithAuth<
+          ApiResponse<{ order: { id: string } }>
+        >("/checkout/cod", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        router.replace(`/order-success/${encodeURIComponent(response.data.order.id)}`);
+        router.replace(
+          `/order-success/${encodeURIComponent(response.data.order.id)}`,
+        );
         setIsSubmitting(false);
         return;
       }
 
-      const response =
-        await fetchWithAuth<ApiResponse<{ checkout: PaymentGatewayCheckout }>>(
-          "/checkout/online",
-          {
-            method: "POST",
-            body: JSON.stringify(payload),
-          },
-        );
+      const response = await fetchWithAuth<
+        ApiResponse<{ checkout: PaymentGatewayCheckout }>
+      >("/checkout/online", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
       const checkout = response.data.checkout;
       writePaymentGatewayCheckoutSession({
         paymentAttemptId: checkout.paymentAttemptId,
-        returnPath: "/order-summary",
+        returnPath: "/order-success/pending",
       });
 
       await openPaymentGatewayCheckout({
@@ -498,7 +535,9 @@ export default function OrderSummaryClient() {
       return;
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Unable to continue with online payment.",
+        error instanceof Error
+          ? error.message
+          : "Unable to continue with online payment.",
       );
     }
 
@@ -519,7 +558,9 @@ export default function OrderSummaryClient() {
     effectivePreview?.pricing.itemsSubtotalAfterCoupon ?? itemsSubtotal,
   );
   const totalBeforeCoupon = Number(
-    effectivePreview?.pricing.totalBeforeCoupon ?? effectivePreview?.pricing.total ?? 0,
+    effectivePreview?.pricing.totalBeforeCoupon ??
+      effectivePreview?.pricing.total ??
+      0,
   );
   const totalAfterCoupon = Number(effectivePreview?.pricing.total || 0);
   const savingsAmount = Math.max(
@@ -557,24 +598,33 @@ export default function OrderSummaryClient() {
             </h1>
           </div>
         </div>
-        <div className="mx-auto w-full max-w-[660px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] md:px-6">
+        <div className="mx-auto w-full max-w-[660px] bg-white md:px-6">
           <div className="mx-auto flex max-w-2xl items-start px-4 pb-7 pt-2 sm:px-6 md:px-8 md:pt-6">
             {steps.map((step, index) => {
               const active = step.id === currentStep;
               const done = step.id < currentStep;
 
               return (
-                <div key={step.id} className="flex flex-1 items-start last:flex-none">
+                <div
+                  key={step.id}
+                  className="flex flex-1 items-start last:flex-none"
+                >
                   <div className="flex min-w-[54px] flex-col items-center gap-2 sm:min-w-[60px]">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-gray-100 bg-[#207958] text-white shadow-[0_0_0_2px_rgba(76,139,93,0.18)]" : done ? "bg-[#207958] text-white" : "bg-gray-200 text-[#1A1F14]"}`}>
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-gray-100 bg-[#207958] text-white shadow-[0_0_0_2px_rgba(76,139,93,0.18)]" : done ? "bg-[#207958] text-white" : "bg-gray-200 text-[#1A1F14]"}`}
+                    >
                       {done ? <Check size={18} strokeWidth={3} /> : step.id}
                     </div>
-                    <span className={`text-center text-[10px] leading-tight md:text-xs ${active ? "font-semibold text-[#4c8b5d]" : done ? "font-medium text-[#4c8b5d]" : "font-medium text-[#1A1F14]"}`}>
+                    <span
+                      className={`text-center text-[10px] leading-tight md:text-xs ${active ? "font-semibold text-[#4c8b5d]" : done ? "font-medium text-[#4c8b5d]" : "font-medium text-[#1A1F14]"}`}
+                    >
                       {step.label}
                     </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#4c8b5d]" : "bg-gray-300"}`} />
+                    <div
+                      className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#4c8b5d]" : "bg-gray-300"}`}
+                    />
                   )}
                 </div>
               );
@@ -582,11 +632,8 @@ export default function OrderSummaryClient() {
           </div>
 
           {isLoading ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center border border-[#dddddd] bg-white text-center">
-              <Loader2 className="animate-spin text-[#214f14]" size={30} />
-              <p className="mt-4 text-sm font-bold text-[#163915]">
-                Preparing your order summary
-              </p>
+            <div className="flex min-h-[320px] flex-col items-center justify-center bg-white text-center">
+              <CompactSpinnerLoader />
             </div>
           ) : !items.length ? (
             <div className="border border-[#dddddd] bg-white p-8 text-center">
@@ -664,7 +711,7 @@ export default function OrderSummaryClient() {
                 <div className=" px-3 pt-8">
                   <div className="border-b border-gray-200 pb-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm md:text-sm font-semibold leading-5 text-[#07ab4e]">
+                      <p className="text-sm md:text-sm font-semibold leading-5 text-gray-600">
                         Have a coupon?
                       </p>
                       {hasAppliedCoupon ? (
@@ -696,14 +743,16 @@ export default function OrderSummaryClient() {
                       <button
                         type="button"
                         onClick={() => {
-                          setAppliedCouponCode(couponDraft.trim().toUpperCase());
+                          setAppliedCouponCode(
+                            couponDraft.trim().toUpperCase(),
+                          );
                           setCouponFeedback("");
                           setCouponError("");
                           setPersistCouponError(false);
                           setPreviewError("");
                         }}
                         disabled={!couponDraft.trim()}
-                        className="h-11 rounded-md bg-[#4c8b5d] px-4 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="h-11 rounded-md bg-[#207958] px-4 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Apply
                       </button>
@@ -732,7 +781,9 @@ export default function OrderSummaryClient() {
                     <span className="font-semibold">Delivery charge</span>
                     <span>
                       {effectivePreview
-                        ? formatInvoiceAmount(effectivePreview.pricing.deliveryCharge)
+                        ? formatInvoiceAmount(
+                            effectivePreview.pricing.deliveryCharge,
+                          )
                         : "Required"}
                     </span>
                   </div>
@@ -748,8 +799,12 @@ export default function OrderSummaryClient() {
                       </div>
                       {hasProductSubtotalDiscount ? (
                         <div className="flex justify-between gap-4 border-b border-gray-200 py-3 text-[14px] text-gray-800">
-                          <span className="font-semibold">Sub total after coupon</span>
-                          <span>{formatInvoiceAmount(itemsSubtotalAfterCoupon)}</span>
+                          <span className="font-semibold">
+                            Sub total after coupon
+                          </span>
+                          <span>
+                            {formatInvoiceAmount(itemsSubtotalAfterCoupon)}
+                          </span>
                         </div>
                       ) : null}
                     </>
@@ -759,7 +814,9 @@ export default function OrderSummaryClient() {
                 <div className="flex justify-between gap-4 bg-[#e8e8e870] px-3 py-4 text-[14px] font-semibold text-gray-800">
                   <span>Payable amount</span>
                   <span>
-                    {effectivePreview ? formatInvoiceAmount(totalAfterCoupon) : "---"}
+                    {effectivePreview
+                      ? formatInvoiceAmount(totalAfterCoupon)
+                      : "---"}
                   </span>
                 </div>
               </section>
@@ -798,28 +855,33 @@ export default function OrderSummaryClient() {
 
               {!preferredPaymentMethod ? (
                 <p className="mx-auto mt-3 max-w-[360px] rounded-lg bg-[#fff6f5] px-3 py-2 text-center text-xs font-semibold leading-5 text-[#b42318]">
-                  Online checkout is not enabled for this account right now. Please contact support.
+                  Online checkout is not enabled for this account right now.
+                  Please contact support.
                 </p>
               ) : null}
 
-              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e3e3] bg-white px-3 py-3 md:px-0 shadow-[0_-10px_28px_rgba(36,54,27,0.12)] sm:static sm:mt-5 sm:border-t-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-                <div className="mx-auto grid w-full max-w-full grid-cols-[minmax(0,1fr)] gap-4 md:pb-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-center">
-                  <div className="min-w-0 py-1">
-                    <span className="block text-sm font-medium text-gray-800">
-                      Total payable
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e3e3] bg-white px-3 py-3 shadow-[0_-10px_28px_rgba(36,54,27,0.12)] sm:static sm:mt-5 sm:border-t-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+                <div className="mx-auto flex w-full max-w-full items-center gap-3 md:pb-6 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-center">
+                  <div className="min-w-0 flex-1 py-1 md:flex-none">
+                    <span className="block text-[12px] font-medium leading-4 text-gray-800 sm:text-sm">
+                      Total Payable
                     </span>
-                    <span className="block break-all text-[2.2rem] font-medium leading-none text-[#07ab4e] sm:text-2xl">
-                      {effectivePreview ? formatInvoiceAmount(totalAfterCoupon) : "---"}
+                    <span className="block break-all text-[1.9rem] font-medium leading-none text-gray-800 sm:text-2xl md:text-[2.2rem]">
+                      {effectivePreview
+                        ? formatInvoiceAmount(totalAfterCoupon)
+                        : "---"}
                     </span>
                   </div>
                   {preferredPaymentMethod ? (
                     <button
                       type="button"
-                      onClick={() => void handleContinue(preferredPaymentMethod)}
+                      onClick={() =>
+                        void handleContinue(preferredPaymentMethod)
+                      }
                       disabled={!effectivePreview || isSubmitting}
-                      className="inline-flex h-[52px] items-center justify-center rounded-[0.85rem] bg-[#207958] px-6 text-[1.2rem] font-medium text-white transition hover:bg-[#427a50] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[60px] sm:text-[1.35rem]"
+                      className="inline-flex h-[52px] flex-none items-center justify-center rounded-[0.5rem] bg-[#207958] px-10 text-[1.2rem] font-medium text-white transition hover:bg-[#07ab4e] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[60px] sm:min-w-[320px] sm:text-[1.35rem]"
                     >
-                      {isSubmitting ? "Processing..." : "Continue"}
+                      {isSubmitting ? "Processing..." : "Pay Now"}
                     </button>
                   ) : null}
                 </div>

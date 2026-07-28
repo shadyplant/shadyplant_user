@@ -395,9 +395,9 @@ export default function ProfilePageClient() {
   function renderSectionPanel(className = "p-6 md:p-8 shadow-[0_22px_60px_rgba(33,79,20,0.08)]") {
     return (
       <div className={className}>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-6">
+        <div className="hidden md:flex flex-wrap items-center justify-between gap-3 md:border-b border-gray-200 pb-6">
           <div>
-            <h2 className="text-3xl text-[#163915]">
+            <h2 className="text-xl text-gray-800">
               {sectionTitle}
             </h2>
           </div>
@@ -410,7 +410,7 @@ export default function ProfilePageClient() {
         ) : null}
 
         {currentSection === "addresses" ? (
-          <div className="mt-6 space-y-5">
+          <div className="mt-0 md:mt-6 space-y-5">
             <ProductDeliveryAddressPicker
               variant="checkout-card"
               initialAddress={formatDeliveryAddress(form.deliveryAddress)}
@@ -661,7 +661,7 @@ export default function ProfilePageClient() {
             </div>
           </div>
         ) : currentSection === "billing" ? (
-          <div className="mt-6 space-y-6">
+          <div className="mt-0 md:mt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block md:col-span-2">
                 <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
@@ -887,7 +887,7 @@ export default function ProfilePageClient() {
             </div>
           </div>
         ) : (
-          <div className="mt-6 space-y-6">
+          <div className="mt-0 md:mt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span>Full name</span><button type="button" onClick={() => startFieldEdit("fullName")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
@@ -1017,21 +1017,21 @@ export default function ProfilePageClient() {
         <div className="mx-auto max-w-7xl">
           <div className="md:hidden">
             {isMobileOverview ? (
-              <div className="overflow-hidden rounded-b-[2rem] bg-[#0f2c0d] text-white shadow-[0_22px_60px_rgba(18,46,14,0.22)]">
+              <div className="overflow-hidden rounded-b-[2rem] bg-[#ffffff] text-white shadow-[0_22px_60px_rgba(18,46,14,0.22)]">
                 <div className="relative p-5 pb-7">
-                  <div className="absolute -right-6 top-5 h-16 w-16 rounded-[1.6rem] bg-[#335c23]/70" />
-                  <div className="absolute left-6 top-16 h-8 w-8 rounded-br-[1.4rem] rounded-tl-[1.4rem] bg-[#436d2f]/70" />
-                  <div className="absolute bottom-5 right-8 h-10 w-10 rounded-t-full bg-[#2b4f1c]/80" />
+                  <div className="absolute -right-6 top-5 h-16 w-16 rounded-[1.6rem] bg-[#207958]/70" />
+                  <div className="absolute left-6 top-16 h-8 w-8 rounded-br-[1.4rem] rounded-tl-[1.4rem] bg-[#207958]/70" />
+                  <div className="absolute bottom-5 right-8 h-10 w-10 rounded-t-full bg-[#207958]/80" />
                   <p className="relative text-xl font-semibold">Profile</p>
 
                   <div className="relative mt-10 flex flex-col items-center text-center">
                     <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-gray-700 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
                       <UserRound size={42} />
                     </div>
-                    <p className="mt-5 text-[1.45rem] font-semibold leading-tight">
+                    <p className="mt-5 text-[1.45rem] font-semibold leading-tight text-gray-800">
                       {profileUser.fullName}
                     </p>
-                    <p className="mt-1 text-sm text-white/80">
+                    <p className="mt-1 text-sm text-black/80">
                       {profileUser.phoneNumber || profileUser.email}
                     </p>
                   </div>
@@ -1115,14 +1115,14 @@ export default function ProfilePageClient() {
                   <button
                     type="button"
                     onClick={() => router.push("/profile")}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f7f1] text-gray-700"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800"
                     aria-label="Back to profile overview"
                   >
                     <ChevronLeft size={18} />
                   </button>
                   <div>
-                    <p className="text-lg font-semibold text-[#163915]">{sectionTitle}</p>
-                    <p className="text-xs text-[#6b8b58]">Manage your account details</p>
+                    <p className="text-lg font-semibold text-gray-800">{sectionTitle}</p>
+                    <p className="text-xs text-gray-500">Manage your account details</p>
                   </div>
                 </div>
                 {renderSectionPanel("px-8 pb-4 pt-5")}

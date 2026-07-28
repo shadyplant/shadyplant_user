@@ -14,7 +14,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   overflow-x: clip;
   scrollbar-width: none;
 }
@@ -50,6 +50,10 @@ body::-webkit-scrollbar,
 
 body::selection {
   background: rgba(144, 198, 76, 0.35);
+}
+
+html[data-is-app="true"] .site-footer {
+  display: none !important;
 }
 
 

@@ -139,6 +139,7 @@ export default function SignInPromptModal() {
 
           <AuthLoginPanel
             nextPath={nextPath}
+            showTopBar={false}
             onSuccess={() => {
               setIsOpen(false);
             }}

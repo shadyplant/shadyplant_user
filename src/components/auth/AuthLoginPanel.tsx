@@ -6,6 +6,7 @@ import { Eye, EyeOff, Mail } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { validateLoginForm } from "@/lib/validation";
+import TopBar from "../TopBar";
 
 type LoginForm = {
   identifier: string;
@@ -62,6 +63,7 @@ type AuthLoginPanelProps = {
   onRequestForgotPassword?: () => void;
   className?: string;
   submitLabel?: string;
+  showTopBar?: boolean;
 };
 
 export default function AuthLoginPanel({
@@ -73,6 +75,7 @@ export default function AuthLoginPanel({
   onRequestForgotPassword,
   className = "mt-6 space-y-4",
   submitLabel = "Log In",
+  showTopBar = true,
 }: AuthLoginPanelProps) {
   const router = useRouter();
   const { clearError, login, loginWithGoogle } = useAuth();
@@ -143,6 +146,14 @@ export default function AuthLoginPanel({
 
   return (
     <form onSubmit={handleLoginSubmit} className={className}>
+      {showTopBar ? (
+        <div className="md:hidden">
+          <TopBar
+            className="absolute top-0 left-0 z-50 w-full"
+            fallbackHref="/"
+          />
+        </div>
+      ) : null}
       {statusMessage ? (
         <div className="rounded-[1.25rem] border border-[#f0c8c8] bg-[#fff5f5] p-4 text-sm text-[#8f2f2f]">
           <p className="font-semibold">{statusMessage}</p>

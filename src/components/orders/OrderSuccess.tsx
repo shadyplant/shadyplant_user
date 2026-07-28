@@ -13,8 +13,10 @@ interface OrderSuccessProps {
   total?: string;
   primaryActionHref?: string;
   primaryActionLabel?: string;
+  primaryActionOnClick?: () => void;
   secondaryActionHref?: string;
   secondaryActionLabel?: string;
+  mobileRedirectCountdown?: number | null;
 }
 
 export default function OrderSuccess({
@@ -24,8 +26,10 @@ export default function OrderSuccess({
   total = "1,52560.00",
   primaryActionHref,
   primaryActionLabel,
+  primaryActionOnClick,
   secondaryActionHref,
   secondaryActionLabel,
+  mobileRedirectCountdown = null,
 }: OrderSuccessProps) {
   const fadeUpItem = {
     initial: { opacity: 0, y: 14, scale: 0.985 },
@@ -113,7 +117,7 @@ export default function OrderSuccess({
           initial={fadeUpItem.initial}
           animate={fadeUpItem.animate}
           transition={{ delay: 0.16, duration: 0.45, ease: "easeOut" }}
-          className="text-center text-[clamp(26px,5vw,38px)] font-bold text-white"
+          className="text-center text-[clamp(20px,5vw,38px)] font-bold text-white"
         >
           Thank you for your order!
         </motion.h1>
@@ -121,7 +125,7 @@ export default function OrderSuccess({
           initial={fadeUpItem.initial}
           animate={fadeUpItem.animate}
           transition={{ delay: 0.24, duration: 0.45, ease: "easeOut" }}
-          className="mb-8 text-center text-2xl text-white/80"
+          className="mb-8 text-center text-base text-white/80"
         >
           Your order has been placed successfully.
         </motion.p>
@@ -139,7 +143,7 @@ export default function OrderSuccess({
             className="mb-5 flex items-center justify-center gap-2 text-[#1a1a1a]"
           >
             <ReceiptText className="h-6 w-6" strokeWidth={1.8} />
-            <p className="text-center text-2xl font-medium">Order Details</p>
+            <p className="text-center text-xl font-medium">Order Details</p>
           </motion.div>
           <motion.hr
             initial={{ opacity: 0, scaleX: 0.92 }}
@@ -156,8 +160,8 @@ export default function OrderSuccess({
               animate={fadeUpItem.animate}
               transition={{ delay: 0.48 + index * 0.06, duration: 0.35, ease: "easeOut" }}
             >
-              <span className="text-xl font-medium text-[#222]">{label}</span>
-              <span className="text-left text-xl font-normal text-[#333] sm:text-right">
+              <span className="text-base font-medium text-[#222]">{label}</span>
+              <span className="text-left text-base text-[#333] sm:text-right">
                 {value}
               </span>
             </motion.div>
@@ -167,47 +171,65 @@ export default function OrderSuccess({
             initial={fadeUpItem.initial}
             animate={fadeUpItem.animate}
             transition={{ delay: 0.76, duration: 0.35, ease: "easeOut" }}
-            className="flex flex-col items-start gap-0.5 py-[9px] sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+            className="flex flex-row items-start gap-0.5 py-[9px] sm:flex-row sm:items-center sm:justify-between sm:gap-4"
           >
-            <span className="text-xl font-medium text-[#222]">Status :</span>
-            <span className="rounded-md bg-[#7de07a] px-[14px] py-1 text-xl font-semibold tracking-[0.2px] text-[#1a5c1a]">
+            <span className="text-base font-medium text-[#222]">Status :</span>
+            <span className="rounded-xs bg-[#7de07a] px-1.5 py-0.2 text-base font-semibold tracking-[0.2px] text-[#1a5c1a]">
               Order Placed
             </span>
           </motion.div>
-        </motion.div>
 
-        <motion.p
-          initial={fadeUpItem.initial}
-          animate={fadeUpItem.animate}
-          transition={{ delay: 0.84, duration: 0.45, ease: "easeOut" }}
-          className="mt-7 text-center text-lg leading-[1.3] text-white/75"
-        >
           {primaryActionHref || secondaryActionHref ? (
-            <span className="mb-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              {primaryActionHref && primaryActionLabel ? (
-                <Link
-                  href={primaryActionHref}
-                  className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#2b6134] transition hover:bg-white/90"
-                >
-                  {primaryActionLabel}
-                </Link>
+            <motion.div
+              initial={fadeUpItem.initial}
+              animate={fadeUpItem.animate}
+              transition={{ delay: 0.84, duration: 0.45, ease: "easeOut" }}
+              className="mt-7 flex flex-col items-center gap-3 text-center text-lg leading-[1.3] text-white/75"
+            >
+              <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                {primaryActionHref && primaryActionLabel ? (
+                  primaryActionOnClick ? (
+                    <button
+                      type="button"
+                      onClick={primaryActionOnClick}
+                      className="inline-flex items-center justify-center rounded-full border border-white/40 px-10 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/90"
+                    >
+                      {primaryActionLabel}
+                    </button>
+                  ) : (
+                    <Link
+                      href={primaryActionHref}
+                      className="inline-flex items-center justify-center rounded-full border border-white/40 px-10 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/90"
+                    >
+                      {primaryActionLabel}
+                    </Link>
+                  )
+                ) : null}
+
+                {secondaryActionHref && secondaryActionLabel ? (
+                  <Link
+                    href={secondaryActionHref}
+                    className="inline-flex items-center justify-center rounded-full border border-white/40 px-10 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/90"
+                  >
+                    {secondaryActionLabel}
+                  </Link>
+                ) : null}
+              </div>
+
+              <span className="block text-base">
+                Check your email or order page for more information,
+                <br />
+                and stay tuned for order updates.
+              </span>
+
+              {mobileRedirectCountdown !== null ? (
+                <span className="block text-sm text-white/75">
+                  Redirecting to your order in {mobileRedirectCountdown}s
+                </span>
               ) : null}
-              {secondaryActionHref && secondaryActionLabel ? (
-                <Link
-                  href={secondaryActionHref}
-                  className="inline-flex items-center justify-center rounded-full border border-white/40 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  {secondaryActionLabel}
-                </Link>
-              ) : null}
-            </span>
+            </motion.div>
           ) : null}
-          <span className="block">
-          Check your email or order page for more information,
-          <br />
-          and stay tuned for order updates.
-          </span>
-        </motion.p>
+        </motion.div>
       </div>
     </div>
   );

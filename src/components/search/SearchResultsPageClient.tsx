@@ -575,7 +575,7 @@ export default function SearchResultsPageClient({
                 ) : null}
 
                 {resultProducts.length ? (
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-1 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
                     {resultProducts.map((product) => (
                       <ProductCard key={product.id} product={product} />
                     ))}
@@ -630,9 +630,7 @@ export default function SearchResultsPageClient({
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-gray-600">
                     Filter By
                   </p>
-                  <h2 className="mt-1 text-xl text-gray-700">
-                    Refine results
-                  </h2>
+                  <h2 className="mt-1 text-xl text-gray-700">Refine results</h2>
                 </div>
 
                 <button

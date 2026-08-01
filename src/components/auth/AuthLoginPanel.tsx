@@ -167,7 +167,7 @@ export default function AuthLoginPanel({
           </div>
 
       <label className="block">
-        <span className="mb-2 block text-sm font-semibold text-gray-800">
+        <span className="mb-2 block text-sm md:text-sm font-semibold text-gray-800">
           Enter email address
         </span>
         <div className="relative">
@@ -184,7 +184,7 @@ export default function AuthLoginPanel({
                 identifier: event.target.value,
               }))
             }
-            className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm text-gray-600 outline-none placeholder:text-gray-400"
+            className="w-full rounded-[0.5rem] border border-gray-300 bg-gray-50 py-3 pl-4 pr-11 text-sm md:text-sm text-gray-600 outline-none placeholder:text-gray-400"
             placeholder="abcd123@email.com"
           />
         </div>

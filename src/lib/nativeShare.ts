@@ -11,6 +11,8 @@ export type NativeLocationPayload = {
 type NativeBridge = {
   share?: (title: string, text: string) => void;
   requestLocation?: () => void;
+  requestPushToken?: () => void;
+  download?: (url: string, fileName?: string) => void;
 };
 
 declare global {
@@ -38,6 +40,19 @@ function getNativeBridge() {
   }
 
   return bridge;
+}
+
+function logNativeDownload(message: string, details?: unknown) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (typeof details === "undefined") {
+    console.info(`[NativeDownload] ${message}`);
+    return;
+  }
+
+  console.info(`[NativeDownload] ${message}`, details);
 }
 
 export function isShadyPlantApp() {
@@ -154,4 +169,99 @@ export function shareViaNativeApp(payload: {
 }) {
   const shareText = String(payload.text || payload.url || "").trim();
   return shareFromApp(payload.title || "", shareText);
+}
+
+export function downloadFromApp(url: string, fileName?: string) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const bridge = getNativeBridge();
+  const safeUrl = String(url || "").trim();
+  const safeFileName = String(fileName || "").trim();
+
+  logNativeDownload("downloadFromApp called", {
+    hasBridge: Boolean(bridge?.download),
+    urlPrefix: safeUrl.slice(0, 48),
+    fileName: safeFileName || null,
+  });
+
+  if (!bridge?.download || !safeUrl) {
+    logNativeDownload("downloadFromApp skipped", {
+      reason: !bridge?.download ? "bridge-missing" : "empty-url",
+    });
+    return false;
+  }
+
+  try {
+    bridge.download(safeUrl, safeFileName || undefined);
+    logNativeDownload("downloadFromApp succeeded");
+    return true;
+  } catch {
+    logNativeDownload("downloadFromApp failed", {
+      reason: "bridge-threw",
+    });
+    return false;
+  }
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const result = String(reader.result || "").trim();
+      if (!result) {
+        reject(new Error("empty_blob_result"));
+        return;
+      }
+
+      resolve(result);
+    };
+
+    reader.onerror = () => {
+      reject(reader.error || new Error("blob_read_failed"));
+    };
+
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function downloadBlobFromApp(
+  blob: Blob,
+  fileName?: string,
+) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const bridge = getNativeBridge();
+
+  if (!bridge?.download || !blob) {
+    logNativeDownload("downloadBlobFromApp skipped", {
+      reason: !bridge?.download ? "bridge-missing" : "blob-missing",
+    });
+    return false;
+  }
+
+  try {
+    logNativeDownload("downloadBlobFromApp converting blob", {
+      size: blob.size,
+      type: blob.type || "application/octet-stream",
+      fileName: String(fileName || "").trim() || null,
+    });
+    const dataUrl = await blobToDataUrl(blob);
+    logNativeDownload("downloadBlobFromApp converted to data url", {
+      prefix: dataUrl.slice(0, 48),
+      length: dataUrl.length,
+    });
+    bridge.download(dataUrl, String(fileName || "").trim() || undefined);
+    logNativeDownload("downloadBlobFromApp succeeded");
+    return true;
+  } catch {
+    logNativeDownload("downloadBlobFromApp failed", {
+      reason: "convert-or-bridge-failed",
+    });
+    return false;
+  }
 }

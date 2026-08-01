@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import OrderInvoiceDocument from "@/components/orders/OrderInvoiceDocument";
 import { type Order } from "@/components/orders/orderUtils";
+import { downloadBlobFromApp, isShadyPlantApp } from "@/lib/nativeShare";
 
 async function waitForInvoiceAssets(element: HTMLElement) {
   const images = Array.from(element.querySelectorAll("img"));
@@ -55,6 +56,12 @@ export default function OrderInvoiceDownloadButton({
 
     setIsGenerating(true);
 
+    console.info("[NativeDownload] invoice download started", {
+      isApp: isShadyPlantApp(),
+      orderId: order.id,
+      orderNumber: order.orderNumber || null,
+    });
+
     try {
       await waitForInvoiceAssets(invoiceRef.current);
 
@@ -73,7 +80,29 @@ export default function OrderInvoiceDownloadButton({
       const pageHeight = pdf.internal.pageSize.getHeight();
 
       pdf.addImage(imageData, "PNG", 0, 0, pageWidth, pageHeight, undefined, "SLOW");
-      pdf.save(getInvoiceFileName(order));
+
+      const fileName = getInvoiceFileName(order);
+
+      if (isShadyPlantApp()) {
+        const blob = pdf.output("blob");
+        console.info("[NativeDownload] app path selected", {
+          fileName,
+          blobSize: blob.size,
+          blobType: blob.type || "application/octet-stream",
+        });
+
+        if (await downloadBlobFromApp(blob, fileName)) {
+          console.info("[NativeDownload] native invoice download complete");
+          return;
+        }
+
+        console.warn("[NativeDownload] native invoice download failed, using browser fallback");
+      }
+
+      console.info("[NativeDownload] browser invoice download fallback", {
+        fileName,
+      });
+      pdf.save(fileName);
     } finally {
       setIsGenerating(false);
     }
@@ -85,7 +114,7 @@ export default function OrderInvoiceDownloadButton({
         type="button"
         onClick={handleDownload}
         disabled={isGenerating}
-        className={`inline-flex min-w-[190px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.5rem] border border-gray-200 bg-white px-4 py-2 text-[0.9rem] font-semibold text-gray-700 transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-70 md:text-[0.95rem] ${className}`.trim()}
+        className={`inline-flex min-w-[190px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.5rem] border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-[#f4fbf2] disabled:cursor-not-allowed disabled:opacity-70 md:text-[0.95rem] ${className}`.trim()}
       >
         {isGenerating ? (
           <Loader2 size={20} className="h-5 w-5 shrink-0 animate-spin" />

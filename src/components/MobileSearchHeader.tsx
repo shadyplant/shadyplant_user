@@ -78,7 +78,7 @@ export default function MobileSearchHeader({
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search for products"
-            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-gray-700 outline-none placeholder:text-gray-500 md:text-base"
+            className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-gray-700 outline-none placeholder:text-gray-500 md:text-base"
           />
 
           {searchInput.length > 0 && (
@@ -102,7 +102,7 @@ export default function MobileSearchHeader({
           <ShoppingCart size={21} strokeWidth={1.9} />
 
           {cartCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-600 px-1 text-center text-xs leading-4 text-white">
+            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#207958] px-1 text-center text-[7px] leading-4 text-white">
               {displayCartCount}
             </span>
           )}

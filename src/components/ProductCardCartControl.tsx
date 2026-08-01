@@ -238,22 +238,22 @@ export default function ProductCardCartControl({
         onClick={() => void addFirstItem()}
         className={addButtonClassName}
       >
-        <span>Add to cart</span>
+        <span className="text-sm">Add to cart</span>
         <AddCartIcon />
       </button>
     );
   }
 
-    return (
-      <QuantityStepper
-        value={inputValue}
-        min={effectiveMinimumQuantity}
-        max={availableStock}
+  return (
+    <QuantityStepper
+      value={inputValue}
+      min={effectiveMinimumQuantity}
+      max={availableStock}
       ariaLabel="Cart quantity"
       decreaseAriaLabel="Decrease cart quantity"
       increaseAriaLabel="Increase cart quantity"
       className={`relative z-30 mt-4 transition ${isCompact ? "w-auto max-w-[14rem]" : ""}`}
-        increaseDisabled={quantity >= availableStock}
+      increaseDisabled={quantity >= availableStock}
       onMouseDown={swallowCardNavigation}
       onTouchStart={swallowCardNavigation}
       onInputFocus={(event) => {

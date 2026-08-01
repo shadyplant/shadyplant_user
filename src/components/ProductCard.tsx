@@ -59,7 +59,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       <div className="relative z-10 pt-3">
         <Link href={productHref} className="block min-w-0">
-          <h3 className="mt-1 min-h-[2.2rem] text-sm font-bold  tracking-normal text-[#050505] line-clamp-2 sm:min-h-0 sm:line-clamp-none  sm:text-lg">
+          <h3 className="mt-1 min-h-0 md:min-h-[2.2rem] text-xs font-semibold text-gray-800 line-clamp-1 md:line-clamp-2 sm:min-h-0 sm:line-clamp-none  sm:text-lg">
             {product.name}
           </h3>
 
@@ -70,13 +70,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           ) : (
             <>
               {productHighlights.length ? (
-                <p className="mt-0 line-clamp-1 pr-2 text-[12px] leading-4 text-[#7a7a7a] sm:text-xs">
+                <p className="mt-0 line-clamp-1 pr-2 text-[11px] leading-4 text-[#7a7a7a] sm:text-xs">
                   {productHighlights.join(" | ")}
                 </p>
               ) : null}
             </>
           )}
-        </Link>
+        </Link> 
 
         <div className="mt-2 md:mt-4 sm:mt-5">
           <div className="flex flex-wrap items-baseline gap-2">
@@ -84,12 +84,12 @@ export default function ProductCard({ product }: ProductCardProps) {
               {formatCurrency(product.price)}
             </span>
             {product.mrp > product.price ? (
-              <span className="text-[14px] font-semidbold text-[#9b9b9b] line-through sm:text-base">
+              <span className="text-[12px] font-semidbold text-[#9b9b9b] line-through sm:text-base">
                 {formatCurrency(product.mrp)}
               </span>
             ) : null}
           </div>
-          <p className="mt-0 text-[12px] text-[#707070]  sm:text-xs">
+          <p className="mt-0 text-[11px] text-[#707070]  sm:text-xs">
             Min. Qty - {product.minOrderQuantity} Pcs.
           </p>
           <ProductCardCartControl

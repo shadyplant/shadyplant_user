@@ -213,17 +213,17 @@ function OrderPreviewCard({
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[0.82rem] leading-5 font-medium text-[#8d8d8d]">
-              <span className="text-[#beb8b8]">Order ID</span>{" "}
+            <p className="truncate text-xs md:text-[0.82rem] leading-5 font-medium text-[#8d8d8d]">
+              <span className="text-gray-600">Order ID </span>
               {order.orderNumber}
             </p>
 
-            <p className="mt-1 truncate text-[0.82rem] leading-5 font-medium text-[#8d8d8d]">
-              <span className="text-[#beb8b8]">Order Status</span>{" "}
+            <p className="mt-1 truncate text-xs md:text-[0.82rem] leading-5 font-medium text-[#8d8d8d]">
+              <span className="text-gray-600">Order Status</span>{" "}
               {currentStep?.title || formatOrderStatus(order.currentStatus)}
             </p>
 
-            <p className="mt-2 truncate text-[0.82rem] leading-5 font-medium text-[#8d8d8d]">
+            <p className="mt-2 truncate text-[0.82rem] leading-5 font-medium text-gray-600">
               {formatCurrency(order.pricing.total)}
             </p>
           </div>
@@ -513,7 +513,7 @@ export default function OrderTrackingPageClient() {
         <section className="min-h-screen bg-white px-4 py-4 md:px-8 md:py-12">
           <div className="mx-auto max-w-5xl">
             <div className="mb-6">
-              <h2 className="text-[1.2rem] text-gray-900 md:text-3xl">
+              <h2 className="text-base text-gray-900 md:text-3xl">
                 Your Orders
               </h2>
               <div className="mt-4 flex items-center gap-2">
@@ -524,7 +524,7 @@ export default function OrderTrackingPageClient() {
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Search order ID, status, product, amount"
-                    className="w-full bg-transparent text-sm text-[#4a4a4a] outline-none placeholder:text-[#9f9f9f]"
+                    className="w-full bg-transparent text-xs text-[#4a4a4a] outline-none placeholder:text-[#9f9f9f]"
                     aria-label="Search orders"
                   />
                 </label>
@@ -601,12 +601,12 @@ export default function OrderTrackingPageClient() {
                 <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full  ">
                   <PackageSearch size={28} />
                 </div>
-                <h2 className="text-2xl md:text-3xl text-gray-800">
+                <h2 className="text-xl md:text-3xl text-gray-800">
                   Sign in to view your orders
                 </h2>
                 <Link
                   href="/auth?next=/order"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#207958] px-6 py-4 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#207958] px-6 py-4 text-xs font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
                 >
                   Continue to sign in
                   <ArrowRight size={16} />
@@ -625,7 +625,7 @@ export default function OrderTrackingPageClient() {
                         key={option}
                         type="button"
                         onClick={() => setFilter(option)}
-                        className={`whitespace-nowrap border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
+                        className={`whitespace-nowrap border-b-2 px-1 pb-4 text-xs font-medium transition-colors ${
                           filter === option
                             ? "border-black text-black"
                             : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"

@@ -688,10 +688,10 @@ export default function OrderDetailsPageClient({
                             </div>
 
                             <div className="min-w-0">
-                              <p className="text-[0.95rem] font-semibold text-[#2a2a2a] md:text-xl">
+                              <p className="text-sm font-semibold text-gray-800 md:text-xl">
                                 Order ID : {order.orderNumber || order.id}
                               </p>
-                              <div className="mt-2 space-y-1 text-[12px] text-[#4f4f4f] md:mt-3 md:space-y-1.5 md:text-sm">
+                              <div className="mt-2 space-y-1 text-[11px] text-[#4f4f4f] md:mt-3 md:space-y-1.5 md:text-sm">
                                 <p>
                                   Order Status :{" "}
                                   {formatOrderStatus(order.currentStatus)}
@@ -713,7 +713,7 @@ export default function OrderDetailsPageClient({
                               {formatCurrency(order.pricing.total)}
                             </p>
                             <p className="mt-2 text-xs text-[#aaaaaa] md:mt-8 md:text-sm">
-                              View details
+                              Order Items
                             </p>
                           </div>
                         </div>
@@ -724,7 +724,7 @@ export default function OrderDetailsPageClient({
                               key={item.key}
                               className="grid grid-cols-[24px_56px_minmax(0,1fr)] gap-3 border-b border-[#ececec] py-3 md:grid-cols-[44px_72px_minmax(0,1fr)_120px_140px] md:gap-4 md:py-4"
                             >
-                              <div className="pt-1 text-sm font-medium text-[#4f4f4f] md:self-center md:pt-0 md:text-2xl">
+                              <div className="pt-1 text-xs font-medium text-gray-500 md:self-center md:pt-0 md:text-2xl">
                                 {String(index + 1).padStart(2, "0")}.
                               </div>
 
@@ -746,7 +746,7 @@ export default function OrderDetailsPageClient({
                               </div>
 
                               <div className="min-w-0">
-                                <p className="line-clamp-2 text-[0.95rem] font-medium leading-5 text-[#4a4a4a] md:line-clamp-1 md:text-[1.05rem]">
+                                <p className="line-clamp-2 text-sm font-medium leading-5 text-[#4a4a4a] md:line-clamp-1 md:text-[1.05rem]">
                                   {item.name}
                                 </p>
                                 <p className="mt-1 text-[11px] text-[#a0a0a0] md:text-sm">
@@ -774,7 +774,7 @@ export default function OrderDetailsPageClient({
                           ))}
 
                           <div className="flex items-center justify-end gap-5 pt-4 text-right md:gap-8 md:pt-5">
-                            <span className="text-[0.95rem] font-medium text-[#2f2f2f] md:text-[1.1rem]">
+                            <span className="text-sm font-medium text-[#2f2f2f] md:text-[1.1rem]">
                               Grand Total
                             </span>
                             <span className="text-[0.95rem] font-medium text-[#2f2f2f] md:text-[1.1rem]">
@@ -785,7 +785,7 @@ export default function OrderDetailsPageClient({
                       </div>
 
                       <div className="p-0 md:p-4">
-                        <h2 className="text-[1rem] font-medium text-[#353535] md:text-[1.1rem]">
+                        <h2 className="text-sm font-medium text-[#353535] md:text-[1.1rem]">
                           Order Updates
                         </h2>
                         <div className="mt-4 border-t border-[#e7e7e7]" />
@@ -833,22 +833,22 @@ export default function OrderDetailsPageClient({
                                         className="rounded-full text-[#c83b3b]"
                                       />
                                     ) : showCompletedTick ? (
-                                      <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#8bc53f] text-white">
+                                      <span className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#207958] text-white">
                                         <Check size={14} strokeWidth={3} />
                                       </span>
                                     ) : (
                                       <Circle
                                         size={22}
-                                        className="rounded-full text-[#8bc53f]"
+                                        className="rounded-full text-[#207958]"
                                       />
                                     )}
                                   </div>
 
                                   <div className="min-w-0 flex-1 pt-0.5">
-                                    <p className="text-[0.95rem] font-semibold text-[#353535] md:text-[1.15rem]">
+                                    <p className="text-sm font-semibold text-[#353535] md:text-[1.15rem]">
                                       {step.title}
                                     </p>
-                                    <p className="mt-3 text-[0.92rem] leading-6 text-[#4b4b4b] md:mt-7 md:text-[1.05rem]">
+                                    <p className="mt-3 text-xs leading-6 text-[#4b4b4b] md:mt-7 md:text-[1.05rem]">
                                       {step.message}
                                     </p>
                                     {step.timestamp ? (

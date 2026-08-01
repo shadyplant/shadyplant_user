@@ -588,10 +588,10 @@ export default function ProductDeliveryAddressPicker({
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="block text-xs font-semibold leading-5 text-[#171410]">
+          <span className="block text-[11px] font-semibold leading-5 text-[#171410]">
             {address ? "Your location" : "Set location"}
           </span>
-          <span className="mt-0.5 block truncate text-[10px] leading-4 text-[#7a7a7a]">
+          <span className="mt-0.5 block truncate text-[9px] leading-4 text-[#7a7a7a]">
             {address || emptyLabel}
           </span>
         </span>
@@ -620,7 +620,7 @@ export default function ProductDeliveryAddressPicker({
       </div>
     ) : hasAddress ? (
       <section className="mt-5">
-        <h2 className="text-sm font-semibold text-gray-700 md:text-sm">
+        <h2 className="text-xs font-semibold text-gray-700 md:text-sm">
           Delivery Details
         </h2>
         <button

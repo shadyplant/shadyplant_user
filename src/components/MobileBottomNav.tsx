@@ -19,7 +19,7 @@ export default function MobileBottomNav() {
   const { isAuthenticated } = useAuth();
   const cartItems = useCartItems();
   const cartCount = getCartCount(cartItems);
-  const wishlistItems = useWishlistStore((state) => state.items);
+  const { items: wishlistItems } = useWishlistStore();
   const wishlistCount = wishlistItems.length;
   const displayWishlistCount =
     wishlistCount > 99 ? "99+" : String(wishlistCount);
@@ -38,7 +38,7 @@ export default function MobileBottomNav() {
             <Link
               key={href}
               href={resolvedHref}
-              className={`flex flex-col items-center gap-1 rounded-2xl py-2 text-xs font-semibold ${
+              className={`flex flex-col items-center gap-1 rounded-2xl py-2 text-[11px] font-semibold ${
                 active ? "text-[#6a6a6a]" : "text-[#9a9a9a]"
               }`}
             >

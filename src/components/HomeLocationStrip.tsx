@@ -24,7 +24,7 @@ export default function HomeLocationStrip({
 
       <Link
         href="/lawn-grass"
-        className="flex items-center justify-between gap-3 rounded-[0.5rem] border border-[#e8ddd6] bg-white px-2 py-1 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#d7c0b0] hover:bg-[#fffbf8]"
+        className="flex items-center justify-between gap-2 rounded-[0.5rem] border border-[#e8ddd6] bg-white px-2 py-1 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:border-[#d7c0b0] hover:bg-[#fffbf8]"
         aria-label="Open lawn calculator"
       >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-[#c46a3f]">
@@ -32,10 +32,10 @@ export default function HomeLocationStrip({
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="block text-xs font-semibold leading-5 text-[#171410]">
+          <span className="block text-[11px] font-semibold leading-5 text-[#171410]">
             Lawn calculator
           </span>
-          <span className="mt-0.5 block text-[10px] leading-4 text-[#7a7a7a]">
+          <span className="mt-0.5 block text-[9px] leading-4 text-[#7a7a7a]">
             Get your lawn estimate
           </span>
         </span>

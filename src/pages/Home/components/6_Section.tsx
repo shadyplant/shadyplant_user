@@ -85,7 +85,7 @@ export default function FAQSection() {
                     onClick={() => setOpenIndex(isOpen ? null : index)}
                     className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left md:px-7"
                   >
-                    <span className="text-sm text-black/60 md:text-[15px] lg:text-[17px]">
+                    <span className="text-xs text-black/60 md:text-[15px] lg:text-[17px]">
                       {item.q}
                     </span>
                     {isOpen ? (

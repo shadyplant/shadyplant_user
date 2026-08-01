@@ -67,7 +67,7 @@ export default function CategorySection({
                 </div>
               </div>
 
-              <span className="w-full text-xs text-black/70 md:text-[0.875rem]">
+              <span className="w-full text-[12px] text-black/70 md:text-[0.875rem]">
                 {story.label}
               </span>
             </Link>

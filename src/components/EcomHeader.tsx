@@ -425,7 +425,7 @@ export default function EcomHeader({
         }`}
       >
         <header className={stickyHeaderClass}>
-          <div className="mx-auto max-w-7xl px-2 py-2.5 md:px-6 md:py-4">
+          <div className="mx-auto max-w-7xl px-2 py-1.5 md:px-6 md:py-4">
             <div className="flex items-center justify-between gap-3 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:gap-6">
               {/* Logo */}
               <Link href="/" className="flex shrink-0 items-center gap-2">
@@ -473,7 +473,7 @@ export default function EcomHeader({
                 >
                   <ShoppingCart size={20} />
                   {cartCount > 0 && (
-                    <span className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#4c8b5d] px-1 text-center text-[10px] leading-4 text-white">
+                    <span className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#207958] px-1 text-center text-[7px] leading-4 text-white">
                       {displayCartCount}
                     </span>
                   )}

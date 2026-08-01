@@ -168,7 +168,7 @@ export default function ProductDetailsSections({
       <details className="group ">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-1">
           <div>
-            <p className="text-sm font-medium text-gray-700 md:text-sm">
+            <p className="text-xs font-medium text-gray-700 md:text-sm">
               Product Specifications
             </p>
             {/* <p className="mt-1 text-sm text-gray-500 md:text-sm">
@@ -221,7 +221,7 @@ export default function ProductDetailsSections({
                         />
                       </span>
                     ) : null}
-                    <p className="text-sm font-medium text-gray-700 md:text-xs">
+                    <p className="text-xs font-medium text-gray-700 md:text-xs">
                       {item.title}
                     </p>
                   </div>

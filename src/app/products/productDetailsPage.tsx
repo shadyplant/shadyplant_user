@@ -130,7 +130,7 @@ export async function renderProductDetailsPage({
                 <section>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <h1 className="text-[24px] font-medium leading-7 text-[#3a3a3a]">
+                      <h1 className="text-lg md:text-[24px] font-medium text-[#3a3a3a]">
                         {product.name}
                       </h1>
                       {productMetaLine ? (
@@ -140,7 +140,7 @@ export async function renderProductDetailsPage({
                       ) : null}
                     </div>
                     {hasRatings ? (
-                      <p className="shrink-0 pt-1 text-[15px] font-medium text-[#6f6f6f]">
+                      <p className="shrink-0 pt-1 text-[24px] font-medium text-[#6f6f6f]">
                         {reviewData.summary.averageRating.toFixed(1)} |{" "}
                         {reviewData.summary.totalRatings} ratings
                       </p>
@@ -162,7 +162,7 @@ export async function renderProductDetailsPage({
                   </div>
                   <SelectedProductStockNotice className="mt-2 block text-[12px] font-black uppercase tracking-[0.14em] text-[#b23b2b]" />
 
-                  <p className="mt-2 text-[14px] font-normal text-gray-700">
+                  <p className="mt-2 text-xs font-normal text-gray-700">
                     <span>
                       <Truck
                         size={16}

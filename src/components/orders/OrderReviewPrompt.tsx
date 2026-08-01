@@ -461,12 +461,12 @@ export default function OrderReviewPrompt({
                   ))
                 )}
               </div>
-              <span className="text-sm font-semibold text-[#607657]">
+              <span className="text-xs font-semibold text-[#607657]">
                 {compactSummary}
               </span>
             </div>
             {hasReview ? (
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#4b4b4b]">
+              <p className="mt-2 line-clamp-2 text-xs leading-6 text-[#4b4b4b]">
                 {review?.body}
               </p>
             ) : null}

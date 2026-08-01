@@ -63,20 +63,20 @@ export default function WishlistPageClient() {
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 text-gray-700  ">
               <Trash2 size={28} />
             </div>
-            <h2 className="mt-6 text-2xl md:text-3xl text-gray-800">
+            <h2 className="mt-6 text-xl md:text-3xl text-gray-800">
               Sign in to view your wishlist
             </h2>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/auth?next=/wishlist"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#207958] px-6 py-4 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#207958] px-6 py-4 text-xs font-semibold text-white shadow-[0_14px_28px_rgba(36,54,27,0.18)] transition hover:bg-[linear-gradient(135deg,#1d2e16_0%,#2f4721_100%)]"
               >
                 Sign in
                 <ArrowRight size={16} />
               </Link>
               <Link
                 href="/"
-                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-4 text-sm font-semibold text-gray-6      00"
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-4 text-xs font-semibold text-gray-6      00"
               >
                 Browse products
               </Link>
@@ -123,7 +123,7 @@ export default function WishlistPageClient() {
             >
               <ArrowLeft size={24} strokeWidth={2.2} />
             </button>
-            <h1 className="text-lg text-[#111111]">My Wishlist</h1>
+            <h1 className="text-base text-[#111111]">My Wishlist</h1>
           </div>
           {/* Top bar mobile */}
 
@@ -135,20 +135,20 @@ export default function WishlistPageClient() {
                 <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 text-gray-700">
                   <Heart size={28} />
                 </div>
-                <h2 className="mt-6 text-2xl text-gray-900">
+                <h2 className="mt-6 text-xl md:text-2xl text-gray-900">
                   Your wishlist is empty
                 </h2>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                   <Link
                     href="/"
-                    className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
+                    className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-xs md:text-sm font-semibold text-white"
                   >
                     Explore products
                     <ArrowRight size={16} />
                   </Link>
                   <Link
                     href="/cart"
-                    className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3"
+                    className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-4 text-xs md:text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3"
                   >
                     View cart
                   </Link>

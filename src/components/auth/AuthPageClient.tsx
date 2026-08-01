@@ -613,7 +613,7 @@ export default function AuthPageClient() {
       <div className="min-h-screen flex flex-col items-center justify-center">
 
         <section className="px-4 pb-8 pt-4 md:px-6 md:pb-12 md:pt-6 w-full">
-          <div className="md:border md:border-gray-200 min-h-[550px] md:rounded-[1rem] overflow-hidden mx-auto grid max-w-5xl gap-0 lg:grid-cols-[0.95fr_1.05fr] shadow-[0_30px_90px_rgba(0,0,0,0.12)]">
+          <div className="md:border md:border-gray-200 min-h-[550px] md:rounded-[1rem] overflow-hidden mx-auto grid max-w-5xl gap-0 lg:grid-cols-[0.95fr_1.05fr] md:shadow-[0_30px_90px_rgba(0,0,0,0.12)]">
             
             {/* Left Image Panel */}
             <div

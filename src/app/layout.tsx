@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppEnvironmentProvider } from "@/components/app-environment/AppEnvironmentProvider";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import PushTokenBridge from "@/components/PushTokenBridge";
 import MaintenanceNotice from "@/components/MaintenanceNotice";
 import SignInPromptModal from "@/components/auth/SignInPromptModal";
 import { appMono, appSans } from "@/lib/fonts";
@@ -10,7 +11,7 @@ import { isMaintenanceModeEnabled } from "@/lib/siteMode";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Grass Green Nursery",
+  title: "ShadyPlant",
   description: "E-commerce storefront for plants, lawn grass, and nursery essentials.",
 };
 
@@ -53,6 +54,7 @@ export default async function RootLayout({
         <AppEnvironmentProvider initialEnvironment={appEnvironment}>
           <AuthProvider>
             {children}
+            <PushTokenBridge />
             <Suspense fallback={null}>
               <SignInPromptModal />
             </Suspense>

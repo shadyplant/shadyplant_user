@@ -90,7 +90,7 @@ export default function HomePage({
   ];
 
   return (
-    <div className="bg-white space-y-4 pb-1 pt-0 md:pb-12 md:pt-0">
+    <div className="bg-white space-y-4 pb-20 pt-0 md:pb-12 md:pt-0">
       <div className="md:hidden">
         
         <HomeLocationStrip initialAddress={initialDeliveryAddress} />

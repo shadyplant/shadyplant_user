@@ -46,18 +46,8 @@ async function loadLawnGrassContent() {
     throw new Error("Unable to load lawn grass calculator.");
   }
 
-  const recommendations = products
-    .filter((item) => item.id !== product.id)
-    .filter((item) => item.category === product.category || item.tags.includes("lawn-grass"))
-    .slice(0, 4);
-
-  const fallbackRecommendations = products
-    .filter((item) => item.id !== product.id)
-    .slice(0, 4);
-
   return {
     product,
-    recommendations: recommendations.length ? recommendations : fallbackRecommendations,
   };
 }
 
@@ -74,7 +64,6 @@ export default function LawnGrassBulkOrderPopup({
   const [loadError, setLoadError] = useState("");
   const [content, setContent] = useState<{
     product: Product;
-    recommendations: Product[];
   } | null>(null);
 
   const resolvedOpen = useMemo(() => isOpen, [isOpen]);
@@ -190,11 +179,7 @@ export default function LawnGrassBulkOrderPopup({
             </div>
           ) : content ? (
             <div className="rounded-[0.9rem] bg-white p-4 md:px-6 md:py-6">
-              <LawnGrassBulkOrderEstimator
-                product={content.product}
-                recommendations={content.recommendations}
-                showRecommendations={false}
-              />
+              <LawnGrassBulkOrderEstimator product={content.product} />
             </div>
           ) : null}
         </div>

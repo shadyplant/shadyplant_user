@@ -233,8 +233,8 @@ export function ProductOptionGroupsSelector({
           key={group.key}
           className={
             variant === "mobile"
-              ? "rounded-xl border border-[#dce8ce] bg-white p-4"
-              : "rounded-xl border border-[#dce8ce] bg-white p-4 md:p-5"
+              ? "rounded-xl border border-gray-200 bg-white p-4"
+              : "rounded-xl border border-gray-200 bg-white p-4 md:p-5"
           }
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -242,8 +242,8 @@ export function ProductOptionGroupsSelector({
               <p
                 className={
                   variant === "mobile"
-                    ? "text-[15px] font-black text-[#163915]"
-                    : "text-base font-bold text-[#163915]"
+                    ? "text-[15px] font-black text-gray-700"
+                    : "text-base font-bold text-gray-700"
                 }
               >
                 {group.title}
@@ -251,8 +251,8 @@ export function ProductOptionGroupsSelector({
               <p
                 className={
                   variant === "mobile"
-                    ? "mt-0.5 text-[11px] leading-4 text-[#6d8464]"
-                    : "mt-0.5 text-xs text-[#6d8464] md:text-sm"
+                    ? "mt-0.5 text-[11px] leading-4 text-gray-500"
+                    : "mt-0.5 text-xs text-gray-500 md:text-sm"
                 }
               >
                 {group.subtitle || "Choose the option that fits your space best"}
@@ -263,8 +263,8 @@ export function ProductOptionGroupsSelector({
                 type="button"
                 className={
                   variant === "mobile"
-                    ? "text-[11px] font-semibold text-[#2c6db3]"
-                    : "text-xs font-semibold text-[#2c6db3] transition hover:text-[#214f14] md:text-sm"
+                    ? "text-[11px] font-semibold text-gray-600"
+                    : "text-xs font-semibold text-gray-600 transition hover:text-gray-800 md:text-sm"
                 }
               >
                 {group.guideLabel}
@@ -290,7 +290,7 @@ export function ProductOptionGroupsSelector({
                       : "min-w-[64px] px-3 py-2 md:min-w-[76px] md:px-4 md:py-2.5"
                   } ${
                     isSelected
-                      ? "border-[#214f14] bg-[#214f14] text-white shadow-sm"
+                      ? "border-gray-300 text-gray-700"
                       : isDisabled
                         ? "border-[#dbe6cf] bg-[#f8fbf4] text-[#b1beaa]"
                         : "border-[#d8e6cb] bg-[#f9fcf5] text-[#163915] hover:border-[#aac58d] hover:bg-[#f2f8ea]"
@@ -310,7 +310,7 @@ export function ProductOptionGroupsSelector({
                       className={`mt-1 block font-medium ${
                         variant === "mobile" ? "text-[10px]" : "text-[10px] md:text-[11px]"
                       } ${
-                        isSelected ? "text-[#d6e6bd]" : "text-[#d45b39]"
+                        isSelected ? "text-text-gray-700" : "text-gray-500"
                       }`}
                     >
                       {optionStock === 0 ? "Out of stock" : option.note}
@@ -321,7 +321,7 @@ export function ProductOptionGroupsSelector({
                     <span
                       className={`mt-1 block ${
                         variant === "mobile" ? "text-[10px]" : "text-[10px] md:text-[11px]"
-                      } ${isSelected ? "text-white/80" : "text-[#58724f]"}`}
+                      } ${isSelected ? "text-gray-700" : "text-gray-500"}`}
                     >
                       {formatCurrency(Number(option.price))}
                     </span>
@@ -337,11 +337,11 @@ export function ProductOptionGroupsSelector({
         <p
           className={
             variant === "mobile"
-              ? "px-1 text-[11px] font-medium text-[#58724f]"
-              : "px-1 text-sm font-medium text-[#58724f]"
+              ? "px-1 text-[11px] font-medium text-gray-700"
+              : "px-1 text-sm font-medium text-gray-700"
           }
         >
-          Selected: <span className="font-semibold text-[#214f14]">{resolved.displayLabel}</span>
+          Selected: <span className="font-semibold text-gray-700">{resolved.displayLabel}</span>
         </p>
       ) : null}
     </div>

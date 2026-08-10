@@ -63,8 +63,8 @@ export default function ProductImageGallery({
                 onClick={() => setActiveIndex(index)}
                 className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white transition-all sm:h-24 sm:w-24 lg:h-[88px] lg:w-[88px] ${
                   isActive
-                    ? "border-2 border-[#214f14] p-1 shadow-[0_8px_16px_rgba(33,79,20,0.1)]"
-                    : "border border-[#d6e6bd] hover:border-[#8ca773]"
+                    ? "border-2 border-gray-600 p-1 "
+                    : "border border-gray-300 hover:border-[#8ca773]"
                 }`}
                 aria-label={`Show ${productName} image ${index + 1}`}
               >
@@ -121,7 +121,7 @@ export default function ProductImageGallery({
             />
           </div>
           {overlayContent ? (
-            <div className="absolute right-4 top-15 z-10 flex flex-col gap-2">{overlayContent}</div>
+            <div className="absolute right-4 top-4 z-10 flex flex-col gap-2">{overlayContent}</div>
           ) : null}
 
           {hasMultipleImages ? (

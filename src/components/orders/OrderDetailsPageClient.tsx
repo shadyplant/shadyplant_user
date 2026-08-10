@@ -20,6 +20,7 @@ import { formatCurrency } from "@/lib/formatCurrency";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
   canDownloadInvoice,
+  formatCancellationReason,
   formatDateTime,
   formatOrderStatus,
   type Order,
@@ -57,6 +58,7 @@ function resolveOrderLineItems(order: Order) {
         key: item.variantId || item.productId || `order-line-${index + 1}`,
         name: String(item.name || "Product").trim(),
         image: item.image || "",
+        images: Array.isArray(item.images) ? item.images : [],
         meta,
         unitPrice,
         quantity,
@@ -76,12 +78,28 @@ function resolveOrderLineItems(order: Order) {
       key: order.id,
       name: "Premium grass order",
       image: "",
+      images: [],
       meta: `${quantity} sqft`,
       unitPrice,
       quantity,
       subtotal,
     },
   ];
+}
+
+function buildOrderDetailsThumbnailPreview(
+  orderLineItems: Array<{ image: string; images?: string[] }>,
+) {
+  const previewImages = orderLineItems
+    .flatMap((item) => [item.image || "", ...(item.images || [])])
+    .filter(Boolean)
+    .filter((image, index, list) => list.indexOf(image) === index)
+    .slice(0, 3);
+
+  return {
+    isStackedPreview: previewImages.length > 1,
+    previewImages,
+  };
 }
 
 function getReviewProduct(order: Order) {
@@ -164,10 +182,14 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
   const currentStatus = String(order.currentStatus || "")
     .trim()
     .toLowerCase();
+  const cancellationReasonLabel = formatCancellationReason(
+    order.cancellationReason || "",
+  );
   const basePlacedTimestamp =
     resolveTrackingTimestamp(order, "placed") ||
     resolveTrackingTimestamp(order, "confirmed") ||
     order.createdAt;
+  const confirmedTimestamp = resolveTrackingTimestamp(order, "confirmed");
   const cancelledTimestamp =
     resolveTrackingTimestamp(order, "cancelled") ||
     order.cancelledAt ||
@@ -204,7 +226,7 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
           secondaryMessage: "Shadyplant will verify and refund back.",
           secondaryTimestamp: refundSubmittedAt,
           state: "current",
-          actionLabel: "Account Details",
+          actionLabel: "View Refund Details",
           actionType: "view_refund_details",
         } satisfies StorefrontTrackingStep;
       }
@@ -215,7 +237,7 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
         message: "Please provide your account details for refund.",
         timestamp: null,
         state: "current",
-        actionLabel: "Account Details",
+        actionLabel: "Submit Account Details",
         actionType: "open_refund_form",
       } satisfies StorefrontTrackingStep;
     })();
@@ -224,7 +246,7 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
       {
         key: "placed",
         title: "Order Placed",
-        message: "Your order has been confirmed.",
+        message: "Your order has been placed.",
         timestamp: basePlacedTimestamp,
         state: "complete",
       },
@@ -235,6 +257,9 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
         timestamp: cancelledTimestamp,
         state: "complete",
         tone: "error",
+        secondaryMessage: cancellationReasonLabel
+          ? `Reason: ${cancellationReasonLabel}`
+          : undefined,
       },
       refundStep,
     ];
@@ -245,7 +270,7 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
       {
         key: "placed",
         title: "Order Placed",
-        message: "Your order has been confirmed.",
+        message: "Your order has been placed.",
         timestamp: basePlacedTimestamp,
         state: "complete",
       },
@@ -256,6 +281,9 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
         timestamp: cancelledTimestamp,
         state: "complete",
         tone: "error",
+        secondaryMessage: cancellationReasonLabel
+          ? `Reason: ${cancellationReasonLabel}`
+          : undefined,
       },
       {
         key: "refunded",
@@ -278,13 +306,17 @@ function buildStorefrontTrackingSteps(order: Order): StorefrontTrackingStep[] {
     {
       key: "placed",
       title: "Order Placed",
-      message: "Your order has been confirmed.",
+      message: "Your order has been placed.",
       timestamp: basePlacedTimestamp,
+      secondaryMessage: confirmedTimestamp
+        ? "Your order has been confirmed."
+        : undefined,
+      secondaryTimestamp: confirmedTimestamp,
     },
     {
       key: "shipped",
       title: "Order Shipped",
-      message: "Your order is dispatched from Grass Green Nursery warehouse.",
+      message: "Your order is dispatched from ShadyPlant warehouse.",
       timestamp: resolveTrackingTimestamp(order, "shipped"),
     },
     {
@@ -540,6 +572,7 @@ export default function OrderDetailsPageClient({
       : null;
   const canShowInvoice = order ? canDownloadInvoice(order) : false;
   const orderLineItems = order ? resolveOrderLineItems(order) : [];
+  const thumbnailPreview = buildOrderDetailsThumbnailPreview(orderLineItems);
   const refundAccountDetails = order?.refundAccountDetails || null;
   const normalizedOrderStatus = String(order?.currentStatus || "")
     .trim()
@@ -670,20 +703,65 @@ export default function OrderDetailsPageClient({
                       <div className="p-0 md:p-4">
                         <div className="flex flex-col gap-3 border-b border-[#e6ede1] pb-4 md:flex-row md:items-start md:justify-between md:gap-4">
                           <div className="flex items-start gap-3 md:gap-4">
-                            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[0.8rem] bg-[#eef5e3] text-[#214f14] md:h-20 md:w-20 md:rounded-[1rem]">
-                              {orderLineItems[0]?.image ? (
-                                <Image
-                                  src={orderLineItems[0].image}
-                                  alt={orderLineItems[0].name}
-                                  fill
-                                  sizes="(max-width: 768px) 64px, 80px"
-                                  className="object-cover"
-                                />
+                            <div className="relative h-16 w-16 shrink-0 md:h-20 md:w-20">
+                              {thumbnailPreview.isStackedPreview ? (
+                                <>
+                                  <div className="absolute left-1 top-2 h-10 w-10 rotate-[-8deg] overflow-hidden rounded-[0.5rem] bg-[#c8c8c8] shadow-sm md:h-12 md:w-12">
+                                    {thumbnailPreview.previewImages[1] ? (
+                                      <Image
+                                        src={thumbnailPreview.previewImages[1]}
+                                        alt="Order item preview"
+                                        fill
+                                        sizes="48px"
+                                        className="object-cover opacity-75"
+                                      />
+                                    ) : null}
+                                  </div>
+                                  <div className="absolute left-4 top-0 h-10 w-10 rotate-[4deg] overflow-hidden rounded-[0.5rem] bg-[#d8d8d8] shadow-sm md:h-12 md:w-12">
+                                    {thumbnailPreview.previewImages[2] ? (
+                                      <Image
+                                        src={thumbnailPreview.previewImages[2]}
+                                        alt="Order item preview"
+                                        fill
+                                        sizes="48px"
+                                        className="object-cover opacity-80"
+                                      />
+                                    ) : null}
+                                  </div>
+                                  <div className="absolute left-0 top-3 flex h-10 w-10 rotate-[6deg] items-center justify-center overflow-hidden rounded-[0.5rem] bg-[#5a5a5a] shadow-[0_8px_18px_rgba(0,0,0,0.14)] md:h-12 md:w-12">
+                                    {thumbnailPreview.previewImages[0] ? (
+                                      <Image
+                                        src={thumbnailPreview.previewImages[0]}
+                                        alt={orderLineItems[0]?.name || "Order item"}
+                                        fill
+                                        sizes="48px"
+                                        className="object-cover opacity-30"
+                                      />
+                                    ) : (
+                                      <PackageSearch
+                                        size={18}
+                                        className="relative z-10 text-white md:h-5 md:w-5"
+                                      />
+                                    )}
+                                  </div>
+                                </>
                               ) : (
-                                <PackageSearch
-                                  size={24}
-                                  className="md:h-7 md:w-7"
-                                />
+                                <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[0.8rem] bg-[#eef5e3] text-[#214f14] md:h-20 md:w-20 md:rounded-[1rem]">
+                                  {thumbnailPreview.previewImages[0] ? (
+                                    <Image
+                                      src={thumbnailPreview.previewImages[0]}
+                                      alt={orderLineItems[0]?.name || "Order item"}
+                                      fill
+                                      sizes="(max-width: 768px) 64px, 80px"
+                                      className="object-cover"
+                                    />
+                                  ) : (
+                                    <PackageSearch
+                                      size={24}
+                                      className="md:h-7 md:w-7"
+                                    />
+                                  )}
+                                </div>
                               )}
                             </div>
 
@@ -859,7 +937,7 @@ export default function OrderDetailsPageClient({
                                       </p>
                                     ) : null}
                                     {step.secondaryMessage ? (
-                                      <p className="mt-3 text-[0.92rem] leading-6 text-[#4b4b4b] md:mt-4 md:text-[1.05rem]">
+                                      <p className="mt-3 text-xs leading-6 text-[#4b4b4b] md:mt-4 md:text-[1.05rem]">
                                         {step.secondaryMessage}
                                       </p>
                                     ) : null}
@@ -945,7 +1023,7 @@ export default function OrderDetailsPageClient({
               </div>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-medium text-gray-800 md:text-3xl">
+                  <h3 className="text-base font-medium text-gray-800 md:text-3xl">
                     Account Details
                   </h3>
                 </div>
@@ -1109,10 +1187,10 @@ export default function OrderDetailsPageClient({
               className="absolute inset-0"
               onClick={() => setIsRefundDetailsOpen(false)}
             />
-            <div className="relative z-10 w-full max-w-xl rounded-[1.6rem] bg-white p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+            <div className="relative z-10 w-full max-w-xl rounded-[0.5rem] bg-white p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-3xl font-medium text-[#2f2f2f]">
+                  <h3 className="text-base font-medium text-[#2f2f2f]">
                     Account Details
                   </h3>
                 </div>
@@ -1121,7 +1199,7 @@ export default function OrderDetailsPageClient({
                   onClick={() => setIsRefundDetailsOpen(false)}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dce8ce] text-[#46653f]"
                 >
-                  <XCircle size={18} />
+                  <X size={18} />
                 </button>
               </div>
 
@@ -1130,25 +1208,25 @@ export default function OrderDetailsPageClient({
               <div className="mt-6 space-y-4 text-[#2f2f2f]">
                 <div>
                   <p className="text-sm text-[#6f6f6f]">Name as on Account</p>
-                  <p className="mt-2 text-lg">
+                  <p className="mt-2 text-base">
                     {refundAccountDetails.accountHolderName || "-"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-[#6f6f6f]">Bank Name</p>
-                  <p className="mt-2 text-lg">
+                  <p className="mt-2 text-base">
                     {refundAccountDetails.bankName || "-"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-[#6f6f6f]">Account Number</p>
-                  <p className="mt-2 text-lg">
+                  <p className="mt-2 text-base">
                     {refundAccountDetails.accountNumber || "-"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-[#6f6f6f]">IFSC Code</p>
-                  <p className="mt-2 text-lg uppercase">
+                  <p className="mt-2 text-base uppercase">
                     {refundAccountDetails.ifscCode || "-"}
                   </p>
                 </div>

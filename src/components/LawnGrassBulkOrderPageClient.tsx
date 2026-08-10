@@ -20,9 +20,6 @@ type RecommendationSectionProps = {
   recommendations: Product[];
 };
 
-
-
-
 export default function LawnGrassBulkOrderPageClient({
   product,
   recommendations,
@@ -46,37 +43,29 @@ export default function LawnGrassBulkOrderPageClient({
   return (
     <main className="min-h-screen">
       <MobileSearchHeader />
-      <div className="mx-auto flex w-full max-w-7xl px-4 flex-col gap-0 md:gap-0">
+      <div className="md:mx-auto flex w-full max-w-7xl px-3 md:px-4 flex-col gap-0 md:gap-0">
         <div className="hidden md:block">{BackButtonBar()}</div>
 
-        {/* <Slider banners={banners} autoPlay intervalMs={5000}/> */}
-
         <section className="bg-white pt-2 md:pt-5">
-          <LawnGrassBulkOrderEstimator
-            product={product}
-          />
+          <LawnGrassBulkOrderEstimator product={product} />
         </section>
         {getProductRecommendations({
           showRecommendations: recommendations.length > 0,
           recommendations,
         })}
+      </div>
 
-      </div>f
-
-       <SiteFooter />
+      <SiteFooter />
     </main>
   );
 }
 
-
-
-
-
-
-function getProductRecommendations({ showRecommendations, recommendations }: RecommendationSectionProps) {
-return(
-  <>
-  
+function getProductRecommendations({
+  showRecommendations,
+  recommendations,
+}: RecommendationSectionProps) {
+  return (
+    <>
       {showRecommendations ? (
         <section className="bg-white pt-10 md:p-8">
           <div className="flex items-start justify-between gap-6">
@@ -84,16 +73,12 @@ return(
               <p className="text-base text-gray-600 md:text-2xl">
                 Recommended Products
               </p>
-              {/* <p className="mt-1 text-sm text-gray-600 md:text-base">
-                You may also like these products
-              </p> */}
             </div>
             <Link
               href="/search"
               className="inline-flex items-center gap-1 text-[11px] text-[#214f14] transition-all md:text-xs"
             >
-              <span className="text-xs">View all</span>
-              <span aria-hidden="true">›</span>
+              <span className="text-sm text-gray-600">View all</span>
             </Link>
           </div>
 
@@ -110,12 +95,11 @@ return(
           )}
         </section>
       ) : null}
-  </>
-)
+    </>
+  );
 }
 
-
-// Back button bar at left on top function 
+// Back button bar at left on top function
 function BackButtonBar() {
   return (
     <div className=" flex items-center gap-2 bg-white py-4 md:py-6">
@@ -124,7 +108,7 @@ function BackButtonBar() {
         className="inline-flex items-center gap-1 text-sm text-gray-600 transition-all md:text-base"
       >
         <span aria-hidden="true">
-        <ChevronLeft size={16} />
+          <ChevronLeft size={16} />
         </span>
         <span>Back to Home</span>
       </Link>

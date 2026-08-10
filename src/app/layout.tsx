@@ -10,9 +10,11 @@ import { resolveAppEnvironment } from "@/lib/environment";
 import { isMaintenanceModeEnabled } from "@/lib/siteMode";
 import "./globals.css";
 
+
 export const metadata: Metadata = {
   title: "ShadyPlant",
-  description: "E-commerce storefront for plants, lawn grass, and nursery essentials.",
+  description:
+    "E-commerce storefront for plants, lawn grass, and nursery essentials.",
 };
 
 export default async function RootLayout({
@@ -51,6 +53,7 @@ export default async function RootLayout({
       <body
         className={`${appSans.variable} ${appMono.variable} min-h-full flex flex-col font-sans`}
       >
+        
         <AppEnvironmentProvider initialEnvironment={appEnvironment}>
           <AuthProvider>
             {children}

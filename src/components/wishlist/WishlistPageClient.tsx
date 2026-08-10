@@ -95,7 +95,7 @@ export default function WishlistPageClient() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+              className="inline-flex items-center gap-2 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
             >
               <ArrowLeft size={16} />
               Back
@@ -114,7 +114,7 @@ export default function WishlistPageClient() {
           </div>
 
           {/* Top bar mobile */}
-          <div className="flex md:hidden border-b border-[#e2e8dc] h-15 items-center gap-3">
+          <div className="flex md:hidden border-b border-gray-200 h-15 items-center gap-3">
             <button
               type="button"
               onClick={() => router.back()}
@@ -130,27 +130,43 @@ export default function WishlistPageClient() {
           {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
             <SpinnerLoader offset={124} />
           ) : !products.length ? (
-            <div className=" mx-auto max-w-3xl p-6 text-center md:p-10 min-h-[calc(100vh-180px)] flex flex-col items-center justify-center ">
+            <div className=" mx-auto max-w-3xl p-6 text-center md:p-10 min-h-[calc(100vh-180px)] md:min-h-[calc(100vh-80vh)] flex flex-col items-center justify-center ">
               <div>
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 text-gray-700">
-                  <Heart size={28} />
+                <div className="mx-auto flex h-auto w-auto items-center justify-center text-[#4c8d5b]">
+                  <img
+                    src="/wishlist_empty_illustration.svg"
+                    alt=""
+                    className="h-40 w-auto p-2"
+                  />
                 </div>
-                <h2 className="mt-6 text-xl md:text-2xl text-gray-900">
+                <h2 className="mt-6 text-2xl text-gray-800">
                   Your wishlist is empty
                 </h2>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <p className="mx-auto mt-0 md:mt-3 max-w-xl text-base leading-7 text-gray-400">
+                  Your wishlist is looking a little empty.
+                </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center w-full justify-center items-center">
                   <Link
                     href="/"
-                    className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-xs md:text-sm font-semibold text-white"
+                    className="w-[80%] sm:w-auto group relative inline-flex items-center justify-between gap-2 overflow-hidden rounded-full bg-[#207958] px-1 py-1 text-sm font-semibold text-white shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[#1b6b4e] hover:shadow-[0_12px_30px_rgba(32,121,88,0.35)] active:translate-y-0 active:scale-[0.98]"
                   >
-                    Explore products
-                    <ArrowRight size={16} />
-                  </Link>
-                  <Link
-                    href="/cart"
-                    className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-4 text-xs md:text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3"
-                  >
-                    View cart
+                    {/* Shine */}
+                    <span className="pointer-events-none absolute inset-0">
+                      <span className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
+                    </span>
+
+                    {/* Text */}
+                    <span className="relative z-10 pl-4 pr-2 transition-all duration-300">
+                      Explore products
+                    </span>
+
+                    {/* Arrow */}
+                    <div className="relative z-10 inline-flex items-center justify-center rounded-full bg-white/20 p-3 transition-all duration-300 group-hover:translate-x-1 group-hover:bg-white/30 group-hover:shadow-[0_0_16px_rgba(255,255,255,0.25)]">
+                      <ArrowRight
+                        size={16}
+                        className="transition-transform duration-300 group-hover:translate-x-0.5"
+                      />
+                    </div>
                   </Link>
                 </div>
               </div>

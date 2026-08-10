@@ -11,6 +11,7 @@ type MobileProductImageCarouselProps = {
   productId: string;
   productName: string;
   rating?: string;
+  totalRatings?: number;
 };
 
 export default function MobileProductImageCarousel({
@@ -18,6 +19,7 @@ export default function MobileProductImageCarousel({
   productId,
   productName,
   rating,
+  totalRatings,
 }: MobileProductImageCarouselProps) {
   const galleryImages = images.filter(Boolean);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -99,7 +101,8 @@ export default function MobileProductImageCarousel({
           )}
         </div>
 
-        <span className="absolute left-3 top-3 z-20 rounded-sm bg-white px-2 py-1 text-[10px] text-[#214f14] shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
+        <span
+          className="absolute left-3 top-3 z-20 rounded-md bg-black/20 backdrop-blur-lg px-2 py-1 text-[10px] font-semibold text-white/80 mix-blend-screen" >
           Original
         </span>
 
@@ -107,18 +110,19 @@ export default function MobileProductImageCarousel({
           <WishlistButton
             productId={productId}
             size={18}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 text-gray-800 shadow-[0_8px_20px_rgba(0,0,0,0.05)] backdrop-blur-sm transition hover:bg-white"
           />
           <ShareButton
             productName={productName}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 text-gray-800 shadow-[0_8px_20px_rgba(0,0,0,0.05)] backdrop-blur-sm transition hover:bg-white"
           />
         </div>
 
         {rating ? (
           <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-md bg-white/50 px-2 py-1 text-xs font-black text-[#171410] shadow-[0_8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md">
-            <Star size={13} fill="currentColor" className="text-[#f4b400]" />
             {rating}
+            <Star size={13} fill="currentColor" className="text-[#207958]" />
+            <span className="text-gray-700">| {totalRatings ?? 0}</span>
           </span>
         ) : null}
       </div>
@@ -155,7 +159,6 @@ export default function MobileProductImageCarousel({
           </div>
         </div>
       ) : null}
-
     </section>
   );
 }

@@ -2,7 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent,
+} from "react";
 import {
   ArrowRight,
   ChevronRight,
@@ -10,6 +17,8 @@ import {
   Download,
   PackageSearch,
   Search,
+  ShoppingBag,
+  ShoppingCart,
   SlidersHorizontal,
   Truck,
   Wallet,
@@ -78,21 +87,55 @@ function formatOrderDateOnly(value: string) {
   return date.toLocaleDateString("en-GB");
 }
 
-function buildOrderThumbnailPreview(order: Order, previewImage: string | null) {
-  const orderImages = (order.orderItems || [])
-    .map((item) => item.image || "")
-    .filter(Boolean);
-  const previewImages = [previewImage || "", ...orderImages]
+function getOrderStatusPillClass(statusText: string, currentStatus: string) {
+  const normalizedStatus = String(statusText || currentStatus || "")
+    .trim()
+    .toLowerCase();
+
+  if (normalizedStatus.includes("cancel")) {
+    return "bg-[#b91c1c] text-white";
+  }
+
+  if (normalizedStatus.includes("confirm")) {
+    return "bg-[#2563eb] text-white";
+  }
+
+  if (normalizedStatus.includes("deliver")) {
+    return "bg-[#0f766e] text-white";
+  }
+
+  if (normalizedStatus.includes("place")) {
+    return "bg-[#f59e0b] text-white";
+  }
+
+  return "bg-[#207958] text-white";
+}
+
+function buildOrderThumbnailPreview(
+  order: Order,
+  previewProduct: Product | null,
+) {
+  const orderImages = (order.orderItems || []).flatMap((item) => [
+    item.image || "",
+    ...(item.images || []),
+  ]);
+  const productImages = [
+    previewProduct?.image || "",
+    ...(previewProduct?.images || []),
+  ];
+  const previewImages = [...productImages, ...orderImages]
     .filter(Boolean)
     .filter((image, index, list) => list.indexOf(image) === index)
     .slice(0, 3);
+  const lineItemCount = Math.max(
+    order.orderItems?.length || 0,
+    order.items?.length || 0,
+  );
+  const isStackedPreview = lineItemCount > 1;
 
   return {
-    itemCount: Math.max(
-      order.orderItems?.length || 0,
-      order.items?.length || 0,
-      previewImages.length ? 1 : 0,
-    ),
+    itemCount: lineItemCount || (previewImages.length ? 1 : 0),
+    isStackedPreview,
     previewImages,
   };
 }
@@ -106,15 +149,20 @@ function OrderPreviewCard({
 }) {
   const currentStep = getCurrentTrackingStep(order);
   const orderHref = getOrderHref(order.id);
-  const previewImage =
-    previewProduct?.image || order.orderItems?.[0]?.image || null;
-  const thumbnailPreview = buildOrderThumbnailPreview(order, previewImage);
+  const thumbnailPreview = buildOrderThumbnailPreview(order, previewProduct);
+  const previewImage = thumbnailPreview.previewImages[0] || null;
   const reviewProduct = isDelivered(order)
     ? getReviewProduct(order, previewProduct)
     : null;
   const currentStatus = String(order.currentStatus || "")
     .trim()
     .toLowerCase();
+  const currentStatusLabel =
+    currentStep?.title || formatOrderStatus(order.currentStatus);
+  const currentStatusPillClass = getOrderStatusPillClass(
+    currentStatusLabel,
+    currentStatus,
+  );
   const isRefunded =
     String(order.currentStatus || "")
       .trim()
@@ -147,7 +195,7 @@ function OrderPreviewCard({
           className="flex w-full items-center gap-2 px-0 py-2 md:hidden"
         >
           <div className="relative h-[84px] w-[84px] shrink-0">
-            {thumbnailPreview.itemCount > 1 ? (
+            {thumbnailPreview.isStackedPreview ? (
               <>
                 <div className="absolute left-1 top-2 h-[62px] w-[62px] rotate-[-8deg] overflow-hidden rounded-[0.45rem] bg-[#c8c8c8] shadow-sm">
                   {thumbnailPreview.previewImages[1] ? (
@@ -193,9 +241,9 @@ function OrderPreviewCard({
               </>
             ) : (
               <div className="relative flex h-[76px] w-[76px] items-center justify-center overflow-hidden bg-white text-[#c6c6c6]">
-                {previewImage ? (
+                {thumbnailPreview.previewImages[0] ? (
                   <Image
-                    src={previewImage}
+                    src={thumbnailPreview.previewImages[0]}
                     alt={
                       previewProduct?.name ||
                       order.orderItems?.[0]?.name ||
@@ -220,7 +268,11 @@ function OrderPreviewCard({
 
             <p className="mt-1 truncate text-xs md:text-[0.82rem] leading-5 font-medium text-[#8d8d8d]">
               <span className="text-gray-600">Order Status</span>{" "}
-              {currentStep?.title || formatOrderStatus(order.currentStatus)}
+              <span
+                className={`font-semibold px-2 py-0.5 rounded-sm ${currentStatusPillClass}`}
+              >
+                {currentStatusLabel}
+              </span>
             </p>
 
             <p className="mt-2 truncate text-[0.82rem] leading-5 font-medium text-gray-600">
@@ -236,7 +288,7 @@ function OrderPreviewCard({
         <div className="hidden gap-5 md:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-stretch">
           <div className="flex min-w-0 items-start gap-4 md:gap-5">
             <div className="relative h-[98px] w-[98px] shrink-0 md:h-[116px] md:w-[116px]">
-              {thumbnailPreview.itemCount > 1 ? (
+              {thumbnailPreview.isStackedPreview ? (
                 <>
                   <div className="absolute left-1 top-2 h-[74px] w-[74px] rotate-[-8deg] overflow-hidden rounded-[0.45rem] bg-[#c8c8c8] shadow-sm md:h-[82px] md:w-[82px]">
                     {thumbnailPreview.previewImages[1] ? (
@@ -303,14 +355,18 @@ function OrderPreviewCard({
 
             <div className="min-w-0">
               <Link href={orderHref} className="block">
-                <p className="text-[0.98rem] font-bold text-[#353535] md:text-[1.05rem]">
+                <p className="text-[0.98rem] font-bold text-[#353535] md:text-base">
                   Order ID : {order.orderNumber}
                 </p>
               </Link>
-              <div className="mt-2.5 space-y-1 text-[0.9rem] leading-6 text-[#4a4a4a] md:text-[0.96rem]">
+              <div className="mt-2.5 space-y-1 text-[0.9rem] leading-6 text-[#4a4a4a] md:text-sm">
                 <p>
                   Order Status :{" "}
-                  {currentStep?.title || formatOrderStatus(order.currentStatus)}
+                  <span
+                    className={`ml-1 inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-semibold ${currentStatusPillClass}`}
+                  >
+                    {currentStatusLabel}
+                  </span>
                 </p>
                 <p>Order Date &amp; Time : {formatDateTime(order.createdAt)}</p>
                 <p>
@@ -343,7 +399,7 @@ function OrderPreviewCard({
               {!isCancelled ? (
                 <Link
                   href={orderHref}
-                  className="inline-flex min-w-[160px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.55rem] border border-gray-300 bg-white px-4 py-2.5 text-[0.9rem] font-semibold text-gray-700 transition hover:bg-[#f8f8f8] md:text-[0.95rem]"
+                  className="inline-flex min-w-[160px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.55rem] border border-gray-300 bg-white px-4 py-2.5 text-[0.9rem] font-semibold text-gray-700 transition hover:bg-[#f8f8f8] md:text-sm"
                 >
                   <Truck size={18} />
                   Track Order
@@ -353,7 +409,7 @@ function OrderPreviewCard({
               {showRefundAction ? (
                 <Link
                   href={orderHref}
-                  className={`inline-flex min-w-[190px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.55rem] border px-4 py-2.5 text-[0.9rem] font-semibold transition md:text-[0.95rem] ${
+                  className={`inline-flex min-w-[190px] items-center justify-center gap-2 whitespace-nowrap rounded-[0.55rem] border px-4 py-2.5 text-[0.9rem] font-semibold transition md:text-sm ${
                     order.refundRequestStatus === "refunded"
                       ? "border-[#d9e3c8] bg-[#f6fbf1] text-[#355f2a]"
                       : "border-[#d9e3c8] bg-white text-[#355f2a] hover:bg-[#f8f8f8]"
@@ -369,10 +425,10 @@ function OrderPreviewCard({
               ) : canShowInvoice ? (
                 <OrderInvoiceDownloadButton
                   order={order}
-                  className="border border-gray-300 px-4 py-2.5 text-[0.98rem] text-gray-700 hover:bg-[#f8f8f8] md:text-[1.02rem]"
+                  className="border border-gray-300 px-4 py-2.5 text-[0.98rem] text-gray-700 hover:bg-[#f8f8f8] md:text-sm"
                 />
               ) : !isRefunded && !isCancelled ? (
-                <span className="inline-flex items-center gap-2 rounded-[0.55rem] border border-gray-300 bg-white px-4 py-2.5 text-[0.98rem] font-semibold text-gray-700 md:text-[1.02rem]">
+                <span className="inline-flex items-center gap-2 rounded-[0.55rem] border border-gray-300 bg-white px-4 py-2.5 text-[0.98rem] font-semibold text-gray-700 md:text-sm">
                   <Download size={18} />
                   Download Invoice
                 </span>
@@ -401,40 +457,274 @@ export default function OrderTrackingPageClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isDesktopFilterOpen, setIsDesktopFilterOpen] = useState(false);
+  const [mobileSheetOffset, setMobileSheetOffset] = useState(0);
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [ordersPagination, setOrdersPagination] = useState({
+    limit: 12,
+    offset: 0,
+    hasNextPage: false,
+    totalCount: 0,
+  });
+  const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mobileSheetPanelRef = useRef<HTMLDivElement | null>(null);
+  const ordersSentinelRef = useRef<HTMLDivElement | null>(null);
+  const mobileSheetTouchStartY = useRef<number | null>(null);
+  const mobileSheetDragging = useRef(false);
+  const mobileSheetPointerId = useRef<number | null>(null);
+  const loadingMoreOrdersRef = useRef(false);
+
+  useEffect(() => {
+    if (!isMobileFilterOpen) {
+      setMobileSheetOffset(0);
+      mobileSheetTouchStartY.current = null;
+      mobileSheetDragging.current = false;
+      mobileSheetPointerId.current = null;
+    }
+  }, [isMobileFilterOpen]);
+
+  function closeMobileFilterSheet() {
+    setMobileSheetOffset(0);
+    mobileSheetTouchStartY.current = null;
+    mobileSheetDragging.current = false;
+    mobileSheetPointerId.current = null;
+    setIsMobileFilterOpen(false);
+  }
+
+  function setMobileSheetTransform(offset: number) {
+    const panel = mobileSheetPanelRef.current;
+
+    if (panel) {
+      panel.style.transform = `translateY(${Math.max(0, offset)}px)`;
+    }
+  }
+
+  function setMobileSheetTransition(enabled: boolean) {
+    const panel = mobileSheetPanelRef.current;
+
+    if (panel) {
+      panel.style.transition = enabled ? "" : "none";
+    }
+  }
+
+  function handleMobileSheetPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    mobileSheetPointerId.current = event.pointerId;
+    mobileSheetTouchStartY.current = event.clientY;
+    mobileSheetDragging.current = false;
+    setMobileSheetTransition(false);
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleMobileSheetPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (
+      mobileSheetPointerId.current !== event.pointerId ||
+      mobileSheetTouchStartY.current === null
+    ) {
+      return;
+    }
+
+    const deltaY = event.clientY - mobileSheetTouchStartY.current;
+
+    if (deltaY <= 0) {
+      setMobileSheetTransform(0);
+      return;
+    }
+
+    mobileSheetDragging.current = true;
+    const nextOffset = Math.min(deltaY, 180);
+
+    setMobileSheetOffset(nextOffset);
+    setMobileSheetTransform(nextOffset);
+  }
+
+  function handleMobileSheetPointerEnd(event: PointerEvent<HTMLDivElement>) {
+    if (mobileSheetPointerId.current !== event.pointerId) {
+      return;
+    }
+
+    const shouldDismiss = mobileSheetDragging.current
+      ? mobileSheetOffset > 96
+      : false;
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Ignore release errors when the pointer is already gone.
+    }
+
+    mobileSheetPointerId.current = null;
+    mobileSheetTouchStartY.current = null;
+    mobileSheetDragging.current = false;
+
+    setMobileSheetTransition(true);
+
+    if (shouldDismiss) {
+      closeMobileFilterSheet();
+      return;
+    }
+
+    setMobileSheetOffset(0);
+    setMobileSheetTransform(0);
+  }
+
+  const loadOrdersPage = useCallback(
+    async (offset: number, options?: { replace?: boolean }) => {
+      if (!isReady || !isAuthenticated) {
+        return;
+      }
+
+      const replace = options?.replace ?? false;
+
+      if (offset > 0) {
+        if (loadingMoreOrdersRef.current) {
+          return;
+        }
+
+        loadingMoreOrdersRef.current = true;
+        setIsLoadingMoreOrders(true);
+      }
+
+      try {
+        const query = new URLSearchParams({
+          limit: String(12),
+          offset: String(offset),
+        });
+
+        const response = await fetchWithAuth<
+          ApiResponse<{
+            orders: Order[];
+            pagination?: {
+              limit?: number;
+              offset?: number;
+              hasNextPage?: boolean;
+              totalCount?: number;
+            };
+          }>
+        >(`/orders?${query.toString()}`);
+
+        const nextOrders = response.data.orders || [];
+        const nextPagination = response.data.pagination || {};
+
+        setOrders((currentOrders) => {
+          if (replace || !currentOrders) {
+            return nextOrders;
+          }
+
+          return [...currentOrders, ...nextOrders];
+        });
+
+        setOrdersPagination({
+          limit: nextPagination.limit ?? 12,
+          offset: nextPagination.offset ?? offset,
+          hasNextPage: nextPagination.hasNextPage ?? false,
+          totalCount: nextPagination.totalCount ?? 0,
+        });
+        setError(null);
+      } catch (nextError) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to load orders.",
+        );
+      } finally {
+        if (offset > 0) {
+          loadingMoreOrdersRef.current = false;
+          setIsLoadingMoreOrders(false);
+        }
+      }
+    },
+    [fetchWithAuth, isAuthenticated, isReady],
+  );
 
   useEffect(() => {
     if (!isReady || !isAuthenticated) {
       return;
     }
 
+    setOrders(null);
+    setOrdersPagination({
+      limit: 12,
+      offset: 0,
+      hasNextPage: false,
+      totalCount: 0,
+    });
+    setError(null);
+    loadingMoreOrdersRef.current = false;
+    setIsLoadingMoreOrders(false);
+
     let isActive = true;
 
-    fetchWithAuth<ApiResponse<{ orders: Order[] }>>("/orders")
-      .then((response) => {
-        if (!isActive) {
-          return;
-        }
+    loadOrdersPage(0, { replace: true }).catch((nextError) => {
+      if (!isActive) {
+        return;
+      }
 
-        setOrders(response.data.orders);
-      })
-      .catch((nextError) => {
-        if (!isActive) {
-          return;
-        }
-
-        setError(
-          nextError instanceof Error
-            ? nextError.message
-            : "Unable to load orders.",
-        );
-      });
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to load orders.",
+      );
+    });
 
     return () => {
       isActive = false;
     };
-  }, [fetchWithAuth, isAuthenticated, isReady]);
+  }, [isAuthenticated, isReady, loadOrdersPage]);
+
+  useEffect(() => {
+    if (!isReady || !isAuthenticated) {
+      return;
+    }
+
+    if (!ordersPagination.hasNextPage) {
+      return;
+    }
+
+    const sentinel = ordersSentinelRef.current;
+
+    if (!sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (
+          !entry?.isIntersecting ||
+          loadingMoreOrdersRef.current ||
+          !ordersPagination.hasNextPage
+        ) {
+          return;
+        }
+
+        void loadOrdersPage(ordersPagination.offset + ordersPagination.limit);
+      },
+      {
+        root: null,
+        rootMargin: "220px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [
+    isAuthenticated,
+    isReady,
+    loadOrdersPage,
+    ordersPagination.hasNextPage,
+    ordersPagination.limit,
+    ordersPagination.offset,
+  ]);
 
   const filteredOrders = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -513,9 +803,7 @@ export default function OrderTrackingPageClient() {
         <section className="min-h-screen bg-white px-4 py-4 md:px-8 md:py-12">
           <div className="mx-auto max-w-5xl">
             <div className="mb-6">
-              <h2 className="text-base text-gray-900 md:text-3xl">
-                Your Orders
-              </h2>
+              <h2 className="text-base text-gray-900 md:text-2xl">My Orders</h2>
               <div className="mt-4 flex items-center gap-2">
                 <label className="flex h-[42px] flex-1 items-center gap-2 rounded-[0.7rem] border border-gray-200 bg-white px-3">
                   <Search size={16} className="shrink-0 text-[#8f8f8f]" />
@@ -625,7 +913,7 @@ export default function OrderTrackingPageClient() {
                         key={option}
                         type="button"
                         onClick={() => setFilter(option)}
-                        className={`whitespace-nowrap border-b-2 px-1 pb-4 text-xs font-medium transition-colors ${
+                        className={`whitespace-nowrap cursor-pointer border-b-2 px-1 pb-4 text-xs md:text-sm font-medium transition-colors ${
                           filter === option
                             ? "border-black text-black"
                             : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
@@ -638,48 +926,50 @@ export default function OrderTrackingPageClient() {
                 </div>
 
                 {!filteredOrders.length ? (
-                  // <div className="rounded-[1.6rem] p-8 text-center">
-                  //   <PackageSearch
-                  //     size={28}
-                  //     className="mx-auto text-gray-400"
-                  //   />
-                  //   <h2 className="mt-4 text-2xl text-gray-500">
-                  //     No orders found
-                  //   </h2>
-                  //   <Link
-                  //     href="/"
-                  //     className="mt-6 inline-flex rounded-full bg-[#207958] px-6 py-3 text-sm font-semibold text-white"
-                  //   >
-                  //     Shop Now
-                  //   </Link>
-                  // </div>
-
-
+                
                   <div className=" mx-auto max-w-3xl p-6 text-center md:p-10">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full">
-                <PackageSearch size={30} />
-              </div>
-              <h2 className="mt-6 text-3xl text-gray-900">
-                Empty
-              </h2>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                <Link
-                  href="/"
-                  className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
-                >
-                  Shop Now
-                  <ArrowRight size={16} />
-                </Link>
-                <Link
-                  href="/cart"
-                  className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3"
-                >
-                  View cart
-                </Link>
-              </div>
-            </div>
+                    <div className="mx-auto flex h-50 w-50 items-center justify-center">
+                      <img
+                        src="https://cdni.iconscout.com/illustration/premium/thumb/empty-box-illustration-svg-download-png-3613888.png"
+                        alt="Empty cart"
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                    <h2 className="mt-2 text-xl md:text-2xl text-gray-900">
+                      Empty Orders
+                    </h2>
+                    <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                      <Link
+                        href="/"
+                        className="group relative inline-flex h-[50px] w-full items-center overflow-hidden rounded-full bg-[#207958] px-1.5 text-sm font-semibold text-white shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[#1b6b4e] hover:shadow-[0_12px_30px_rgba(32,121,88,0.35)] active:translate-y-0 active:scale-[0.98] sm:w-auto sm:min-w-[220px]"
+                      >
+                        <span className="pointer-events-none absolute inset-0">
+                          <span className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
+                        </span>
+
+                        <span className="relative z-10 flex flex-1 items-center justify-center gap-2 pl-3 pr-2 transition-all duration-300">
+                          <ShoppingBag size={16} />
+                          <span>Shop Now</span>
+                        </span>
+
+                        <div className="relative z-10 ml-auto inline-flex items-center justify-center rounded-full bg-white/20 p-2.5 transition-all duration-300 group-hover:translate-x-1 group-hover:bg-white/30 group-hover:shadow-[0_0_16px_rgba(255,255,255,0.25)]">
+                          <ArrowRight
+                            size={16}
+                            className="transition-transform duration-300 group-hover:translate-x-0.5"
+                          />
+                        </div>
+                      </Link>
+                      <Link
+                        href="/cart"
+                        className="inline-flex h-[50px] items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-6 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3 sm:min-w-[220px]"
+                      >
+                        <ShoppingCart size={16} />
+                        View cart
+                      </Link>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-4 pb-20 md:space-y-5">
                     {filteredOrders.map((order) => {
                       const previewProduct = getPreviewProduct(order, products);
 
@@ -691,6 +981,24 @@ export default function OrderTrackingPageClient() {
                         />
                       );
                     })}
+
+                    {ordersPagination.hasNextPage ? (
+                      <div
+                        ref={ordersSentinelRef}
+                        className="flex items-center justify-center py-4 text-sm text-gray-500"
+                      >
+                        {isLoadingMoreOrders ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-[#207958]" />
+                            Loading more orders...
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">
+                            Scroll for more orders
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </>
@@ -705,26 +1013,42 @@ export default function OrderTrackingPageClient() {
             type="button"
             className="absolute inset-0"
             aria-label="Close order filters"
-            onClick={() => setIsMobileFilterOpen(false)}
+            onClick={closeMobileFilterSheet}
           />
 
-          <div className="relative w-full rounded-t-[1.6rem] bg-white px-4 pb-6 pt-3 shadow-[0_-18px_50px_rgba(0,0,0,0.18)]">
-            <div className="mx-auto h-1.5 w-12 rounded-full bg-[#d8d8d8]" />
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-base font-semibold text-[#1f1f1f]">
-                  Filter Orders
-                </p>
-                <p className="text-sm text-[#8b8b8b]">Choose order status</p>
+          <div
+            ref={mobileSheetPanelRef}
+            className="relative w-full rounded-t-[1.6rem] bg-white px-4 pb-6 pt-3 shadow-[0_-18px_50px_rgba(0,0,0,0.18)] transition-transform duration-200 ease-out"
+            style={{
+              transform: `translateY(${mobileSheetOffset}px)`,
+              willChange: "transform",
+            }}
+          >
+            <div
+              className="select-none"
+              onPointerDown={handleMobileSheetPointerDown}
+              onPointerMove={handleMobileSheetPointerMove}
+              onPointerUp={handleMobileSheetPointerEnd}
+              onPointerCancel={handleMobileSheetPointerEnd}
+              style={{ touchAction: "none", cursor: "grab" }}
+            >
+              <div className="mx-auto h-1.5 w-12 rounded-full bg-[#d8d8d8]" />
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-base font-semibold text-[#1f1f1f]">
+                    Filter Orders
+                  </p>
+                  <p className="text-sm text-[#8b8b8b]">Choose order status</p>
+                </div>
+                {/* <button
+                  type="button"
+                  onClick={closeMobileFilterSheet}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e2e2e2] text-[#7b7b7b]"
+                  aria-label="Close order filters"
+                >
+                  <X size={16} />
+                </button> */}
               </div>
-              <button
-                type="button"
-                onClick={() => setIsMobileFilterOpen(false)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e2e2e2] text-[#7b7b7b]"
-                aria-label="Close order filters"
-              >
-                <X size={16} />
-              </button>
             </div>
 
             <div className="mt-5 space-y-2">
@@ -737,7 +1061,7 @@ export default function OrderTrackingPageClient() {
                     type="button"
                     onClick={() => {
                       setFilter(option);
-                      setIsMobileFilterOpen(false);
+                      closeMobileFilterSheet();
                     }}
                     className={`flex w-full items-center justify-between rounded-[0.9rem] px-4 py-3 text-left text-sm font-medium transition ${
                       isActive

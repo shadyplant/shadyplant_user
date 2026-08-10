@@ -5,6 +5,7 @@ import { fetchHomeCategoryItems } from "@/lib/homeCategoryItems";
 import { fetchHomeSliderBanners } from "@/lib/homeSliderBanners";
 import { fetchProducts } from "@/lib/products";
 import { getServerSavedDeliveryAddress } from "@/lib/serverProfile";
+import OrderSuccessPage from "./order-success/[orderId]/page";
 
 export const dynamic = "force-dynamic";
 
@@ -48,5 +49,6 @@ export default async function Home() {
         initialDeliveryAddress={initialDeliveryAddress}
       />
     </SiteShell>
+
   );
 }

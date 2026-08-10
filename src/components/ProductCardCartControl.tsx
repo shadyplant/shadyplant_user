@@ -238,8 +238,8 @@ export default function ProductCardCartControl({
         onClick={() => void addFirstItem()}
         className={addButtonClassName}
       >
-        <span className="text-sm">Add to cart</span>
         <AddCartIcon />
+        <span className="text-sm">Add to cart</span>
       </button>
     );
   }

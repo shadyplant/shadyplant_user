@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import {
   ArrowUpDown,
@@ -122,9 +122,19 @@ export default function SearchResultsPageClient({
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
   const [isDesktopSortOpen, setIsDesktopSortOpen] = useState(false);
+  const [filterSheetOffset, setFilterSheetOffset] = useState(0);
+  const [sortSheetOffset, setSortSheetOffset] = useState(0);
   const router = useRouter();
   const searchParams = useSearchParams();
   const desktopSortRef = useRef<HTMLDivElement | null>(null);
+  const filterSheetPanelRef = useRef<HTMLDivElement | null>(null);
+  const sortSheetPanelRef = useRef<HTMLDivElement | null>(null);
+  const filterSheetTouchStartY = useRef<number | null>(null);
+  const filterSheetDragging = useRef(false);
+  const filterSheetPointerId = useRef<number | null>(null);
+  const sortSheetTouchStartY = useRef<number | null>(null);
+  const sortSheetDragging = useRef(false);
+  const sortSheetPointerId = useRef<number | null>(null);
   const categoryOptions = Array.from(
     new Set(products.map((product) => product.category)),
   );
@@ -213,6 +223,154 @@ export default function SearchResultsPageClient({
       : [...currentValues, value];
   }
 
+  function setSheetTransform(
+    panelRef: React.RefObject<HTMLDivElement | null>,
+    offset: number,
+  ) {
+    const panel = panelRef.current;
+
+    if (!panel) {
+      return;
+    }
+
+    panel.style.transform = `translateY(${Math.max(0, offset)}px)`;
+  }
+
+  function setSheetTransition(
+    panelRef: React.RefObject<HTMLDivElement | null>,
+    enabled: boolean,
+  ) {
+    const panel = panelRef.current;
+
+    if (!panel) {
+      return;
+    }
+
+    panel.style.transition = enabled ? "" : "none";
+  }
+
+  function handleFilterSheetPointerDown(
+    event: PointerEvent<HTMLDivElement>,
+  ) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    filterSheetPointerId.current = event.pointerId;
+    filterSheetTouchStartY.current = event.clientY;
+    filterSheetDragging.current = false;
+    setSheetTransition(filterSheetPanelRef, false);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleFilterSheetPointerMove(
+    event: PointerEvent<HTMLDivElement>,
+  ) {
+    if (
+      filterSheetPointerId.current !== event.pointerId ||
+      filterSheetTouchStartY.current === null
+    ) {
+      return;
+    }
+
+    const deltaY = event.clientY - filterSheetTouchStartY.current;
+
+    if (deltaY <= 0) {
+      setSheetTransform(filterSheetPanelRef, 0);
+      return;
+    }
+
+    filterSheetDragging.current = true;
+    setSheetTransform(filterSheetPanelRef, Math.min(deltaY, 180));
+  }
+
+  function handleFilterSheetPointerEnd(
+    event: PointerEvent<HTMLDivElement>,
+  ) {
+    if (filterSheetPointerId.current !== event.pointerId) {
+      return;
+    }
+
+    const panel = filterSheetPanelRef.current;
+    const currentTransform = panel?.style.transform || "";
+    const translatedValue = Number.parseFloat(
+      currentTransform.replace("translateY(", "").replace("px)", ""),
+    );
+    const shouldDismiss =
+      filterSheetDragging.current && translatedValue > 96;
+
+    filterSheetPointerId.current = null;
+    filterSheetTouchStartY.current = null;
+    filterSheetDragging.current = false;
+    setSheetTransition(filterSheetPanelRef, true);
+
+    if (shouldDismiss) {
+      setIsFilterSheetOpen(false);
+      return;
+    }
+
+    setSheetTransform(filterSheetPanelRef, 0);
+    setFilterSheetOffset(0);
+  }
+
+  function handleSortSheetPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    sortSheetPointerId.current = event.pointerId;
+    sortSheetTouchStartY.current = event.clientY;
+    sortSheetDragging.current = false;
+    setSheetTransition(sortSheetPanelRef, false);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleSortSheetPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (
+      sortSheetPointerId.current !== event.pointerId ||
+      sortSheetTouchStartY.current === null
+    ) {
+      return;
+    }
+
+    const deltaY = event.clientY - sortSheetTouchStartY.current;
+
+    if (deltaY <= 0) {
+      setSheetTransform(sortSheetPanelRef, 0);
+      return;
+    }
+
+    sortSheetDragging.current = true;
+    setSheetTransform(sortSheetPanelRef, Math.min(deltaY, 180));
+  }
+
+  function handleSortSheetPointerEnd(event: PointerEvent<HTMLDivElement>) {
+    if (sortSheetPointerId.current !== event.pointerId) {
+      return;
+    }
+
+    const panel = sortSheetPanelRef.current;
+    const currentTransform = panel?.style.transform || "";
+    const translatedValue = Number.parseFloat(
+      currentTransform.replace("translateY(", "").replace("px)", ""),
+    );
+    const shouldDismiss =
+      sortSheetDragging.current && translatedValue > 96;
+
+    sortSheetPointerId.current = null;
+    sortSheetTouchStartY.current = null;
+    sortSheetDragging.current = false;
+    setSheetTransition(sortSheetPanelRef, true);
+
+    if (shouldDismiss) {
+      setIsSortSheetOpen(false);
+      return;
+    }
+
+    setSheetTransform(sortSheetPanelRef, 0);
+    setSortSheetOffset(0);
+  }
+
   useEffect(() => {
     const previousBackground = document.body.style.background;
     const previousBackgroundImage = document.body.style.backgroundImage;
@@ -250,6 +408,22 @@ export default function SearchResultsPageClient({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [isFilterSheetOpen, isSortSheetOpen]);
+
+  useEffect(() => {
+    if (!isFilterSheetOpen) {
+      setFilterSheetOffset(0);
+      filterSheetTouchStartY.current = null;
+      filterSheetDragging.current = false;
+    }
+  }, [isFilterSheetOpen]);
+
+  useEffect(() => {
+    if (!isSortSheetOpen) {
+      setSortSheetOffset(0);
+      sortSheetTouchStartY.current = null;
+      sortSheetDragging.current = false;
+    }
+  }, [isSortSheetOpen]);
 
   useEffect(() => {
     if (!isDesktopSortOpen) {
@@ -408,7 +582,7 @@ export default function SearchResultsPageClient({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm text-gray-600">Filter By</p>
-                    <h2 className="mt-2 text-2xl text-gray-700">
+                    <h2 className="mt-2 text-xl text-gray-700">
                       Refine results
                     </h2>
                   </div>
@@ -418,7 +592,7 @@ export default function SearchResultsPageClient({
                       onClick={() => {
                         router.push("/search");
                       }}
-                      className="text-sm font-semibold text-[#214f14]"
+                      className="text-sm text-gray-700 hover:text-[#214f14] transition cursor-pointer"
                     >
                       Clear all
                     </button>
@@ -448,7 +622,6 @@ export default function SearchResultsPageClient({
                     </button>
 
                     <label className="hidden items-center gap-2 whitespace-nowrap text-sm text-gray-600 md:inline-flex">
-                      <ArrowUpDown size={16} />
                       Sort by
                     </label>
 
@@ -461,13 +634,13 @@ export default function SearchResultsPageClient({
                         onClick={() => setIsDesktopSortOpen((open) => !open)}
                         aria-haspopup="listbox"
                         aria-expanded={isDesktopSortOpen}
-                        className="flex w-full items-center justify-between gap-3 rounded-[0.85rem] border border-gray-300 bg-white px-4 py-3 text-left text-sm font-normal text-gray-600 shadow-[0_10px_24px_rgba(33,79,20,0.05)] outline-none transition hover:border-[#b8cca3] md:w-auto md:min-w-[240px]"
+                        className="flex w-full items-center justify-between gap-3 rounded-[0.85rem] border border-gray-200 bg-white px-4 py-3 text-left text-sm font-normal text-gray-600 shadow-[0_10px_24px_rgba(33,79,20,0.05)] outline-none transition hover:border-gray-300 cursor-pointer md:w-auto md:min-w-[240px]"
                       >
                         <span className="truncate">
                           {activeSortOption.label}
                         </span>
-                        <span className="flex items-center text-[#5c7752]">
-                          <SlidersHorizontal size={16} />
+                        <span className="flex items-center text-gray-600">
+                          <ArrowUpDown size={16} />
                         </span>
                       </button>
 
@@ -475,7 +648,7 @@ export default function SearchResultsPageClient({
                         <div
                           role="listbox"
                           aria-label="Sort results"
-                          className="absolute right-0 top-[calc(100%+0.55rem)] z-30 w-full overflow-hidden rounded-[0.85rem] border border-[#d6e6bd] bg-white shadow-[0_18px_34px_rgba(33,79,20,0.12)]"
+                          className="absolute right-0 top-[calc(100%+0.55rem)] z-30 w-full overflow-hidden rounded-[0.85rem] border border-[#d6e6bd] bg-white shadow-[0_12px_24px_rgba(33,79,20,0.08)]"
                         >
                           {sortOptions.map((option) => {
                             const isActive = sort === option.value;
@@ -492,8 +665,8 @@ export default function SearchResultsPageClient({
                                 }}
                                 className={`flex w-full items-center justify-between gap-3 border-b border-[#edf3e6] px-4 py-3 text-left text-sm transition last:border-b-0 ${
                                   isActive
-                                    ? "bg-[#3d63be] text-white"
-                                    : "text-[#214f14] hover:bg-[#f6faef]"
+                                    ? "bg-[#207958] text-white"
+                                    : "text-gray-600 hover:bg-gray-50 focus:bg-gray-50 active:bg-gray-100"
                                 }`}
                               >
                                 <span>{option.label}</span>
@@ -508,24 +681,6 @@ export default function SearchResultsPageClient({
 
                 {hasActiveFilters ? (
                   <div className="mb-5 hidden flex-wrap gap-2 md:flex">
-                    {selectedCategories.map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        onClick={() =>
-                          pushSearchState({
-                            categories: selectedCategories.filter(
-                              (item) => item !== category,
-                            ),
-                          })
-                        }
-                        className="inline-flex items-center gap-2 rounded-full bg-[#edf5e1] px-3 py-2 text-sm font-semibold text-[#214f14]"
-                      >
-                        {category}
-                        <X size={14} />
-                      </button>
-                    ))}
-
                     {selectedBadges.map((badge) => (
                       <button
                         key={badge}
@@ -587,13 +742,13 @@ export default function SearchResultsPageClient({
                       <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full  ">
                         <ShoppingBasket size={30} />
                       </div>
-                      <h2 className="mt-6 text-2xl md:text-3xl text-gray-800">
+                      <h2 className="mt-6 text-2xl md:text-2xl text-gray-800">
                         No products Found
                       </h2>
                       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                         <button
                           onClick={() => router.push("/search")}
-                          className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-4 text-sm text-gray-700"
+                          className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-4 md:px-5 md:py-3 cursor-pointer hover:bg-gray-100 text-sm text-gray-700"
                         >
                           Clear All Filters
                         </button>
@@ -623,48 +778,58 @@ export default function SearchResultsPageClient({
               onClick={() => setIsFilterSheetOpen(false)}
             />
 
-            <div className="relative w-full rounded-t-[1.8rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
-              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-gray-200" />
-              <div className="flex items-center justify-between gap-4 border-b border-[#e4edd9] px-5 py-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-gray-600">
-                    Filter By
-                  </p>
-                  <h2 className="mt-1 text-xl text-gray-700">Refine results</h2>
+            <div
+              ref={filterSheetPanelRef}
+              className="relative w-full rounded-t-[1.8rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)] transition-transform duration-200 ease-out"
+              style={{ transform: `translateY(${filterSheetOffset}px)`, willChange: "transform" }}
+            >
+              <div
+                className="select-none"
+                onPointerDown={handleFilterSheetPointerDown}
+                onPointerMove={handleFilterSheetPointerMove}
+                onPointerUp={handleFilterSheetPointerEnd}
+                onPointerCancel={handleFilterSheetPointerEnd}
+                style={{ touchAction: "none", cursor: "grab" }}
+              >
+                <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-gray-200" />
+                <div className="flex items-center justify-between gap-4 border-b border-[#e4edd9] px-5 py-4">
+                  <div>
+                    <h2 className="mt-1 text-base text-gray-700">Filter By</h2>
+                  </div>
+
+                  {/* <button
+                    type="button"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500"
+                    aria-label="Close filters"
+                    onClick={() => setIsFilterSheetOpen(false)}
+                  >
+                    <X size={18} />
+                  </button> */}
                 </div>
 
-                <button
-                  type="button"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500"
-                  aria-label="Close filters"
-                  onClick={() => setIsFilterSheetOpen(false)}
-                >
-                  <X size={18} />
-                </button>
-              </div>
+                <div className="max-h-[68vh] overflow-y-auto px-5 py-5">
+                  {filterGroups}
+                </div>
 
-              <div className="max-h-[68vh] overflow-y-auto px-5 py-5">
-                {filterGroups}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 border-t border-[#e4edd9] bg-white px-5 py-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    router.push("/search");
-                    setIsFilterSheetOpen(false);
-                  }}
-                  className="rounded-full border border-gray-200 px-5 py-3 text-sm text-gray-700"
-                >
-                  Clear all
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsFilterSheetOpen(false)}
-                  className="rounded-full bg-[#207958] px-5 py-3 text-sm text-white"
-                >
-                  Show results
-                </button>
+                <div className="grid grid-cols-2 gap-3 border-t border-[#e4edd9] bg-white px-5 py-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push("/search");
+                      setIsFilterSheetOpen(false);
+                    }}
+                    className="rounded-full border border-gray-200 px-5 py-3 text-sm text-gray-700"
+                  >
+                    Clear all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterSheetOpen(false)}
+                    className="rounded-full bg-[#207958] px-5 py-3 text-sm text-white"
+                  >
+                    Show results
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -684,44 +849,57 @@ export default function SearchResultsPageClient({
               onClick={() => setIsSortSheetOpen(false)}
             />
 
-            <div className="relative w-full rounded-t-[1.3rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)]">
-              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7d7d7]" />
-              <div className="flex items-center justify-between border-b border-[#eeeeee] px-5 py-4">
-                <div className="flex items-center gap-2 text-base font-bold text-[#111111]">
-                  <ListFilter size={18} />
-                  Sort
-                </div>
-                <button
-                  type="button"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#dedede] text-[#222222]"
-                  aria-label="Close sort options"
-                  onClick={() => setIsSortSheetOpen(false)}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="px-5 py-3">
-                {sortOptions.map((option) => (
-                  <button
-                    key={option.value}
+            <div
+              ref={sortSheetPanelRef}
+              className="relative w-full rounded-t-[1.3rem] bg-white shadow-[0_-18px_70px_rgba(0,0,0,0.22)] transition-transform duration-200 ease-out"
+              style={{ transform: `translateY(${sortSheetOffset}px)`, willChange: "transform" }}
+            >
+              <div
+                className="select-none"
+                onPointerDown={handleSortSheetPointerDown}
+                onPointerMove={handleSortSheetPointerMove}
+                onPointerUp={handleSortSheetPointerEnd}
+                onPointerCancel={handleSortSheetPointerEnd}
+                style={{ touchAction: "none", cursor: "grab" }}
+              >
+                <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-[#d7d7d7]" />
+                <div className="flex items-center justify-between border-b border-[#eeeeee] px-5 py-4">
+                  <div className="flex items-center gap-2 text-base font-bold text-[#111111]">
+                    <ListFilter size={18} />
+                    Sort
+                  </div>
+                  {/* <button
                     type="button"
-                    onClick={() => {
-                      pushSearchState({ sort: option.value });
-                      setIsSortSheetOpen(false);
-                    }}
-                    className={`flex w-full items-center justify-between border-b border-[#f0f0f0] py-4 text-left text-sm font-semibold last:border-b-0 ${
-                      sort === option.value
-                        ? "text-[#214f14]"
-                        : "text-[#222222]"
-                    }`}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-[#dedede] text-[#222222]"
+                    aria-label="Close sort options"
+                    onClick={() => setIsSortSheetOpen(false)}
                   >
-                    {option.label}
-                    {sort === option.value ? (
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#214f14]" />
-                    ) : null}
-                  </button>
-                ))}
+                    <X size={18} />
+                  </button> */}
+                </div>
+
+                <div className="px-5 py-3">
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        pushSearchState({ sort: option.value });
+                        setIsSortSheetOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between border-b border-[#f0f0f0] py-4 text-left text-sm font-semibold last:border-b-0 ${
+                        sort === option.value
+                          ? "text-[#214f14]"
+                          : "text-[#222222]"
+                      }`}
+                    >
+                      {option.label}
+                      {sort === option.value ? (
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#214f14]" />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

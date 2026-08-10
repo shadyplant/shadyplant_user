@@ -33,6 +33,27 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
     return () => window.clearInterval(interval);
   }, [items.length]);
 
+  useEffect(() => {
+    if (items.length <= 1) {
+      return;
+    }
+
+    if (activeIndex <= items.length) {
+      return;
+    }
+
+    setIsTransitionEnabled(false);
+    setActiveIndex(0);
+
+    const frame = window.requestAnimationFrame(() => {
+      setIsTransitionEnabled(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [activeIndex, items.length]);
+
   if (!items.length) {
     return null;
   }
@@ -48,9 +69,12 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
   };
 
   const handleTransitionEnd = () => {
-    if (activeIndex === items.length) {
+    if (activeIndex >= items.length) {
       setIsTransitionEnabled(false);
       setActiveIndex(0);
+      requestAnimationFrame(() => {
+        setIsTransitionEnabled(true);
+      });
     }
   };
 
@@ -152,7 +176,7 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
               {[...items, items[0]].map((slide, index) => (
                 <div
                   key={`${slide.title}-${index}`}
-                  className="relative h-full w-full shrink-0 overflow-hidden"
+                  className="relative h-full min-w-full shrink-0 basis-full overflow-hidden"
                 >
                   {isLawnGrassPopupSlide(slide) ? (
                     <button

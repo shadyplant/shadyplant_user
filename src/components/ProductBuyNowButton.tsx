@@ -87,7 +87,7 @@ export default function ProductBuyNowButton({
       disabled={isSubmitting || isOutOfStock}
       className={`${className || ""} disabled:cursor-not-allowed disabled:opacity-60`.trim()}
     >
-      {isOutOfStock ? "Out of stock" : isSubmitting ? "Preparing..." : children}
+      {isOutOfStock ? "Out of stock" : isSubmitting ? "Buy Now" : children}
     </button>
   );
 }

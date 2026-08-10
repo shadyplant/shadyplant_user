@@ -164,7 +164,7 @@ export default function MobileProductReviewsSummary({
           productId={productId}
           productName={productName}
           triggerLabel={hasRatings ? "Review Us" : "Write First Review"}
-          triggerClassName="h-10 w-full max-w-[160px] rounded-full border border-[#e0e0e0] bg-white text-[13px] font-semibold text-[#111111] shadow-sm active:scale-95 transition-transform"
+          triggerClassName="h-10 w-full max-w-[160px] rounded-full border border-gray-300 bg-white text-[13px] font-semibold text-gray-700 active:scale-95 transition-transform"
         />
       </div>
     </section>

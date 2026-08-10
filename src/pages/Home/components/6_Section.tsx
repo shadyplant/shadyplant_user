@@ -43,34 +43,13 @@ export default function FAQSection() {
   return (
     <section className="px-2 py-8 md:px-6 md:py-12">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-4 text-left">
-          <div className="inline-flex items-center justify-center gap-3 px-2">
-            {/* <div className="flex h-6 w-6 shrink-0 items-center justify-center md:h-7 md:w-7">
-              <FAQIcon
-                className="h-auto max-h-full w-auto max-w-full"
-                aria-hidden="true"
-              />
-            </div> */}
-            <span className="text-base text-gray-800 md:text-3xl">
-              Frequently Asked Questions ?
-            </span>
-          </div>
+        <div className="w-full mb-4 flex items-center justify-center md:mb-6">
+          <span className="text-base text-gray-800 md:text-2xl">
+            Frequently Asked Questions ?
+          </span>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
-          <div className="hidden overflow-hidden rounded-[1.8rem] lg:block">
-            <div className="relative aspect-[4/4] min-h-[280px] w-full md:min-h-[420px]">
-              <Image
-                src="/hero_image.png"
-                alt="Plants arranged indoors"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 42vw"
-                priority={false}
-              />
-            </div>
-          </div>
-
+        <div className="rounded-lg bg-white">
           <div className="">
             {faqs.map((item, index) => {
               const isOpen = openIndex === index;
@@ -89,15 +68,9 @@ export default function FAQSection() {
                       {item.q}
                     </span>
                     {isOpen ? (
-                      <Minus
-                        size={18}
-                        className="shrink-0 text-gray-800"
-                      />
+                      <Minus size={18} className="shrink-0 text-gray-800" />
                     ) : (
-                      <Plus
-                        size={18}
-                        className="shrink-0 text-gray-800"
-                      />
+                      <Plus size={18} className="shrink-0 text-gray-800" />
                     )}
                   </button>
 

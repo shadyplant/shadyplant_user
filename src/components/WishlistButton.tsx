@@ -70,19 +70,17 @@ export default function WishlistButton({
       onClick={handleToggle}
       aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
       aria-pressed={isWishlisted}
-      className={`z-30 inline-flex touch-manipulation items-center justify-center rounded-full transition duration-200 ease-out ${
+      className={`z-30 inline-flex touch-manipulation items-center justify-center transition duration-200 ease-out ${
         isPopping ? "scale-125" : "scale-100"
-      } ${
-        isWishlisted ? "text-[#FF3D58]" : "text-[#5f5f5f]"
-      } ${className}`}
+      } ${isWishlisted ? "text-[#FF3D58]" : "text-gray-800"} ${className}`}
     >
       <Heart
         size={size}
         fill={isWishlisted ? "currentColor" : "none"}
-        className={isWishlisted ? "text-[#FF3D58]" : "text-[#7a7a7a]"}
+        className={isWishlisted ? "text-[#FF3D58]" : "text-gray-800"}
         strokeWidth={2}
       />
     </button>
   );
 }
-``
+``;

@@ -25,6 +25,7 @@ export type Order = {
     productId: string;
     name?: string;
     image?: string;
+    images?: string[];
     quantity: number;
     variantId?: string;
     variantLabel?: string;
@@ -90,6 +91,8 @@ export type Order = {
   refundRequestNote?: string;
   refundSubmittedAt?: string | null;
   refundResubmitRequestedAt?: string | null;
+  cancellationReason?: string;
+  cancellationNote?: string;
   cancelledAt?: string | null;
   refundedAt?: string | null;
   currentStatus: string;
@@ -167,6 +170,29 @@ export function formatOrderStatus(status: string) {
   }
 
   return status.replace(/_/g, " ");
+}
+
+const ORDER_CANCELLATION_REASON_LABELS: Record<string, string> = {
+  poor_plant_health: "Poor plant health",
+  extreme_weather_conditions: "Extreme weather conditions",
+  out_of_stock: "Out of stock",
+  transit_safety_limit_unserviceable_location:
+    "Transit safety limit / unserviceable location",
+  payment_or_fraud_issue: "Payment or fraud issue",
+  pricing_error: "Pricing error",
+};
+
+export function formatCancellationReason(reason: string) {
+  const normalizedReason = String(reason || "").trim().toLowerCase();
+
+  if (!normalizedReason) {
+    return "";
+  }
+
+  return (
+    ORDER_CANCELLATION_REASON_LABELS[normalizedReason] ||
+    normalizedReason.replace(/_/g, " ")
+  );
 }
 
 export function canDownloadInvoice(order: Order) {

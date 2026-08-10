@@ -3,11 +3,7 @@
 import type { ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  ArrowLeft,
-  CheckCircle2,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import CheckoutPageFooter from "@/components/checkout/CheckoutPageFooter";
 import ProductDeliveryAddressPicker from "@/components/ProductDeliveryAddressPicker";
@@ -158,9 +154,10 @@ export default function BillingDetailsClient() {
   const [form, setForm] = useState<BillingForm>(
     () => readBillingDetailsDraft() || emptyForm,
   );
-  const [deliveryPosition, setDeliveryPosition] = useState<CheckoutPosition | null>(
-    () => readCheckoutDraft()?.deliveryPosition || null,
-  );
+  const [deliveryPosition, setDeliveryPosition] =
+    useState<CheckoutPosition | null>(
+      () => readCheckoutDraft()?.deliveryPosition || null,
+    );
   const [deliveryAddress, setDeliveryAddress] = useState(
     () => readCheckoutDraft()?.deliveryAddress?.trim() || "",
   );
@@ -193,13 +190,15 @@ export default function BillingDetailsClient() {
     if (!savedCheckoutDraft?.deliveryAddress?.trim()) {
       queueMicrotask(() => {
         setDeliveryAddress(formatDeliveryAddress(user.deliveryAddress));
-        setDeliveryAddressDetails(normalizeDeliveryAddress(user.deliveryAddress));
+        setDeliveryAddressDetails(
+          normalizeDeliveryAddress(user.deliveryAddress),
+        );
       });
     }
   }, [user]);
 
   function handleChange(
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
     const { name, value } = event.target;
     setForm((current) => {
@@ -270,7 +269,8 @@ export default function BillingDetailsClient() {
     const nextErrors: BillingErrors = {};
 
     if (!form.name.trim()) nextErrors.name = "Enter person or business name.";
-    else if (form.name.trim().length < 4) nextErrors.name = "Name must be at least 4 characters.";
+    else if (form.name.trim().length < 4)
+      nextErrors.name = "Name must be at least 4 characters.";
 
     if (!form.contact.trim()) nextErrors.contact = "Enter contact number.";
     else if (!isValidIndianMobileNumber(form.contact))
@@ -382,17 +382,26 @@ export default function BillingDetailsClient() {
                 const active = step.id === currentStep;
                 const done = step.id < currentStep;
                 return (
-                  <div key={step.id} className="flex flex-1 items-start last:flex-none">
+                  <div
+                    key={step.id}
+                    className="flex flex-1 items-start last:flex-none"
+                  >
                     <div className="flex min-w-[54px] flex-col items-center gap-2 sm:min-w-[60px]">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-gray-200 bg-[#207958] text-white shadow-[0_0_0_2px_rgba(47,100,39,0.18)]" : done ? "bg-[#6B9E3E] text-white" : "bg-gray-200 text-gray-700"}`}>
+                      <div
+                        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${active ? "border-2 border-gray-200 bg-[#207958] text-white shadow-[0_0_0_2px_rgba(47,100,39,0.18)]" : done ? "bg-[#6B9E3E] text-white" : "bg-gray-200 text-gray-700"}`}
+                      >
                         {done ? <CheckCircle2 size={18} /> : step.id}
                       </div>
-                      <span className={`text-center text-[10px] md:text-xs leading-tight ${active ? "font-semibold text-[#14721c]" : "font-medium text-[#1A1F14]"}`}>
+                      <span
+                        className={`text-center text-[10px] md:text-xs leading-tight ${active ? "font-semibold text-[#14721c]" : "font-medium text-[#1A1F14]"}`}
+                      >
                         {step.label}
                       </span>
                     </div>
                     {index < steps.length - 1 && (
-                      <div className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#6B9E3E]" : "bg-gray-200"}`} />
+                      <div
+                        className={`mx-1 mt-[18px] h-0.5 flex-1 sm:mx-3 md:mx-4 ${done ? "bg-[#6B9E3E]" : "bg-gray-200"}`}
+                      />
                     )}
                   </div>
                 );
@@ -400,20 +409,26 @@ export default function BillingDetailsClient() {
             </div>
 
             <div className="space-y-5 px-4 pb-8 sm:px-6 md:px-8 md:pb-10">
-              <ProductDeliveryAddressPicker
-                variant="checkout-card"
-                initialAddress={deliveryAddress}
-                initialPosition={deliveryPosition}
-                autoResolveInitialAddress
-                emptyLabel="Select delivery address"
-                onAddressChange={handleDeliveryAddressChange}
-                onDone={handleDeliveryAddressDone}
-              />
+              <div className="rounded-[0.5rem] border border-gray-200 bg-[#f9f9f9] py-1 px-2 md:px-3 md:py-2">
+                <ProductDeliveryAddressPicker
+                  variant="checkout-card"
+                  initialAddress={deliveryAddress}
+                  initialPosition={deliveryPosition}
+                  autoResolveInitialAddress
+                  emptyLabel="Select delivery address"
+                  onAddressChange={handleDeliveryAddressChange}
+                  onDone={handleDeliveryAddressDone}
+                />
+              </div>
 
               <div className="flex items-start gap-2">
-                <AlertCircle size={15} className="mt-0.5 shrink-0 text-gray-500" />
-                <p className="text-sm leading-6 text-gray-500">
-                  Please note that delivery charges may vary if the delivery address is changed.
+                <AlertCircle
+                  size={15}
+                  className="mt-0.5 shrink-0 text-gray-500"
+                />
+                <p className="text-xs md:text-sm leading-6 text-gray-500">
+                  Please note that delivery charges may vary if the delivery
+                  address is changed.
                 </p>
               </div>
 
@@ -425,15 +440,46 @@ export default function BillingDetailsClient() {
                   </div>
 
                   <div className="flex flex-col gap-5">
-                    <Field label="Person / Business Name" name="name" value={form.name} onChange={handleChange} placeholder="Enter full name or business" required error={errors.name} />
-                    <Field label="Contact Number" name="contact" value={form.contact} onChange={handleChange} placeholder="+91 XXXXX XXXXX" required type="tel" error={errors.contact} />
-                    <Field label="GSTIN" name="gstin" value={form.gstin} onChange={handleChange} placeholder="Optional — 15-digit GSTIN" hint="Optional" />
+                    <Field
+                      label="Person / Business Name"
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      placeholder="Enter full name or business"
+                      required
+                      error={errors.name}
+                    />
+                    <Field
+                      label="Contact Number"
+                      name="contact"
+                      value={form.contact}
+                      onChange={handleChange}
+                      placeholder="+91 XXXXX XXXXX"
+                      required
+                      type="tel"
+                      error={errors.contact}
+                    />
+                    <Field
+                      label="GSTIN"
+                      name="gstin"
+                      value={form.gstin}
+                      onChange={handleChange}
+                      placeholder="Optional — 15-digit GSTIN"
+                      hint="Optional"
+                    />
 
                     <div className="grid grid-cols-2 gap-3">
                       {/* Searchable State Input with Suggestions */}
                       <div className="flex flex-col gap-2">
                         <label className="text-xs font-semibold text-black">
-                          State <span className={errors.state ? "text-[#d93025]" : "text-[#3B5E2B]"}>*</span>
+                          State{" "}
+                          <span
+                            className={
+                              errors.state ? "text-[#d93025]" : "text-[#3B5E2B]"
+                            }
+                          >
+                            *
+                          </span>
                         </label>
                         <input
                           list="indian-states"
@@ -454,7 +500,9 @@ export default function BillingDetailsClient() {
                           ))}
                         </datalist>
                         {errors.state && (
-                          <p className="text-xs font-semibold text-[#d93025]">{errors.state}</p>
+                          <p className="text-xs font-semibold text-[#d93025]">
+                            {errors.state}
+                          </p>
                         )}
                       </div>
 
@@ -471,7 +519,14 @@ export default function BillingDetailsClient() {
 
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-medium text-black">
-                        Full Address <span className={errors.address ? "text-[#d93025]" : "text-[#3B5E2B]"}>*</span>
+                        Full Address{" "}
+                        <span
+                          className={
+                            errors.address ? "text-[#d93025]" : "text-[#3B5E2B]"
+                          }
+                        >
+                          *
+                        </span>
                       </label>
                       <textarea
                         name="address"
@@ -486,7 +541,9 @@ export default function BillingDetailsClient() {
                         }`}
                       />
                       {errors.address && (
-                        <p className="text-xs font-semibold text-[#d93025]">{errors.address}</p>
+                        <p className="text-xs font-semibold text-[#d93025]">
+                          {errors.address}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -504,7 +561,7 @@ export default function BillingDetailsClient() {
                   <button
                     type="button"
                     onClick={() => void handlePlaceOrder()}
-                    className="flex h-[52px] w-full items-center justify-center rounded-[0.85rem] bg-[#207958] px-6 text-[1.2rem] font-medium text-white transition hover:bg-[#07ab4e] cursor-pointer active:translate-y-0.5 sm:h-[56px] sm:text-[1.35rem]"
+                    className="flex h-[52px] w-full items-center justify-center rounded-[0.5rem] bg-[#207958] px-6 text-base md:text-[1.2rem] font-medium text-white transition hover:bg-[#07ab4e] cursor-pointer active:translate-y-0.5 sm:h-[56px] sm:text-[1.35rem]"
                   >
                     Continue
                   </button>
@@ -533,12 +590,27 @@ type FieldProps = {
   error?: string;
 };
 
-function Field({ label, name, value, onChange, placeholder, required, hint, type = "text", error }: FieldProps) {
+function Field({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+  required,
+  hint,
+  type = "text",
+  error,
+}: FieldProps) {
   return (
     <div className="flex flex-col gap-2">
       <label className="text-xs font-semibold text-gray-800">
-        {label} {required && <span className={error ? "text-[#d93025]" : "text-[#eb2310]"}>*</span>}
-        {hint && <span className="ml-1 font-normal text-gray-500">({hint})</span>}
+        {label}{" "}
+        {required && (
+          <span className={error ? "text-[#d93025]" : "text-[#eb2310]"}>*</span>
+        )}
+        {hint && (
+          <span className="ml-1 font-normal text-gray-500">({hint})</span>
+        )}
       </label>
       <input
         type={type}
@@ -559,121 +631,4 @@ function Field({ label, name, value, onChange, placeholder, required, hint, type
 
 function PaymentFooter() {
   return <CheckoutPageFooter />;
-
-  const paymentMethods = [
-    {
-      name: "PhonePe",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="6" fill="#5f259f" />
-          <text x="16" y="21" fontSize="9" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="700">PhonePe</text>
-        </svg>
-      ),
-    },
-    {
-      name: "Google Pay",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="6" fill="#fff" />
-          <text x="8" y="14" fontSize="7" fill="#4285F4" fontFamily="sans-serif" fontWeight="700">G</text>
-          <text x="13" y="14" fontSize="7" fill="#EA4335" fontFamily="sans-serif" fontWeight="700">o</text>
-          <text x="17" y="14" fontSize="7" fill="#FBBC05" fontFamily="sans-serif" fontWeight="700">o</text>
-          <text x="21" y="14" fontSize="7" fill="#4285F4" fontFamily="sans-serif" fontWeight="700">g</text>
-          <text x="10" y="23" fontSize="7" fill="#34A853" fontFamily="sans-serif" fontWeight="700">Pay</text>
-        </svg>
-      ),
-    },
-    {
-      name: "Paytm",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="6" fill="#00BAF2" />
-          <text x="16" y="21" fontSize="9" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="800">Paytm</text>
-        </svg>
-      ),
-    },
-    {
-      name: "Visa / MC",
-      icon: (
-        <svg width="28" height="18" viewBox="0 0 46 30" fill="none">
-          <rect width="46" height="30" rx="4" fill="#1A1F71" />
-          <circle cx="14" cy="15" r="7" fill="#EB001B" />
-          <circle cx="32" cy="15" r="7" fill="#F7B600" />
-          <path d="M23 9.5a7 7 0 0 1 0 11 7 7 0 0 1 0-11z" fill="#FF5F00" />
-        </svg>
-      ),
-    },
-    {
-      name: "Amex",
-      icon: (
-        <svg width="22" height="18" viewBox="0 0 36 24" fill="none">
-          <rect width="36" height="24" rx="4" fill="#016FD0" />
-          <text x="18" y="16" fontSize="8" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="700">AMEX</text>
-        </svg>
-      ),
-    },
-    {
-      name: "RuPay",
-      icon: (
-        <svg width="22" height="18" viewBox="0 0 36 24" fill="none">
-          <rect width="36" height="24" rx="4" fill="#f5f5f5" stroke="#ddd" strokeWidth="0.5" />
-          <rect x="0" y="8" width="36" height="8" fill="#E31837" />
-          <text x="18" y="15" fontSize="5.5" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="700">RuPay</text>
-        </svg>
-      ),
-    },
-    {
-      name: "Net Banking",
-      icon: (
-        <svg width="22" height="18" viewBox="0 0 36 24" fill="none">
-          <rect width="36" height="24" rx="4" fill="#fff" stroke="#e0e0e0" strokeWidth="0.5" />
-          <text x="18" y="10" fontSize="5" fill="#444" textAnchor="middle" fontFamily="sans-serif" fontWeight="600">NET</text>
-          <text x="18" y="17" fontSize="5" fill="#444" textAnchor="middle" fontFamily="sans-serif" fontWeight="600">BANKING</text>
-        </svg>
-      ),
-    },
-  ];
-
-  const trustItems = [
-    { icon: "🔒", label: "SSL Encrypted" },
-    { icon: "🛡️", label: "PCI DSS Compliant" },
-    { icon: "🔄", label: "Easy Returns" },
-    { icon: "🎧", label: "24/7 Support" },
-  ];
-
-  return (
-    <footer className="mx-auto mt-10 w-full max-w-7xl border-t border-[#e8ece3] pt-8 pb-6 text-center">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7a8a6a]">
-        Secure Payment Methods
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-        {paymentMethods.map(({ name, icon }) => (
-          <span
-            key={name}
-            className="inline-flex items-center gap-2 rounded-[10px] border border-[#d7dccf] bg-white px-3.5 py-1.5 text-sm font-medium text-[#1f2a18] shadow-none transition-colors hover:border-[#b0b8a6]"
-          >
-            {icon}
-            {name}
-          </span>
-        ))}
-        <span className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#d7dccf] bg-white px-3.5 py-1.5 text-xs font-medium text-[#7a8a6a]">
-          ··· & more
-        </span>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-5">
-        {trustItems.map(({ icon, label }) => (
-          <div key={label} className="flex items-center gap-1.5 text-xs text-[#6a7a5a]">
-            <span>{icon}</span>
-            {label}
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-5 text-[11px] tracking-[0.04em] text-[#9aaa8a]">
-        Copyright © ShadyPlant. All rights reserved.
-      </p>
-    </footer>
-  );
 }

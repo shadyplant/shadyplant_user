@@ -13,6 +13,7 @@ import {
   clearPaymentGatewayCheckoutSession,
   cleanupPaymentGatewayReturnUrl,
 } from "@/lib/paymentGatewayCheckout";
+import CompactSpinnerLoader from "../loader/compact_spinner";
 
 type PaymentAttemptStatus = {
   id: string;
@@ -71,6 +72,8 @@ export default function OrderSuccessPageClient({
   const hasAutoRedirectedRef = useRef(false);
   const normalizedPaymentAttemptId = paymentAttemptId.trim();
   const resolvedOrderId = order?.id || "";
+  const isPendingOrderRoute =
+    orderId === "pending" || Boolean(normalizedPaymentAttemptId);
 
   useEffect(() => {
     setIsMobile(readMobileMatch());
@@ -110,6 +113,8 @@ export default function OrderSuccessPageClient({
         : ""
     }`;
 
+    // TEMPORARILY DISABLED FOR UI DESIGN
+
     if (!isAuthenticated) {
       router.replace(`/auth?next=${encodeURIComponent(nextPath)}`);
       return;
@@ -123,9 +128,8 @@ export default function OrderSuccessPageClient({
 
     async function loadOrderById(targetOrderId: string) {
       for (let attempt = 0; attempt < 6; attempt += 1) {
-        const response = await fetchWithAuth<ApiResponse<{ orders: Order[] }>>(
-          "/orders",
-        );
+        const response =
+          await fetchWithAuth<ApiResponse<{ orders: Order[] }>>("/orders");
         const matchedOrder =
           response.data.orders.find((entry) => entry.id === targetOrderId) ||
           null;
@@ -159,7 +163,9 @@ export default function OrderSuccessPageClient({
           cleanupPaymentGatewayReturnUrl();
 
           if (isActive) {
-            setError("Payment failed before order confirmation. Please try again.");
+            setError(
+              "Payment failed before order confirmation. Please try again.",
+            );
           }
           return false;
         }
@@ -170,6 +176,13 @@ export default function OrderSuccessPageClient({
           if (loaded) {
             clearPaymentGatewayCheckoutSession();
             cleanupPaymentGatewayReturnUrl();
+            router.replace(
+              `/order-success/${encodeURIComponent(paymentAttempt.orderId)}${
+                normalizedPaymentAttemptId
+                  ? `?payment_attempt_id=${encodeURIComponent(normalizedPaymentAttemptId)}`
+                  : ""
+              }`,
+            );
             return true;
           }
         }
@@ -232,6 +245,9 @@ export default function OrderSuccessPageClient({
     router,
   ]);
 
+  // TEMPORARILY DISABLED FOR UI DESIGN
+  // Automatic mobile redirect countdown.
+
   useEffect(() => {
     if (!resolvedOrderId || !isMobile) {
       setMobileRedirectCountdown(null);
@@ -261,6 +277,8 @@ export default function OrderSuccessPageClient({
     };
   }, [isMobile, resolvedOrderId]);
 
+  // TEMPORARILY DISABLED FOR UI DESIGN
+
   useEffect(() => {
     if (!resolvedOrderId || !isMobile || mobileRedirectCountdown !== 0) {
       return;
@@ -282,16 +300,35 @@ export default function OrderSuccessPageClient({
     router.replace(`/order/${encodeURIComponent(resolvedOrderId)}`);
   };
 
-  if (!isReady || (isAuthenticated && !order && !error)) {
+  if (!isReady) {
     return (
-      <SiteShell hideMobileHeader hideMobileBottomNav showFooter={false}>
+      <SiteShell
+        hideMobileHeader
+        hideHeader
+        hideMobileBottomNav
+        showFooter={false}
+      >
         <div className="flex min-h-screen items-center justify-center bg-[#4a9e5c] px-5 py-8 text-center text-white">
-          <div>
-            <p className="text-3xl font-bold">Preparing your order confirmation...</p>
-            <p className="mt-3 text-base text-white/80">
-              We are fetching your latest order details.
-            </p>
-          </div>
+          <CompactSpinnerLoader />
+        </div>
+      </SiteShell>
+    );
+  }
+
+  if (isAuthenticated && !order && !error) {
+    if (isPendingOrderRoute) {
+      return <OrderSuccess isLoading />;
+    }
+
+    return (
+      <SiteShell
+        hideMobileHeader
+        hideHeader
+        hideMobileBottomNav
+        showFooter={false}
+      >
+        <div className="flex min-h-screen items-center justify-center bg-[#4a9e5c] px-5 py-8 text-center text-white">
+          <CompactSpinnerLoader />
         </div>
       </SiteShell>
     );
@@ -299,25 +336,34 @@ export default function OrderSuccessPageClient({
 
   if (!order) {
     return (
-      <SiteShell hideMobileHeader hideMobileBottomNav showFooter={false}>
+      <SiteShell
+        hideMobileHeader
+        hideHeader
+        hideMobileBottomNav
+        showFooter={false}
+      >
         <div className="flex min-h-screen items-center justify-center bg-[#4a9e5c] px-5 py-8">
           <div className="w-full max-w-xl rounded-[18px] bg-white p-8 text-center shadow-[0_24px_60px_rgba(0,0,0,0.12)]">
-            <h1 className="text-2xl font-bold text-[#1a1a1a]">Order confirmation unavailable</h1>
-            <p className="mt-3 text-sm leading-6 text-[#5e5e5e]">
-              {error || "We couldn't load this order right now."}
+            <h1 className="text-2xl font-bold text-gray-800">
+              We couldn’t find your order confirmation
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-gray-600">
+              {
+                "Your order may still be processing. Check your orders for updates."
+              }
             </p>
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <button
                 type="button"
                 onClick={() => router.replace("/order")}
-                className="rounded-full bg-[#4a9e5c] px-5 py-3 text-sm font-semibold text-white"
+                className="rounded-full bg-[#207958] px-5 py-3 text-sm font-semibold text-white cursor-pointer"
               >
                 View Orders
               </button>
               <button
                 type="button"
                 onClick={() => router.replace("/")}
-                className="rounded-full border border-[#d6e6bd] px-5 py-3 text-sm font-semibold text-[#214f14]"
+                className="rounded-full border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 cursor-pointer"
               >
                 Continue Shopping
               </button>
@@ -340,6 +386,8 @@ export default function OrderSuccessPageClient({
       secondaryActionHref="/"
       secondaryActionLabel="Continue Shopping"
       mobileRedirectCountdown={isMobile ? mobileRedirectCountdown : null}
+      showRedirectBadge={isMobile && mobileRedirectCountdown !== null}
+      redirectSeconds={mobileRedirectCountdown ?? 0}
     />
   );
 }

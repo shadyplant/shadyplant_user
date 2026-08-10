@@ -4,6 +4,7 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import HalftoneLoader from "../loader/halftone_loader";
 
 type SeeInActionCarouselProps = {
   images: string[];
@@ -17,11 +18,16 @@ export default function SeeInActionCarousel({
   const galleryImages = images.filter(Boolean);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [loadedThumbnails, setLoadedThumbnails] = useState<boolean[]>(
+    galleryImages.map(() => false),
+  );
+  const [modalImageLoaded, setModalImageLoaded] = useState(false);
 
   const activeImage = galleryImages[activeIndex] || "";
 
   function openImage(index: number) {
     setActiveIndex(index);
+    setModalImageLoaded(false);
     setIsModalOpen(true);
   }
 
@@ -73,6 +79,10 @@ export default function SeeInActionCarousel({
     };
   }, [isModalOpen, galleryImages.length]);
 
+  useEffect(() => {
+    setLoadedThumbnails(galleryImages.map(() => false));
+  }, [galleryImages.length]);
+
   if (!galleryImages.length) {
     return null;
   }
@@ -101,6 +111,11 @@ export default function SeeInActionCarousel({
                 aria-label={`Open ${productName} real life view ${index + 1}`}
                 className="relative h-[280px] w-[230px] shrink-0 snap-start select-none overflow-hidden rounded-2xl shadow-sm md:h-[500px] md:w-[300px]"
               >
+                {!loadedThumbnails[index] && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                    <HalftoneLoader size={80} dotColor="#687d5f" />
+                  </div>
+                )}
                 <Image
                   src={image}
                   alt={`${productName} real life view ${index + 1}`}
@@ -108,6 +123,13 @@ export default function SeeInActionCarousel({
                   sizes="(max-width: 768px) 230px, 300px"
                   className="pointer-events-none object-cover transition duration-300 hover:scale-[1.02]"
                   unoptimized
+                  onLoadingComplete={() =>
+                    setLoadedThumbnails((current) => {
+                      const next = [...current];
+                      next[index] = true;
+                      return next;
+                    })
+                  }
                 />
               </button>
             );
@@ -153,6 +175,11 @@ export default function SeeInActionCarousel({
 
                 <div className="relative flex flex-1 items-center justify-center bg-[#f7f7f4] px-0 py-0 md:min-h-[min(72vh,720px)] md:px-6 md:py-6">
                   <div className="relative h-full w-full overflow-hidden rounded-none bg-[#ededeb] md:h-[min(70vh,680px)] md:rounded-[1rem]">
+                    {!modalImageLoaded && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+                        <HalftoneLoader size={120} dotColor="#6b8b58" />
+                      </div>
+                    )}
                     <Image
                       src={activeImage}
                       alt={`${productName} real life view ${activeIndex + 1}`}
@@ -160,6 +187,7 @@ export default function SeeInActionCarousel({
                       sizes="(max-width: 768px) 100vw, 1100px"
                       className="object-contain"
                       unoptimized
+                      onLoadingComplete={() => setModalImageLoaded(true)}
                     />
                   </div>
 
@@ -192,7 +220,9 @@ export default function SeeInActionCarousel({
                             onClick={() => setActiveIndex(index)}
                             aria-label={`Show ${productName} real life view ${index + 1}`}
                             className={`h-2 rounded-full transition ${
-                              index === activeIndex ? "w-5 bg-[#171410]" : "w-2 bg-[#171410]/35"
+                              index === activeIndex
+                                ? "w-5 bg-[#171410]"
+                                : "w-2 bg-[#171410]/35"
                             }`}
                           />
                         ))}

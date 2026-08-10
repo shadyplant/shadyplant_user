@@ -24,6 +24,10 @@ import {
 } from "@/lib/validation";
 import { getFirebaseAuth } from "@/lib/firebase";
 import {
+  isShadyPlantApp,
+  type ShadyPlantGoogleSignInResult,
+} from "@/lib/nativeShare";
+import {
   GoogleAuthProvider,
   getRedirectResult,
   signInWithPopup,
@@ -146,6 +150,7 @@ const GOOGLE_POPUP_FALLBACK_ERROR_CODES = new Set([
   "auth/popup-closed-by-user",
   "auth/cancelled-popup-request",
 ]);
+const NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS = 120_000;
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) {
@@ -167,6 +172,86 @@ function isGooglePopupFallbackError(error: unknown) {
   return GOOGLE_POPUP_FALLBACK_ERROR_CODES.has(
     String((error as { code?: string }).code || "").trim(),
   );
+}
+
+function parseNativeGoogleSignInResult(
+  detail: unknown,
+): ShadyPlantGoogleSignInResult | null {
+  if (!detail || typeof detail !== "object") {
+    return null;
+  }
+
+  const payload = detail as Partial<ShadyPlantGoogleSignInResult>;
+  const status = String(payload.status || "").trim();
+
+  if (!["success", "cancelled", "error"].includes(status)) {
+    return null;
+  }
+
+  return {
+    type: "shadyplant-google-sign-in",
+    success: Boolean(payload.success),
+    status: status as ShadyPlantGoogleSignInResult["status"],
+    message: String(payload.message || "").trim(),
+    email: typeof payload.email === "string" ? payload.email : undefined,
+    displayName:
+      typeof payload.displayName === "string" ? payload.displayName : undefined,
+    givenName:
+      typeof payload.givenName === "string" ? payload.givenName : undefined,
+    familyName:
+      typeof payload.familyName === "string" ? payload.familyName : undefined,
+    id: typeof payload.id === "string" ? payload.id : undefined,
+    idToken: typeof payload.idToken === "string" ? payload.idToken : undefined,
+    serverAuthCode:
+      typeof payload.serverAuthCode === "string"
+        ? payload.serverAuthCode
+        : undefined,
+    photoUrl: typeof payload.photoUrl === "string" ? payload.photoUrl : undefined,
+  };
+}
+
+function waitForNativeGoogleSignInResult() {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Native Google sign-in requires a browser."));
+  }
+
+  return new Promise<ShadyPlantGoogleSignInResult>((resolve, reject) => {
+    let timeoutId: number | undefined;
+
+    const cleanup = () => {
+      window.removeEventListener(
+        "shadyplant-google-sign-in",
+        handleResult as EventListener,
+      );
+
+      if (typeof timeoutId === "number") {
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    const handleResult = (event: Event) => {
+      const parsed = parseNativeGoogleSignInResult(
+        (event as CustomEvent<unknown>).detail,
+      );
+
+      if (!parsed) {
+        return;
+      }
+
+      cleanup();
+      resolve(parsed);
+    };
+
+    timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Native Google sign-in timed out."));
+    }, NATIVE_GOOGLE_SIGN_IN_TIMEOUT_MS);
+
+    window.addEventListener(
+      "shadyplant-google-sign-in",
+      handleResult as EventListener,
+    );
+  });
 }
 
 function normalizeUser(user: Partial<AuthUser>) {
@@ -277,9 +362,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return refreshPromise;
   }, [applySession, clearSession]);
 
-  const completeGoogleLogin = useCallback(
-    async (credential: UserCredential) => {
-      const idToken = await credential.user.getIdToken();
+  const completeGoogleLoginFromIdToken = useCallback(
+    async (idToken: string) => {
       const response = await requestJson<AuthResponse>("/auth/google", {
         method: "POST",
         body: JSON.stringify({ idToken }),
@@ -288,6 +372,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return applySession(response.data);
     },
     [applySession],
+  );
+
+  const completeGoogleLogin = useCallback(
+    async (credential: UserCredential) => {
+      const idToken = await credential.user.getIdToken();
+      return completeGoogleLoginFromIdToken(idToken);
+    },
+    [completeGoogleLoginFromIdToken],
   );
 
   const fetchWithAuth = useCallback(async <T,>(
@@ -399,6 +491,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return applySession(response.data);
       },
       async loginWithGoogle() {
+        if (isShadyPlantApp() && window.ShadyPlantNative?.googleSignIn) {
+          const nativeResultPromise = waitForNativeGoogleSignInResult();
+
+          try {
+            await window.ShadyPlantNative.googleSignIn();
+          } catch (error) {
+            throw error instanceof Error
+              ? error
+              : new Error("Unable to launch native Google sign-in.");
+          }
+
+          const result = await nativeResultPromise;
+
+          if (!result.success || result.status === "cancelled") {
+            return null;
+          }
+
+          const idToken = String(result.idToken || "").trim();
+
+          if (!idToken) {
+            throw new Error(
+              result.message ||
+                "Native Google sign-in did not return an ID token.",
+            );
+          }
+
+          return completeGoogleLoginFromIdToken(idToken);
+        }
+
         const auth = getFirebaseAuth();
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({

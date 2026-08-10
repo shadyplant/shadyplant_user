@@ -201,7 +201,7 @@ export default function ShareButton({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Share product"
-        className={`inline-flex items-center justify-center rounded-lg bg-white/70 p-1 text-gray-600 shadow-md backdrop-blur transition hover:bg-white/90 focus:outline-none ${className}`}
+        className={`inline-flex items-center justify-center rounded-lg bg-white/70 p-1 text-gray-800 backdrop-blur transition hover:bg-white/90 focus:outline-none ${className}`}
       >
         <Share2 size={20} />
       </button>

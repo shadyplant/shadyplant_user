@@ -866,7 +866,7 @@ export default function OrderSummaryClient() {
                     <span className="block text-[12px] font-medium leading-4 text-gray-800 sm:text-sm">
                       Total Payable
                     </span>
-                    <span className="block break-all text-[1.9rem] font-medium leading-none text-gray-800 sm:text-2xl md:text-[2.2rem]">
+                    <span className="block break-all text-2xl font-medium leading-none text-gray-800 sm:text-2xl md:text-[2.2rem]">
                       {effectivePreview
                         ? formatInvoiceAmount(totalAfterCoupon)
                         : "---"}
@@ -879,7 +879,7 @@ export default function OrderSummaryClient() {
                         void handleContinue(preferredPaymentMethod)
                       }
                       disabled={!effectivePreview || isSubmitting}
-                      className="inline-flex h-[52px] flex-none items-center justify-center rounded-[0.5rem] bg-[#207958] px-10 text-[1.2rem] font-medium text-white transition hover:bg-[#07ab4e] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[60px] sm:min-w-[320px] sm:text-[1.35rem]"
+                      className="inline-flex h-[52px] flex-none items-center justify-center rounded-[0.5rem] bg-[#207958] px-10 text-base font-medium text-white transition hover:bg-[#07ab4e] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:h-[60px] sm:min-w-[320px] sm:text-[1.35rem]"
                     >
                       {isSubmitting ? "Processing..." : "Pay Now"}
                     </button>

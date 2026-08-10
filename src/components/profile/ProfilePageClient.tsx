@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Edit3,
@@ -31,6 +33,7 @@ import {
   normalizeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/validation";
+import CompactSpinnerLoader from "../loader/compact_spinner";
 
 type ProfileSection = "profile" | "addresses" | "billing";
 
@@ -75,6 +78,9 @@ export default function ProfilePageClient() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<ProfileFormState>(createProfileFormState());
   const [activeField, setActiveField] = useState<string | null>(null);
+  const fieldRefs = useRef<
+    Record<string, HTMLInputElement | HTMLTextAreaElement | null>
+  >({});
 
   useEffect(() => {
     if (user) {
@@ -111,7 +117,10 @@ export default function ProfilePageClient() {
       }));
     }
 
-    window.addEventListener(DELIVERY_ADDRESS_EVENT, handleDeliveryAddressUpdate);
+    window.addEventListener(
+      DELIVERY_ADDRESS_EVENT,
+      handleDeliveryAddressUpdate,
+    );
 
     return () => {
       window.removeEventListener(
@@ -142,6 +151,32 @@ export default function ProfilePageClient() {
     }
   }, [isAuthenticated, isReady, router]);
 
+  useEffect(() => {
+    if (!activeField) {
+      return;
+    }
+
+    const field = fieldRefs.current[activeField];
+
+    if (!field) {
+      return;
+    }
+
+    const focusField = () => {
+      field.focus();
+
+      if ("select" in field) {
+        field.select();
+      }
+    };
+
+    const frameId = window.requestAnimationFrame(focusField);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [activeField]);
+
   const sidebarItems = useMemo(
     () => [
       {
@@ -170,7 +205,7 @@ export default function ProfilePageClient() {
       <SiteShell>
         <section className="px-4 py-8 md:px-6 md:py-12">
           <div className="mx-auto max-w-4xl rounded-[1.8rem] border border-gray-300 bg-white p-6 text-sm text-gray-500 shadow-[0_18px_45px_rgba(33,79,20,0.06)]">
-            Loading your account...
+            <CompactSpinnerLoader />
           </div>
         </section>
       </SiteShell>
@@ -213,7 +248,9 @@ export default function ProfilePageClient() {
       setActiveField(null);
       setFeedback("Profile updated successfully.");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to update profile.");
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to update profile.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -221,8 +258,12 @@ export default function ProfilePageClient() {
 
   async function handleSaveAddressField() {
     setFeedback(null);
-    const normalizedDeliveryAddress = normalizeDeliveryAddress(form.deliveryAddress);
-    const hasAddressValue = Object.values(normalizedDeliveryAddress).some(Boolean);
+    const normalizedDeliveryAddress = normalizeDeliveryAddress(
+      form.deliveryAddress,
+    );
+    const hasAddressValue = Object.values(normalizedDeliveryAddress).some(
+      Boolean,
+    );
     const nextErrors: Record<string, string> = {};
 
     if (hasAddressValue) {
@@ -275,7 +316,9 @@ export default function ProfilePageClient() {
 
   async function handleSaveBillingField() {
     setFeedback(null);
-    const normalizedBillingDetails = normalizeBillingDetailsDraft(form.billingDetails);
+    const normalizedBillingDetails = normalizeBillingDetailsDraft(
+      form.billingDetails,
+    );
     const nextErrors: Record<string, string> = {};
 
     if (
@@ -311,7 +354,9 @@ export default function ProfilePageClient() {
       setFeedback("Billing details updated successfully.");
     } catch (error) {
       setFeedback(
-        error instanceof Error ? error.message : "Unable to update billing details.",
+        error instanceof Error
+          ? error.message
+          : "Unable to update billing details.",
       );
     } finally {
       setIsSaving(false);
@@ -321,7 +366,34 @@ export default function ProfilePageClient() {
   function startFieldEdit(field: string) {
     setFeedback(null);
     setErrors({});
-    setActiveField(field);
+    flushSync(() => {
+      setActiveField(field);
+    });
+
+    const focusField = fieldRefs.current[field];
+
+    if (focusField) {
+      focusField.focus({ preventScroll: true });
+
+      if ("select" in focusField) {
+        focusField.select();
+      }
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const nextField = fieldRefs.current[field];
+
+      if (!nextField) {
+        return;
+      }
+
+      nextField.focus({ preventScroll: true });
+
+      if ("select" in nextField) {
+        nextField.select();
+      }
+    });
   }
 
   function cancelFieldEdit() {
@@ -329,6 +401,46 @@ export default function ProfilePageClient() {
     setErrors({});
     setActiveField(null);
     resetFormFromUser();
+  }
+
+  function renderFieldEditActions(onSave: () => void) {
+    return (
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={cancelFieldEdit}
+          className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSaving}
+          className="inline-flex items-center gap-2 rounded-full border border-[#214f14] bg-[#207958] px-8 py-2 text-xs font-semibold text-white disabled:opacity-60"
+        >
+          {isSaving ? (
+            <CompactSpinnerLoader
+              size={14}
+              color="#ffffff"
+              trackColor="rgba(255,255,255,0.35)"
+              containerWidth="auto"
+              containerHeight="auto"
+              spinnerClassName="border-2"
+            />
+          ) : (
+            "Save"
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  function assignFieldRef(
+    fieldName: string,
+    node: HTMLInputElement | HTMLTextAreaElement | null,
+  ) {
+    fieldRefs.current[fieldName] = node;
   }
 
   function handleDeliveryAddressChange(
@@ -392,22 +504,17 @@ export default function ProfilePageClient() {
         ? "Billing Details"
         : "Personal Information";
 
-  function renderSectionPanel(className = "p-6 md:p-8 shadow-[0_22px_60px_rgba(33,79,20,0.08)]") {
+  function renderSectionPanel(
+    className = "p-6 md:p-8 shadow-[0_22px_60px_rgba(33,79,20,0.08)]",
+  ) {
     return (
       <div className={className}>
         <div className="hidden md:flex flex-wrap items-center justify-between gap-3 md:border-b border-gray-200 pb-6">
           <div>
-            <h2 className="text-xl text-gray-800">
-              {sectionTitle}
-            </h2>
+            <h2 className="text-xl text-gray-800">{sectionTitle}</h2>
           </div>
         </div>
 
-        {feedback ? (
-          <div className="mt-6 rounded-[1.3rem] border border-gray-300 bg-[#f7fbf2] p-4 text-sm text-[#244119]">
-            {feedback}
-          </div>
-        ) : null}
 
         {currentSection === "addresses" ? (
           <div className="mt-0 md:mt-6 space-y-5">
@@ -434,6 +541,7 @@ export default function ProfilePageClient() {
                 <input
                   type="text"
                   disabled={activeField !== "line1"}
+                  ref={(node) => assignFieldRef("line1", node)}
                   value={form.deliveryAddress.line1}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -447,28 +555,13 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.line1 ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.line1}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.line1}
+                  </span>
                 ) : null}
-                {activeField === "line1" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={cancelFieldEdit}
-                      className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"
-                    >
-                      <X size={14} />
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveAddressField}
-                      disabled={isSaving}
-                      className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
-                    >
-                      {isSaving ? "Saving..." : "Save"}
-                    </button>
-                  </div>
-                ) : null}
+                {activeField === "line1"
+                  ? renderFieldEditActions(handleSaveAddressField)
+                  : null}
               </label>
 
               <label className="block">
@@ -485,6 +578,7 @@ export default function ProfilePageClient() {
                 <input
                   type="text"
                   disabled={activeField !== "line2"}
+                  ref={(node) => assignFieldRef("line2", node)}
                   value={form.deliveryAddress.line2}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -497,19 +591,26 @@ export default function ProfilePageClient() {
                   }
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
-                {activeField === "line2" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "line2"
+                  ? renderFieldEditActions(handleSaveAddressField)
+                  : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">City</span><button type="button" onClick={() => startFieldEdit("city")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span className="text-gray-500">City</span>
+                  <button
+                    type="button"
+                    onClick={() => startFieldEdit("city")}
+                    className="inline-flex items-center gap-1 text-gray-700"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </span>
                 <input
                   type="text"
                   disabled={activeField !== "city"}
+                  ref={(node) => assignFieldRef("city", node)}
                   value={form.deliveryAddress.city}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -523,21 +624,30 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.city ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.city}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.city}
+                  </span>
                 ) : null}
-                {activeField === "city" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "city"
+                  ? renderFieldEditActions(handleSaveAddressField)
+                  : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">State</span><button type="button" onClick={() => startFieldEdit("state")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span className="text-gray-500">State</span>
+                  <button
+                    type="button"
+                    onClick={() => startFieldEdit("state")}
+                    className="inline-flex items-center gap-1 text-gray-700"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </span>
                 <input
                   type="text"
                   disabled={activeField !== "state"}
+                  ref={(node) => assignFieldRef("state", node)}
                   value={form.deliveryAddress.state}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -551,21 +661,30 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.state ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.state}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.state}
+                  </span>
                 ) : null}
-                {activeField === "state" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "state"
+                  ? renderFieldEditActions(handleSaveAddressField)
+                  : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">Postal code</span><button type="button" onClick={() => startFieldEdit("postalCode")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span className="text-gray-500">Postal code</span>
+                  <button
+                    type="button"
+                    onClick={() => startFieldEdit("postalCode")}
+                    className="inline-flex items-center gap-1 text-gray-700"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </span>
                 <input
                   type="text"
                   disabled={activeField !== "postalCode"}
+                  ref={(node) => assignFieldRef("postalCode", node)}
                   value={form.deliveryAddress.postalCode}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -579,21 +698,30 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
                 {errors.postalCode ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.postalCode}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.postalCode}
+                  </span>
                 ) : null}
-                {activeField === "postalCode" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "postalCode"
+                  ? renderFieldEditActions(handleSaveAddressField)
+                  : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">Landmark</span><button type="button" onClick={() => startFieldEdit("landmark")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span className="text-gray-500">Landmark</span>
+                  <button
+                    type="button"
+                    onClick={() => startFieldEdit("landmark")}
+                    className="inline-flex items-center gap-1 text-gray-700"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </span>
                 <input
                   type="text"
                   disabled={activeField !== "landmark"}
+                  ref={(node) => assignFieldRef("landmark", node)}
                   value={form.deliveryAddress.landmark}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -606,19 +734,26 @@ export default function ProfilePageClient() {
                   }
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
-                {activeField === "landmark" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "landmark"
+                  ? renderFieldEditActions(handleSaveAddressField)
+                  : null}
               </label>
 
               <label className="block md:col-span-2">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span className="text-gray-500">Delivery notes</span><button type="button" onClick={() => startFieldEdit("notes")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span className="text-gray-500">Delivery notes</span>
+                  <button
+                    type="button"
+                    onClick={() => startFieldEdit("notes")}
+                    className="inline-flex items-center gap-1 text-gray-700"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </span>
                 <textarea
                   rows={4}
                   disabled={activeField !== "notes"}
+                  ref={(node) => assignFieldRef("notes", node)}
                   value={form.deliveryAddress.notes}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -631,12 +766,9 @@ export default function ProfilePageClient() {
                   }
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500 md:rounded-[0.5rem]"
                 />
-                {activeField === "notes" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveAddressField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "notes"
+                  ? renderFieldEditActions(handleSaveAddressField)
+                  : null}
               </label>
             </div>
 
@@ -644,7 +776,9 @@ export default function ProfilePageClient() {
               <div className="flex items-start gap-3">
                 <MapPin size={18} className="mt-0.5 shrink-0 text-gray-700" />
                 <div>
-                  <p className="font-semibold text-gray-700">Saved delivery profile</p>
+                  <p className="font-semibold text-gray-700">
+                    Saved delivery profile
+                  </p>
                   <p className="mt-2 leading-6">
                     {[
                       form.deliveryAddress.line1,
@@ -677,6 +811,7 @@ export default function ProfilePageClient() {
                 <input
                   type="text"
                   disabled={activeField !== "billingName"}
+                  ref={(node) => assignFieldRef("billingName", node)}
                   value={form.billingDetails.name}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -689,12 +824,9 @@ export default function ProfilePageClient() {
                   }
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
-                {activeField === "billingName" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "billingName"
+                  ? renderFieldEditActions(handleSaveBillingField)
+                  : null}
               </label>
 
               <label className="block">
@@ -723,6 +855,7 @@ export default function ProfilePageClient() {
                 <input
                   type="tel"
                   disabled={activeField !== "billingContact"}
+                  ref={(node) => assignFieldRef("billingContact", node)}
                   value={form.billingDetails.contact}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -736,14 +869,13 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {errors.billingContact ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.billingContact}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.billingContact}
+                  </span>
                 ) : null}
-                {activeField === "billingContact" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "billingContact"
+                  ? renderFieldEditActions(handleSaveBillingField)
+                  : null}
               </label>
 
               <label className="block">
@@ -760,6 +892,7 @@ export default function ProfilePageClient() {
                 <input
                   type="text"
                   disabled={activeField !== "billingGstin"}
+                  ref={(node) => assignFieldRef("billingGstin", node)}
                   value={form.billingDetails.gstin}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -773,14 +906,13 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 {errors.billingGstin ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.billingGstin}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.billingGstin}
+                  </span>
                 ) : null}
-                {activeField === "billingGstin" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-500"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "billingGstin"
+                  ? renderFieldEditActions(handleSaveBillingField)
+                  : null}
               </label>
 
               <label className="block">
@@ -797,6 +929,7 @@ export default function ProfilePageClient() {
                 <input
                   type="text"
                   disabled={activeField !== "billingState"}
+                  ref={(node) => assignFieldRef("billingState", node)}
                   value={form.billingDetails.state}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -809,12 +942,9 @@ export default function ProfilePageClient() {
                   }
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
-                {activeField === "billingState" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "billingState"
+                  ? renderFieldEditActions(handleSaveBillingField)
+                  : null}
               </label>
 
               <label className="block">
@@ -831,6 +961,7 @@ export default function ProfilePageClient() {
                 <input
                   type="text"
                   disabled={activeField !== "billingCity"}
+                  ref={(node) => assignFieldRef("billingCity", node)}
                   value={form.billingDetails.city}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -843,12 +974,9 @@ export default function ProfilePageClient() {
                   }
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
-                {activeField === "billingCity" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "billingCity"
+                  ? renderFieldEditActions(handleSaveBillingField)
+                  : null}
               </label>
 
               <label className="block md:col-span-2">
@@ -865,6 +993,7 @@ export default function ProfilePageClient() {
                 <textarea
                   rows={4}
                   disabled={activeField !== "billingAddress"}
+                  ref={(node) => assignFieldRef("billingAddress", node)}
                   value={form.billingDetails.address}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -877,23 +1006,32 @@ export default function ProfilePageClient() {
                   }
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
-                {activeField === "billingAddress" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveBillingField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "billingAddress"
+                  ? renderFieldEditActions(handleSaveBillingField)
+                  : null}
               </label>
             </div>
           </div>
         ) : (
           <div className="mt-0 md:mt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span>Full name</span><button type="button" onClick={() => startFieldEdit("fullName")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
+              <label className={`block`}>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span>
+                    Full name
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startFieldEdit("fullName")}
+                    className="inline-flex items-center gap-1 text-gray-700"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </span>
                 <input
                   type="text"
                   disabled={activeField !== "fullName"}
+                  ref={(node) => assignFieldRef("fullName", node)}
                   value={form.fullName}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -904,21 +1042,30 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-white disabled:text-gray-700"
                 />
                 {errors.fullName ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.fullName}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.fullName}
+                  </span>
                 ) : null}
-                {activeField === "fullName" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveProfileField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "fullName"
+                  ? renderFieldEditActions(handleSaveProfileField)
+                  : null}
               </label>
 
               <label className="block">
-                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700"><span>Phone number</span><button type="button" onClick={() => startFieldEdit("phoneNumber")} className="inline-flex items-center gap-1 text-gray-700"><Edit3 size={14} /></button></span>
+                <span className="mb-2 flex items-center justify-between gap-3 text-sm font-semibold text-gray-700">
+                  <span>Phone number</span>
+                  <button
+                    type="button"
+                    onClick={() => startFieldEdit("phoneNumber")}
+                    className="inline-flex items-center gap-1 text-gray-700"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </span>
                 <input
                   type="tel"
                   disabled={activeField !== "phoneNumber"}
+                  ref={(node) => assignFieldRef("phoneNumber", node)}
                   value={form.phoneNumber}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -929,14 +1076,13 @@ export default function ProfilePageClient() {
                   className="w-full rounded-[0.5rem] border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none disabled:bg-white disabled:text-gray-700"
                 />
                 {errors.phoneNumber ? (
-                  <span className="mt-2 block text-xs text-[#c54b4b]">{errors.phoneNumber}</span>
+                  <span className="mt-2 block text-xs text-[#c54b4b]">
+                    {errors.phoneNumber}
+                  </span>
                 ) : null}
-                {activeField === "phoneNumber" ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button type="button" onClick={cancelFieldEdit} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"><X size={14} />Cancel</button>
-                    <button type="button" onClick={handleSaveProfileField} disabled={isSaving} className="inline-flex items-center gap-2 rounded-[0.5rem] border border-[#214f14] px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60">{isSaving ? "Saving..." : "Save"}</button>
-                  </div>
-                ) : null}
+                {activeField === "phoneNumber"
+                  ? renderFieldEditActions(handleSaveProfileField)
+                  : null}
               </label>
 
               <label className="block md:col-span-2">
@@ -1043,52 +1189,77 @@ export default function ProfilePageClient() {
                   </p>
 
                   <div className="mt-3 overflow-hidden rounded-[1.3rem]">
-                    <Link href="/profile?section=profile" className="flex items-center justify-between px-3 py-4">
+                    <Link
+                      href="/profile?section=profile"
+                      className="flex items-center justify-between px-3 py-4"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <UserRound size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-gray-700">My Profile</span>
+                        <span className="text-[15px] font-medium text-gray-700">
+                          My Profile
+                        </span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
 
-                    <Link href="/order" className="flex items-center justify-between px-3 py-4">
+                    <Link
+                      href="/order"
+                      className="flex items-center justify-between px-3 py-4"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <PackageSearch size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-gray-700">My Orders</span>
+                        <span className="text-[15px] font-medium text-gray-700">
+                          My Orders
+                        </span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
 
-                    <Link href="/profile?section=addresses" className="flex items-center justify-between px-3 py-4">
+                    <Link
+                      href="/profile?section=addresses"
+                      className="flex items-center justify-between px-3 py-4"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <MapPin size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-gray-700">Delivery Address</span>
+                        <span className="text-[15px] font-medium text-gray-700">
+                          Delivery Address
+                        </span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
 
-                    <Link href="/profile?section=billing" className="flex items-center justify-between px-3 py-4">
+                    <Link
+                      href="/profile?section=billing"
+                      className="flex items-center justify-between px-3 py-4"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <Home size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-gray-700">Billing Details</span>
+                        <span className="text-[15px] font-medium text-gray-700">
+                          Billing Details
+                        </span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
 
-                    <Link href="/wishlist" className="flex items-center justify-between px-3 py-4">
+                    <Link
+                      href="/wishlist"
+                      className="flex items-center justify-between px-3 py-4"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f3f3f3] text-[#8a8a8a]">
                           <Heart size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-gray-700">My Wishlist</span>
+                        <span className="text-[15px] font-medium text-gray-700">
+                          My Wishlist
+                        </span>
                       </div>
                       <ChevronRight size={18} className="text-[#737373]" />
                     </Link>
@@ -1102,7 +1273,9 @@ export default function ProfilePageClient() {
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#fff1f1] text-[#c54b4b]">
                           <LogOut size={17} />
                         </span>
-                        <span className="text-[15px] font-medium text-[#2e2e2e]">Logout</span>
+                        <span className="text-[15px] font-medium text-[#2e2e2e]">
+                          Logout
+                        </span>
                       </div>
                       <ChevronRight size={18} className="text-gray-500" />
                     </button>
@@ -1111,18 +1284,20 @@ export default function ProfilePageClient() {
               </div>
             ) : (
               <div className="overflow-hidden rounded-b-[1.8rem] bg-white pb-24 shadow-[0_22px_60px_rgba(33,79,20,0.08)]">
-                <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-4">
+                <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-2">
                   <button
                     type="button"
                     onClick={() => router.push("/profile")}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-800"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-100 text-gray-800"
                     aria-label="Back to profile overview"
                   >
-                    <ChevronLeft size={18} />
+                    <ArrowLeft size={18} />
                   </button>
                   <div>
-                    <p className="text-lg font-semibold text-gray-800">{sectionTitle}</p>
-                    <p className="text-xs text-gray-500">Manage your account details</p>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {sectionTitle}
+                    </p>
+              
                   </div>
                 </div>
                 {renderSectionPanel("px-8 pb-4 pt-5")}
@@ -1142,7 +1317,9 @@ export default function ProfilePageClient() {
                     <h1 className="text-2xl  text-[#163915]">
                       {profileUser.fullName}
                     </h1>
-                    <p className="mt-1 text-sm text-gray-500">{profileUser.email}</p>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {profileUser.email}
+                    </p>
                     {profileUser.isVip ? (
                       <span className="mt-3 inline-flex items-center rounded-full bg-[#f5edc4] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#7b5b08]">
                         VIP Customer

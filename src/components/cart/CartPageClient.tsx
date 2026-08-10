@@ -44,6 +44,7 @@ import { getProductHref } from "@/lib/productUrls";
 import QuantityStepper from "@/components/QuantityStepper";
 import { span } from "framer-motion/client";
 import SpinnerLoader from "../loader/spinner";
+import CompactSpinnerLoader from "../loader/compact_spinner";
 
 const CART_DELIVERY_OFFSET_DAYS = 5;
 
@@ -246,6 +247,7 @@ export default function CartPageClient() {
   const [showDeliveryAddressAlert, setShowDeliveryAddressAlert] =
     useState(false);
   const lastAutoResolvedDeliveryAddressRef = useRef("");
+  const deliveryQuoteDebounceRef = useRef<number | null>(null);
   const { fetchWithAuth, isAuthenticated, updateProfile, user } = useAuth();
   const {
     items: cartItems,
@@ -505,6 +507,11 @@ export default function CartPageClient() {
     const deliveryPosition = selectedDeliveryPosition;
 
     if (!hasCheckoutAddress || !deliveryPosition || !items.length) {
+      if (deliveryQuoteDebounceRef.current !== null) {
+        window.clearTimeout(deliveryQuoteDebounceRef.current);
+        deliveryQuoteDebounceRef.current = null;
+      }
+
       if (!isAuthenticated) {
         setGuestDeliveryCharge(null);
       }
@@ -513,86 +520,97 @@ export default function CartPageClient() {
     }
     const resolvedDeliveryPosition = deliveryPosition;
 
-    const controller = new AbortController();
-
-    async function loadDeliveryQuote() {
-      setIsDeliveryQuoteLoading(true);
-      setDeliveryQuoteError(null);
-
-      try {
-        if (isAuthenticated) {
-          const deliveryAddressPayload = buildCheckoutDeliveryAddressPayload(
-            deliveryAddressForPicker,
-            selectedDeliveryAddressDetails,
-            user?.deliveryAddress,
-          );
-
-          const response = await fetchWithAuth<
-            ApiResponse<{ preview: CheckoutPreview }>
-          >("/checkout/preview", {
-            method: "POST",
-            body: JSON.stringify({
-              deliveryAddress: deliveryAddressPayload,
-              deliveryLocation: resolvedDeliveryPosition,
-              state: deliveryAddressPayload.state,
-            }),
-            signal: controller.signal,
-          });
-
-          setCheckoutPreview(response.data.preview);
-          setGuestDeliveryCharge(null);
-        } else {
-          const response = await requestJson<DeliveryQuoteResponse>(
-            "/calc-delivery",
-            {
-              method: "POST",
-              body: JSON.stringify({
-                weight: totalWeightKg,
-                lat: resolvedDeliveryPosition.lat,
-                lng: resolvedDeliveryPosition.lng,
-                state: selectedDeliveryAddressDetails?.state || "",
-              }),
-              signal: controller.signal,
-            },
-          );
-
-          if (!response.ok || !response.success) {
-            throw new Error(
-              response.message || "Unable to calculate delivery charge.",
-            );
-          }
-
-          setGuestDeliveryCharge(
-            Number.isFinite(Number(response.cost))
-              ? Math.max(0, Math.round(Number(response.cost)))
-              : null,
-          );
-          setCheckoutPreview(null);
-        }
-        setDeliveryQuoteError(null);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        setCheckoutPreview(null);
-        setGuestDeliveryCharge(null);
-        setDeliveryQuoteError(
-          error instanceof Error
-            ? error.message
-            : "Unable to calculate delivery charge.",
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsDeliveryQuoteLoading(false);
-        }
-      }
+    if (deliveryQuoteDebounceRef.current !== null) {
+      window.clearTimeout(deliveryQuoteDebounceRef.current);
     }
 
-    void loadDeliveryQuote();
+    const controller = new AbortController();
+
+    deliveryQuoteDebounceRef.current = window.setTimeout(() => {
+      async function loadDeliveryQuote() {
+        setIsDeliveryQuoteLoading(true);
+        setDeliveryQuoteError(null);
+
+        try {
+          if (isAuthenticated) {
+            const deliveryAddressPayload = buildCheckoutDeliveryAddressPayload(
+              deliveryAddressForPicker,
+              selectedDeliveryAddressDetails,
+              user?.deliveryAddress,
+            );
+
+            const response = await fetchWithAuth<
+              ApiResponse<{ preview: CheckoutPreview }>
+            >("/checkout/preview", {
+              method: "POST",
+              body: JSON.stringify({
+                deliveryAddress: deliveryAddressPayload,
+                deliveryLocation: resolvedDeliveryPosition,
+                state: deliveryAddressPayload.state,
+              }),
+              signal: controller.signal,
+            });
+
+            setCheckoutPreview(response.data.preview);
+            setGuestDeliveryCharge(null);
+          } else {
+            const response = await requestJson<DeliveryQuoteResponse>(
+              "/calc-delivery",
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  weight: totalWeightKg,
+                  lat: resolvedDeliveryPosition.lat,
+                  lng: resolvedDeliveryPosition.lng,
+                  state: selectedDeliveryAddressDetails?.state || "",
+                }),
+                signal: controller.signal,
+              },
+            );
+
+            if (!response.ok || !response.success) {
+              throw new Error(
+                response.message || "Unable to calculate delivery charge.",
+              );
+            }
+
+            setGuestDeliveryCharge(
+              Number.isFinite(Number(response.cost))
+                ? Math.max(0, Math.round(Number(response.cost)))
+                : null,
+            );
+            setCheckoutPreview(null);
+          }
+          setDeliveryQuoteError(null);
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+
+          setCheckoutPreview(null);
+          setGuestDeliveryCharge(null);
+          setDeliveryQuoteError(
+            error instanceof Error
+              ? error.message
+              : "Unable to calculate delivery charge.",
+          );
+        } finally {
+          if (!controller.signal.aborted) {
+            setIsDeliveryQuoteLoading(false);
+          }
+        }
+      }
+
+      void loadDeliveryQuote();
+    }, 350);
 
     return () => {
       controller.abort();
+
+      if (deliveryQuoteDebounceRef.current !== null) {
+        window.clearTimeout(deliveryQuoteDebounceRef.current);
+        deliveryQuoteDebounceRef.current = null;
+      }
     };
   }, [
     deliveryAddressForPicker,
@@ -904,23 +922,39 @@ export default function CartPageClient() {
           {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
             <SpinnerLoader offset={130} />
           ) : !items.length ? (
-            <div className=" mx-auto max-w-3xl p-6 text-center md:p-10 min-h-[calc(100vh-180px)] flex flex-col items-center justify-center ">
-              <div>
-                <div className="mx-auto flex h-20 w-20 items-center justify-center text-gray-700 bg-gray-100 rounded-full">
-                  <ShoppingCart size={30} />
-                </div>
-                <h2 className="mt-6 text-2xl text-gray-900">
-                  Your cart is empty
-                </h2>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                  <Link
-                    href="/"
-                    className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
-                  >
-                    Shop Now
-                    <ArrowRight size={16} />
-                  </Link>
-                </div>
+            <div className="mx-auto max-w-3xl rounded-[0.5rem] bg-[var(--surface-strong)] p-6 text-center backdrop-blur-[16px] md:p-10">
+              <div className="mx-auto flex h-auto w-auto items-center justify-center text-[#4c8d5b]">
+                <img
+                  src="/empty_cart_illustration.svg"
+                  alt=""
+                  className="h-40 w-auto p-2"
+                />
+              </div>
+              <h2 className="mt-6 text-xl text-gray-800">Your cart is empty</h2>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-gray-400">
+                Looks like you haven&apos;t added any plants yet. Let&apos;s
+                change that and bring some green home!
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Link
+                  href="/"
+                  className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-[#207958] py-3 pl-6 pr-14 text-sm font-semibold text-white shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[#1b6b4e] hover:shadow-[0_12px_30px_rgba(32,121,88,0.35)] active:translate-y-0 active:scale-[0.98]"
+                >
+                  <span className="pointer-events-none absolute inset-0">
+                    <span className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
+                  </span>
+
+                  <span className="relative z-10 text-center">
+                    Start shopping
+                  </span>
+
+                  <div className="absolute right-1 top-1/2 z-10 -translate-y-1/2 inline-flex items-center justify-center rounded-full bg-white/20 p-3 transition-all duration-300 group-hover:translate-x-1 group-hover:bg-white/30 group-hover:shadow-[0_0_16px_rgba(255,255,255,0.25)]">
+                    <ArrowRight
+                      size={16}
+                      className="transition-transform duration-300 group-hover:translate-x-0.5"
+                    />
+                  </div>
+                </Link>
               </div>
             </div>
           ) : (
@@ -964,7 +998,7 @@ export default function CartPageClient() {
                         <div className="min-w-0">
                           <Link
                             href={productHref}
-                            className="line-clamp-1 text-base leading-6 text-gray-800 min-[390px]:text-[22px] min-[390px]:leading-7 sm:text-[24px]"
+                            className="line-clamp-1 text-sm text-gray-800 md:text-base"
                           >
                             {item.product.name}
                           </Link>
@@ -974,8 +1008,8 @@ export default function CartPageClient() {
                             </p>
                           ) : null}
                           {item.variantLabel || item.packLabel ? (
-                            <p className="mt-1 text-[11px] font-medium text-[#58724f] min-[390px]:text-[12px]">
-                              {item.variantLabel || item.packLabel}
+                            <p className="mt-1 text-[11px] font-medium text-gray-700 min-[390px]:text-[12px]">
+                              {/* {item.variantLabel || item.packLabel} */}
                             </p>
                           ) : null}
                           <p className="mt-1 text-lg font-semibold leading-none tracking-[-0.02em] text-gray-700 min-[390px]:text-[24px]">
@@ -1067,14 +1101,14 @@ export default function CartPageClient() {
                 <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] text-gray-500">Total payable</p>
-                    <p className="text-[1.9rem] font-medium text-gray-800 text-[#111111]">
+                    <p className="text-2xl font-medium text-gray-800 text-[#111111]">
                       {total === null ? "---" : formatCurrency(total)}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleCheckoutClick}
-                    className={`flex h-11 min-w-[150px] items-center justify-center rounded-md px-5 text-[1.2rem] sm:text-[1.35rem] transition ${
+                    className={`flex h-11 min-w-[150px] font-medium items-center justify-center rounded-md px-5 text-base sm:text-[1.35rem] transition ${
                       canProceedToCheckout
                         ? "bg-[#207958] text-white hover:bg-[#163915]"
                         : "border border-gray-200 bg-white text-gray-300 hover:bg-[#f4fbf2]"
@@ -1097,7 +1131,7 @@ export default function CartPageClient() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 cursor-pointer"
+              className="inline-flex items-center rounded-md gap-2 bg-white px-5 py-3 md:px-4 md:py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 cursor-pointer"
             >
               <ArrowLeft size={16} />
               Back
@@ -1108,7 +1142,7 @@ export default function CartPageClient() {
               <button
                 type="button"
                 onClick={() => void clearItems()}
-                className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-5 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-full border border-transparent rounded-md hover:border-red-100 bg-white px-5 py-3 md:px-4 md:py-2 text-sm font-medium text-gray-500 hover:text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
               >
                 <Trash2 size={16} />
                 Clear Cart
@@ -1143,38 +1177,47 @@ export default function CartPageClient() {
           </div>
 
           {!isReady || isLoading || !areProductsReady || isProductsLoading ? (
-            <div className="mx-auto max-w-3xl rounded-[2.3rem] border border-[rgba(36,54,27,0.08)] bg-[var(--surface-strong)] p-6 text-center shadow-[0_22px_60px_rgba(33,79,20,0.08)] backdrop-blur-[16px] md:p-10">
-              <h2 className="text-3xl  text-[#163915]">Loading your cart</h2>
-              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#5c7752]">
-                Pulling your saved cart from the server.
-              </p>
+            <div className="mx-auto max-w-3xl p-6 text-center md:p-10">
+              <SpinnerLoader offset={400} />
             </div>
           ) : !items.length ? (
             <div className="mx-auto max-w-3xl rounded-[0.5rem] bg-[var(--surface-strong)] p-6 text-center backdrop-blur-[16px] md:p-10">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf5e1] text-[#4c8d5b]">
-                <ShoppingCart size={30} />
+              <div className="mx-auto flex h-auto w-auto items-center justify-center text-[#4c8d5b]">
+                <img
+                  src="/empty_cart_illustration.svg"
+                  alt=""
+                  className="h-60 w-auto p-2"
+                />
               </div>
-              <h2 className="mt-6 text-3xl  text-gray-900">
+              <h2 className="mt-6 text-2xl text-gray-800">
                 Your cart is empty
               </h2>
-              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-gray-600">
-                Add plants, lawn grass, or planters from the catalog and they
-                will appear here with live quantity controls and order totals.
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-gray-400">
+                Looks like you haven't added any plants yet. Let's change that
+                and bring some green home!
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link
                   href="/"
-                  className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:ml-3"
+                  className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full bg-[#207958] px-1 py-1 text-sm font-semibold text-white shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[#1b6b4e] hover:shadow-[0_12px_30px_rgba(32,121,88,0.35)] active:translate-y-0 active:scale-[0.98]"
                 >
-                  Back to home
-                </Link>
+                  {/* Shine */}
+                  <span className="pointer-events-none absolute inset-0">
+                    <span className="absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
+                  </span>
 
-                <Link
-                  href="/"
-                  className="bg-[#207958] inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-semibold text-white"
-                >
-                  Start shopping
-                  <ArrowRight size={16} />
+                  {/* Text */}
+                  <span className="relative z-10 pl-4 pr-2 transition-all duration-300">
+                    Start shopping
+                  </span>
+
+                  {/* Arrow */}
+                  <div className="relative z-10 inline-flex items-center justify-center rounded-full bg-white/20 p-3 transition-all duration-300 group-hover:translate-x-1 group-hover:bg-white/30 group-hover:shadow-[0_0_16px_rgba(255,255,255,0.25)]">
+                    <ArrowRight
+                      size={16}
+                      className="transition-transform duration-300 group-hover:translate-x-0.5"
+                    />
+                  </div>
                 </Link>
               </div>
             </div>

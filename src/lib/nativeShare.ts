@@ -8,11 +8,27 @@ export type NativeLocationPayload = {
   timestamp: number;
 };
 
+export type ShadyPlantGoogleSignInResult = {
+  type: "shadyplant-google-sign-in";
+  success: boolean;
+  status: "success" | "cancelled" | "error";
+  message: string;
+  email?: string;
+  displayName?: string;
+  givenName?: string;
+  familyName?: string;
+  id?: string;
+  idToken?: string;
+  serverAuthCode?: string;
+  photoUrl?: string;
+};
+
 type NativeBridge = {
   share?: (title: string, text: string) => void;
   requestLocation?: () => void;
   requestPushToken?: () => void;
   download?: (url: string, fileName?: string) => void;
+  googleSignIn?: () => void | Promise<void>;
 };
 
 declare global {
@@ -25,6 +41,7 @@ declare global {
   interface WindowEventMap {
     "native-location": CustomEvent<NativeLocationPayload>;
     "native-location-error": CustomEvent<{ error?: string }>;
+    "shadyplant-google-sign-in": CustomEvent<ShadyPlantGoogleSignInResult>;
   }
 }
 

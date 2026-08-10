@@ -1,5 +1,5 @@
 // const DEFAULT_API_BASE_URL = "http://localhost:8080/api/v1";
-const DEFAULT_API_BASE_URL = "http://192.168.1.34:8080/api/v1";
+const DEFAULT_API_BASE_URL = "http://192.168.1.42:8080/api/v1";
 
 function isLocalHostname(hostname: string) {
   const normalizedHostname = String(hostname || "").trim().toLowerCase();

@@ -124,6 +124,9 @@ export async function renderProductDetailsPage({
                     ? reviewData.summary.averageRating.toFixed(1)
                     : undefined
                 }
+                totalRatings={
+                  hasRatings ? reviewData.summary.totalRatings : undefined
+                }
               />
 
               <div className="mx-auto w-full max-w-2xl px-4 pb-8 pt-3 sm:px-4">
@@ -139,12 +142,6 @@ export async function renderProductDetailsPage({
                         </p>
                       ) : null}
                     </div>
-                    {hasRatings ? (
-                      <p className="shrink-0 pt-1 text-[24px] font-medium text-[#6f6f6f]">
-                        {reviewData.summary.averageRating.toFixed(1)} |{" "}
-                        {reviewData.summary.totalRatings} ratings
-                      </p>
-                    ) : null}
                   </div>
 
                   <p className="mt-2 line-clamp-2 text-xs leading-normal text-gray-400">
@@ -246,7 +243,7 @@ export async function renderProductDetailsPage({
               </div>
 
               <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-                <div className="lg:sticky lg:top-24 lg:self-start">
+                <div className="lg:sticky lg:top-0 lg:self-start">
                   <ProductImageGallery
                     images={product.images}
                     productName={product.name}
@@ -255,7 +252,7 @@ export async function renderProductDetailsPage({
                         <WishlistButton
                           productId={product.id}
                           size={25}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
                         />
 
                         <ShareButton
@@ -265,7 +262,7 @@ export async function renderProductDetailsPage({
                               : undefined
                           }
                           productName={product.name}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/92 text-[#5f5f5f] shadow-[0_8px_20px_rgba(0,0,0,0.12)] backdrop-blur-sm transition hover:bg-white"
                         />
                       </>
                     }
@@ -332,7 +329,7 @@ export async function renderProductDetailsPage({
                       <ProductOptionGroupsSelector variant="desktop" />
                     </div>
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] md:mt-8">
+                    <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:mt-8">
                       <AddToCartButton
                         productId={product.id}
                         availableStock={product.stock}
@@ -362,12 +359,12 @@ export async function renderProductDetailsPage({
                   />
                 </div>
               </div>
-{/* 
+
               <SeeInActionCarousel
                 key={`${product.id}-desktop-real-view`}
                 images={product.usesImages}
                 productName={product.name}
-              /> */}
+              />
 
               {relatedProducts.length ? (
                 <div className="mt-2 rounded-2xl p-0 md:mt-2 md:p-8">

@@ -146,6 +146,7 @@ export default function ProductMobileActionBar({
         <ProductBuyNowButton
           productId={activeProductId}
           availableStock={availableStock}
+          minOrderQuantity={minOrderQuantity}
           className="flex h-12 items-center justify-center rounded-md bg-[#207958] px-4 text-sm text-white transition hover:bg-[#3f764c]"
         >
           Buy Now

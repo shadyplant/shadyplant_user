@@ -9,14 +9,17 @@ import {
   type ReactNode,
   type TouchEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
+  TriangleAlert,
   Info,
   Minus,
   PhoneCall,
   Plus,
   ShoppingCart,
+  X,
 } from "lucide-react";
 import ProductDeliveryAddressPicker, {
   DELIVERY_ADDRESS_EVENT,
@@ -177,7 +180,7 @@ function LawnEstimateCarousel({
   return (
     <div className="relative overflow-hidden rounded-[0.5rem] md:rounded-[1.25rem] border border-[#e5e5e5] bg-[#f4f4f1] shadow-[0_10px_28px_rgba(0,0,0,0.04)]">
       <div
-        className="relative aspect-[1.55] overflow-hidden sm:aspect-[1.45] lg:aspect-[1.32]"
+        className="relative aspect-[1.2] overflow-hidden sm:aspect-[1.45] lg:aspect-[1.32]"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -189,19 +192,30 @@ function LawnEstimateCarousel({
           className="object-cover"
         />
 
-        <div className="absolute left-3 top-3 rounded-xs bg-white/90 px-[4px] py-[2px] text-[8px] md:px-2 md:py-1 md:text-xs uppercase font-semibold text-[#214f14] shadow-sm backdrop-blur">
-          Real Image
-        </div>
+        <span
+          className="
+    absolute left-3 top-3 z-20
+    rounded-md
+    bg-black/20
+    backdrop-blur-lg
+    px-2 py-1
+    text-[10px] font-semibold
+    text-white/80
+    mix-blend-screen
+  "
+        >
+          Original
+        </span>
 
         {actionControls ? (
-          <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-2 flex-col md:flex-row">
             {actionControls}
           </div>
         ) : null}
       </div>
 
       {galleryImages.length > 1 ? (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white/70 px-1.5 py-1 md:px-2.5 md:py-1.5 shadow-sm backdrop-blur">
+        <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full px-2 py-1 bg-white/10 backdrop-blur-md">
           {galleryImages.map((image, index) => (
             <button
               key={`${image}-dot-${index}`}
@@ -209,11 +223,15 @@ function LawnEstimateCarousel({
               onClick={() => goToImage(index)}
               aria-label={`Show ${productName} image ${index + 1}`}
               aria-pressed={index === resolvedActiveIndex}
-              className={`h-1 rounded-full transition-all ${
-                index === resolvedActiveIndex
-                  ? "w-4 bg-[#214f14]"
-                  : "w-1 bg-[#214f14]/30"
-              }`}
+              className={`
+        rounded-full
+        transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
+        ${
+          index === resolvedActiveIndex
+            ? "h-2 w-6 scale-100 bg-gray-900 shadow-[0_0_12px_rgba(17,24,39,0.35)]"
+            : "h-2 w-2 scale-90 bg-gray-400/60 hover:scale-110 hover:bg-gray-700 hover:shadow-[0_0_8px_rgba(17,24,39,0.2)]"
+        }
+      `}
             />
           ))}
         </div>
@@ -229,6 +247,20 @@ export default function LawnGrassBulkOrderEstimator({
   const { addItem } = useCartStore();
   const { isAuthenticated, user } = useAuth();
   const savedCheckoutDraft = readCheckoutDraft();
+  const estimateAttemptTimesRef = useRef<number[]>([]);
+  const estimateSnackTimerRef = useRef<number | null>(null);
+  const estimateSnackDismissTimerRef = useRef<number | null>(null);
+  const estimateBlockTimerRef = useRef<number | null>(null);
+  const [estimateSnack, setEstimateSnack] = useState<{
+    id: number;
+    message: string;
+    visible: boolean;
+    progress: number;
+    duration: number;
+  } | null>(null);
+  const [estimateBlockedUntil, setEstimateBlockedUntil] = useState<
+    number | null
+  >(null);
 
   const carouselImages = useMemo(
     () =>
@@ -265,6 +297,22 @@ export default function LawnGrassBulkOrderEstimator({
   const [isSavingCart, setIsSavingCart] = useState(false);
   const [hasCalculatedQuote, setHasCalculatedQuote] = useState(false);
 
+  useEffect(() => {
+    return () => {
+      if (estimateSnackTimerRef.current) {
+        window.clearTimeout(estimateSnackTimerRef.current);
+      }
+
+      if (estimateSnackDismissTimerRef.current) {
+        window.clearTimeout(estimateSnackDismissTimerRef.current);
+      }
+
+      if (estimateBlockTimerRef.current) {
+        window.clearTimeout(estimateBlockTimerRef.current);
+      }
+    };
+  }, []);
+
   const quantityValue = Math.max(1, Math.floor(Number(quantity || 1)));
   const selectedSlab = resolveQuantitySlab(
     product.quantityPricingSlabs || [],
@@ -293,6 +341,88 @@ export default function LawnGrassBulkOrderEstimator({
   }, [hasCalculatedQuote, totalAmount]);
 
   const canUseEstimateActions = orderTotalPreview !== null;
+  const isEstimateBlocked =
+    estimateBlockedUntil !== null && Date.now() < estimateBlockedUntil;
+
+  function showEstimateSnack(message: string) {
+    const id = Date.now();
+    const visibleDuration = 3000;
+
+    if (estimateSnackTimerRef.current) {
+      window.clearTimeout(estimateSnackTimerRef.current);
+    }
+
+    if (estimateSnackDismissTimerRef.current) {
+      window.clearTimeout(estimateSnackDismissTimerRef.current);
+    }
+
+    setEstimateSnack({
+      id,
+      message,
+      visible: false,
+      progress: 0,
+      duration: visibleDuration,
+    });
+
+    window.requestAnimationFrame(() => {
+      setEstimateSnack((current) =>
+        current && current.id === id
+          ? { ...current, visible: true, progress: 100 }
+          : current,
+      );
+    });
+
+    estimateSnackTimerRef.current = window.setTimeout(() => {
+      setEstimateSnack((current) =>
+        current && current.id === id ? { ...current, visible: false } : current,
+      );
+
+      estimateSnackDismissTimerRef.current = window.setTimeout(() => {
+        setEstimateSnack((current) => (current?.id === id ? null : current));
+      }, 220);
+    }, visibleDuration);
+  }
+
+  function blockEstimateButton(durationMs = 1000) {
+    const blockedUntil = Date.now() + durationMs;
+
+    setEstimateBlockedUntil(blockedUntil);
+
+    if (estimateBlockTimerRef.current) {
+      window.clearTimeout(estimateBlockTimerRef.current);
+    }
+
+    estimateBlockTimerRef.current = window.setTimeout(() => {
+      setEstimateBlockedUntil((current) =>
+        current && current <= Date.now() ? null : current,
+      );
+      estimateBlockTimerRef.current = null;
+    }, durationMs);
+  }
+
+  function registerEstimateAttempt() {
+    const now = Date.now();
+    const windowMs = 1000;
+    const maxAttempts = 1;
+
+    if (isEstimateBlocked) {
+      showEstimateSnack("Please wait before estimating again.");
+      return false;
+    }
+
+    estimateAttemptTimesRef.current = estimateAttemptTimesRef.current.filter(
+      (timestamp) => now - timestamp < windowMs,
+    );
+
+    if (estimateAttemptTimesRef.current.length >= maxAttempts) {
+      blockEstimateButton(1000);
+      showEstimateSnack("Please wait a moment before estimating again.");
+      return false;
+    }
+
+    estimateAttemptTimesRef.current.push(now);
+    return true;
+  }
 
   useEffect(() => {
     if (user?.phoneNumber) {
@@ -350,6 +480,10 @@ export default function LawnGrassBulkOrderEstimator({
   }, []);
 
   async function handleCalculate() {
+    if (!registerEstimateAttempt()) {
+      return;
+    }
+
     if (!phoneNumber.trim()) {
       setQuoteError("Enter phone number before calculating charges.");
       return;
@@ -482,8 +616,60 @@ export default function LawnGrassBulkOrderEstimator({
     ? Math.max(0, Math.round((product.mrp - salePricePerUnit) * quantityValue))
     : 0;
 
+  const estimateSnackPortal =
+    estimateSnack && typeof document !== "undefined"
+      ? createPortal(
+          <div className="fixed right-3 top-3 z-[9999] w-[min(92vw,360px)]">
+            <div
+              className={`overflow-hidden rounded-[0.85rem] border border-[#f3c96d] bg-[#fffaf0] shadow-[0_18px_44px_rgba(0,0,0,0.18)] transition-all duration-200 ease-out ${
+                estimateSnack.visible
+                  ? "translate-y-0 scale-100 opacity-100"
+                  : "-translate-y-2 scale-95 opacity-0"
+              }`}
+            >
+              <div className="flex items-start gap-3 px-4 py-3">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f59e0b] text-white">
+                  <TriangleAlert size={15} strokeWidth={2.4} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-[#7a4b00]">
+                    Please wait a moment
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#8a5b08]">
+                    {estimateSnack.message}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Dismiss notification"
+                  onClick={() =>
+                    setEstimateSnack((current) =>
+                      current ? { ...current, visible: false } : current,
+                    )
+                  }
+                  className="rounded-full p-1 text-[#a16b0f] transition hover:bg-[#fff1d6] hover:text-[#7a4b00]"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="h-1 w-full bg-[#f6d7a3]">
+                <div
+                  className="h-full bg-[#f59e0b] transition-[width] duration-1000 ease-linear"
+                  style={{
+                    transitionDuration: `${estimateSnack.duration}ms`,
+                    width: `${estimateSnack.progress}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <section className="w-full overflow-x-hidden">
+      {estimateSnackPortal}
       <div className="mx-auto w-full max-w-7xl overflow-x-hidden">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-7">
           <div className="flex flex-col-reverse gap-4 lg:flex-col lg:gap-5">
@@ -506,7 +692,7 @@ export default function LawnGrassBulkOrderEstimator({
                   <WishlistButton
                     productId={product.id}
                     size={18}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-[0.55rem] bg-white/90 !text-[#5f5f5f] shadow-sm backdrop-blur transition hover:bg-white sm:h-10 sm:w-10"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-[0.55rem] bg-white/70 !text-[#5f5f5f] backdrop-blur transition hover:bg-white sm:h-10 sm:w-10"
                   />
                   <ShareButton
                     url={
@@ -515,7 +701,7 @@ export default function LawnGrassBulkOrderEstimator({
                         : undefined
                     }
                     productName={product.name}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-[0.55rem] bg-white/90 text-[#5f5f5f] shadow-sm backdrop-blur transition hover:bg-white sm:h-10 sm:w-10"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-[0.55rem] bg-white/70 text-[#5f5f5f] backdrop-blur transition hover:bg-white sm:h-10 sm:w-10"
                   />
                 </>
               }
@@ -525,8 +711,8 @@ export default function LawnGrassBulkOrderEstimator({
           <div className="rounded-[1rem] p-0 md:p-5">
             <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
               <label className="block">
-                <span className="text-[10px] font-medium text-gray-600 sm:text-[14px] md:text-[15px]">
-                  Enter Quantity In Sqft*
+                <span className="text-[12px] font-medium text-gray-800 sm:text-[14px] md:text-[15px]">
+                  Enter Quantity In Sqft <span className="text-red-500">*</span>
                 </span>
                 <div className="mt-2 flex h-12 overflow-hidden rounded-[0.55rem] border border-[#e4e4e4] bg-white sm:h-14">
                   <button
@@ -560,7 +746,7 @@ export default function LawnGrassBulkOrderEstimator({
                       setQuoteMessage("");
                       setHasCalculatedQuote(false);
                     }}
-                    className="min-w-0 flex-1 border-x border-[#e4e4e4] text-center text-[0.95rem] font-semibold tracking-[-0.04em] text-[#111111] outline-none placeholder:text-[#a0a0a0] focus:bg-[#e4f3e2] sm:text-[1.05rem]"
+                    className="min-w-0 flex-1 border-x border-[#e4e4e4] text-center text-[0.95rem] font-semibold tracking-[-0.04em] text-[#111111] outline-none placeholder:text-[#a0a0a0] sm:text-[1.05rem]"
                     placeholder="10,000"
                   />
                   <button
@@ -586,8 +772,8 @@ export default function LawnGrassBulkOrderEstimator({
               </label>
 
               <label className="block">
-                <span className="text-[10px] font-medium text-gray-600 sm:text-[14px] md:text-[15px]">
-                  Enter Phone Number*
+                <span className="text-[12px] font-medium text-gray-800 sm:text-[14px] md:text-[15px]">
+                  Enter Phone Number <span className="text-red-500">*</span>
                 </span>
                 <div className="relative mt-2">
                   <input
@@ -595,7 +781,7 @@ export default function LawnGrassBulkOrderEstimator({
                     value={phoneNumber}
                     onChange={(event) => setPhoneNumber(event.target.value)}
                     className="h-12 w-full rounded-[0.55rem] border border-[#e4e4e4] bg-white px-3 pr-10 text-[0.95rem] text-[#111111] outline-none transition placeholder:text-[#a0a0a0] focus:border-[#4c8b5d] focus:ring-4 focus:ring-[#e8f4df] sm:h-14 sm:px-4 sm:pr-12 sm:text-[1rem]"
-                    placeholder="+91 6002515623"
+                    placeholder="+91 XXXXXXXXXX"
                   />
                   <PhoneCall
                     size={16}
@@ -606,10 +792,11 @@ export default function LawnGrassBulkOrderEstimator({
             </div>
 
             <div className="mt-4">
-              <div className="text-[10px] font-medium text-gray-600 md:text-[15px]">
-                Select Delivery Point ( Point On Map )*
+              <div className="text-[12px] font-medium text-gray-800 md:text-[15px]">
+                Select Delivery Point ( Point On Map ){" "}
+                <span className="text-red-500">*</span>
               </div>
-              <div className="mt-2 overflow-hidden rounded-[0.55rem] border border-[#e4e4e4] bg-white px-3 py-2.5">
+              <div className="mt-2 overflow-hidden rounded-[0.55rem] border border-[#e4e4e4] bg-white pl-3 pr-0 py-1.5 md:pl-4 md:pr-0 md:py-3">
                 <ProductDeliveryAddressPicker
                   variant="checkout-card"
                   initialAddress={deliveryAddressForPicker}
@@ -625,10 +812,14 @@ export default function LawnGrassBulkOrderEstimator({
             <button
               type="button"
               onClick={() => void handleCalculate()}
-              disabled={isCalculating || !isReadyToQuote}
-              className="mt-4 inline-flex h-14 w-full items-center justify-center rounded-[0.45rem] bg-[#207958] px-6 text-[1.05rem] font-semibold text-white transition hover:bg-[#3f7b4c] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isCalculating || !isReadyToQuote || isEstimateBlocked}
+              className="mt-4 inline-flex h-12 md:h-14 w-full items-center justify-center rounded-[0.45rem] bg-[#207958] px-6 text-[1.05rem] font-semibold text-white transition hover:bg-[#3f7b4c] disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              {isCalculating ? "Calculating..." : "Estimate Cost"}
+              {isCalculating
+                ? "Calculating..."
+                : isEstimateBlocked
+                  ? "Please wait..."
+                  : "Estimate Cost"}
             </button>
 
             <p className="mt-2 flex items-start gap-2 text-[10px] md:text-[0.8rem] text-[#8d8d8d]">
@@ -653,9 +844,7 @@ export default function LawnGrassBulkOrderEstimator({
 
             <div className="mt-4 space-y-3 rounded-[1rem] bg-white p-0 md:p-4 shadow-[0_8px_20px_rgba(0,0,0,0.04)]">
               <div className="flex items-center justify-between gap-4 border-b border-[#d9d9d9] pb-3">
-                <span className="text-xs text-[#333333]">
-                  Total Quantity
-                </span>
+                <span className="text-xs text-[#333333]">Total Quantity</span>
                 <span className="text-xs font-medium text-[#2f2f2f]">
                   {hasCalculatedQuote ? (
                     Number(quantityValue).toLocaleString("en-IN")
@@ -666,9 +855,7 @@ export default function LawnGrassBulkOrderEstimator({
               </div>
 
               <div className="flex items-center justify-between gap-4 border-b border-[#d9d9d9] pb-3">
-                <span className="text-xs text-[#333333]">
-                  ₹ Rate Per Sqft
-                </span>
+                <span className="text-xs text-[#333333]">₹ Rate Per Sqft</span>
                 <span className="text-xs font-medium text-[#2f2f2f]">
                   {hasCalculatedQuote ? (
                     ratePerSqft.toFixed(2)
@@ -682,7 +869,7 @@ export default function LawnGrassBulkOrderEstimator({
                 <span className="text-base font-semibold text-[#333333]">
                   Total Amount
                 </span>
-                <span className="text-[1.1rem] font-semibold tracking-[-0.03em] text-[#111111]">
+                <span className="text-[1.1rem] font-semibold tracking-[-0.03em] text-[#07AB4E]">
                   {orderTotalPreview !== null ? (
                     <>
                       {formatCurrency(orderTotalPreview)}
@@ -717,7 +904,7 @@ export default function LawnGrassBulkOrderEstimator({
                   type="button"
                   onClick={() => void handleAddToCart()}
                   disabled={isSavingCart || !canUseEstimateActions}
-                  className="inline-flex h-12 items-center justify-center rounded-[0.45rem] bg-[#207958] px-3 text-[0.92rem] font-semibold text-white transition hover:bg-[#3f7b4c] disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:px-5 sm:text-[1rem]"
+                  className="inline-flex h-12 items-center justify-center rounded-[0.45rem] bg-[#207958] px-3 text-[0.92rem] font-semibold text-white transition hover:bg-[#3f7b4c] disabled:cursor-not-allowed disabled:bg-gray-400 sm:h-14 sm:px-5 sm:text-[1rem]"
                 >
                   <ShoppingCart size={15} className="mr-1.5 sm:mr-2" />
                   {isSavingCart ? "Adding..." : "Add to cart"}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Crown,
+  Bell,
   Heart,
   LogOut,
   Search,
@@ -15,6 +16,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getCartCount, useCartItems } from "@/components/cartStore";
+import { useNotificationsStore } from "@/components/notifications/notificationsStore";
 import { DELIVERY_ADDRESS_EVENT } from "@/components/ProductDeliveryAddressPicker";
 import { useProductsStore } from "@/components/productsStore";
 import { formatDeliveryAddress } from "@/lib/deliveryAddress";
@@ -88,10 +90,13 @@ export default function EcomHeader({
   const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const cartItems = useCartItems();
+  const { unreadCount: notificationUnreadCount } = useNotificationsStore();
   const { products } = useProductsStore();
 
   const cartCount = getCartCount(cartItems);
   const displayCartCount = cartCount > 99 ? "99+" : String(cartCount);
+  const displayNotificationCount =
+    notificationUnreadCount > 99 ? "99+" : String(notificationUnreadCount);
 
   const wishlistHref = isAuthenticated ? "/wishlist" : "/auth?next=/wishlist";
   const cartHref = "/cart";
@@ -460,15 +465,28 @@ export default function EcomHeader({
                 <button
                   type="button"
                   onClick={() => setMobileSearchOpen((open) => !open)}
-                  className="flex h-10 w-10 items-center justify-center md:hidden text-gray-500"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 md:hidden"
                   aria-label={mobileSearchOpen ? "Close search" : "Open search"}
                 >
                   {mobileSearchOpen ? <X size={20} /> : <Search size={20} />}
                 </button>
 
                 <Link
+                  href="/notification"
+                  className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-[#f7faf5] hover:text-[#4c8b5d] md:hidden"
+                  aria-label="View notifications"
+                >
+                  <Bell size={21} strokeWidth={2.1} />
+                  {notificationUnreadCount > 0 ? (
+                    <span className="absolute right-0 top-2 inline-flex h-4 min-w-4 -translate-x-1/3 -translate-y-1/3 items-center justify-center rounded-full bg-[#FF3B30] px-1 text-center text-[7px] leading-4 text-white">
+                      {displayNotificationCount}
+                    </span>
+                  ) : null}
+                </Link>
+
+                <Link
                   href={cartHref}
-                  className="relative flex h-11 w-11 items-center justify-center rounded-full text-gray-500 transition hover:bg-[#f7faf5] hover:text-[#4c8b5d] md:hidden"
+                  className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-[#f7faf5] hover:text-[#4c8b5d] md:hidden"
                   aria-label="View cart"
                 >
                   <ShoppingCart size={20} />
@@ -481,7 +499,7 @@ export default function EcomHeader({
 
                 <Link
                   href={wishlistHref}
-                  className={`hidden h-11 w-11 items-center justify-center rounded-full bg-white transition-colors md:flex ${
+                  className={`hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white transition-colors md:flex ${
                     pathname === "/wishlist"
                       ? "text-[#4c8b5d]"
                       : "text-[#8a857f] hover:bg-[#f7faf5] hover:text-[#4c8b5d]"
@@ -494,8 +512,25 @@ export default function EcomHeader({
                 </Link>
 
                 <Link
+                  href="/notification"
+                  className={`relative hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white transition-colors md:flex ${
+                    pathname === "/notification"
+                      ? "text-[#4c8b5d]"
+                      : "text-[#8a857f] hover:bg-[#f7faf5] hover:text-[#4c8b5d]"
+                  }`}
+                  aria-label="View notifications"
+                >
+                  <Bell size={21} strokeWidth={2.1} />
+                  {notificationUnreadCount > 0 ? (
+                    <span className="absolute right-[-3px] top-[3px] inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B30] px-1 text-center text-[10px] leading-4 text-white">
+                      {displayNotificationCount}
+                    </span>
+                  ) : null}
+                </Link>
+
+                <Link
                   href={cartHref}
-                  className="relative hidden h-11 w-11 items-center justify-center rounded-full text-[#8a857f] transition hover:bg-[#f7faf5] hover:text-[#4c8b5d] md:inline-flex"
+                  className="relative hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#8a857f] transition hover:bg-[#f7faf5] hover:text-[#4c8b5d] md:inline-flex"
                   aria-label="View cart"
                 >
                   <ShoppingCart size={21} />
@@ -576,9 +611,11 @@ export default function EcomHeader({
                   <Link
                     key={item.label}
                     href={item.href}
-                    className="whitespace-nowrap rounded-full border-b-2 border-transparent px-3 py-1.5 text-[0.76rem] font-medium tracking-[0.08em] text-gray-700 uppercase transition-all duration-400 ease-out hover:border-[#173d12] hover:text-[#173d12] lg:px-4 sm:text-sm"
+                    className="group relative whitespace-nowrap px-3 py-1.5 text-[0.76rem] uppercase text-gray-500 transition-all duration-300 ease-out hover:-translate-y-[2px] hover:scale-[1.03] hover:text-[#173d12] lg:px-4 sm:text-sm"
                   >
-                    {item.label}
+                    <span className="relative z-10">{item.label}</span>
+
+                    <span className="absolute bottom-0 left-0 h-[1px] w-full origin-left scale-x-0 rounded-full bg-gradient-to-r from-[#207958] to-[#173d12] transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-x-100" />
                   </Link>
                 ))}
               </div>

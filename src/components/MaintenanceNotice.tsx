@@ -5,7 +5,7 @@ import { getMaintenanceMessage } from "@/lib/siteMode";
 
 export default function MaintenanceNotice() {
   return (
-    <main className="min-h-screen bg-[#f6f8f2] px-4 py-10 text-[#163915]">
+    <main className="min-h-screen px-4 py-10 text-gray-800">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-3xl items-center justify-center">
         <section className="w-full rounded-2xl border border-[#dbe8cd] bg-white px-6 py-8 text-center shadow-[0_18px_50px_rgba(33,79,20,0.08)] sm:px-10 sm:py-12">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#edf5e1] text-[#214f14]">

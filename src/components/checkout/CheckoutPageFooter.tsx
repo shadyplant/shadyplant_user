@@ -5,74 +5,23 @@ import { Headphones, Lock, RefreshCw, ShieldCheck } from "lucide-react";
 const paymentMethods = [
   {
     name: "PhonePe",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect width="32" height="32" rx="6" fill="#5f259f" />
-        <text x="16" y="21" fontSize="9" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="700">PhonePe</text>
-      </svg>
-    ),
+    icon: "https://i0.wp.com/www.plansinfo.com/blog/wp-content/uploads/2018/01/phonepe-e1520537823958.png?fit=200%2C200&ssl=1",
   },
   {
     name: "Google Pay",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect width="32" height="32" rx="6" fill="#fff" />
-        <text x="8" y="14" fontSize="7" fill="#4285F4" fontFamily="sans-serif" fontWeight="700">G</text>
-        <text x="13" y="14" fontSize="7" fill="#EA4335" fontFamily="sans-serif" fontWeight="700">o</text>
-        <text x="17" y="14" fontSize="7" fill="#FBBC05" fontFamily="sans-serif" fontWeight="700">o</text>
-        <text x="21" y="14" fontSize="7" fill="#4285F4" fontFamily="sans-serif" fontWeight="700">g</text>
-        <text x="10" y="23" fontSize="7" fill="#34A853" fontFamily="sans-serif" fontWeight="700">Pay</text>
-      </svg>
-    ),
+    icon: "https://img.icons8.com/color/512/google-pay.png",
   },
   {
     name: "Paytm",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect width="32" height="32" rx="6" fill="#00BAF2" />
-        <text x="16" y="21" fontSize="9" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="800">Paytm</text>
-      </svg>
-    ),
+    icon: "https://images.seeklogo.com/logo-png/50/1/paytm-logo-png_seeklogo-501241.png",
   },
   {
-    name: "Visa / MC",
-    icon: (
-      <svg width="28" height="18" viewBox="0 0 46 30" fill="none" aria-hidden="true">
-        <rect width="46" height="30" rx="4" fill="#1A1F71" />
-        <circle cx="14" cy="15" r="7" fill="#EB001B" />
-        <circle cx="32" cy="15" r="7" fill="#F7B600" />
-        <path d="M23 9.5a7 7 0 0 1 0 11 7 7 0 0 1 0-11z" fill="#FF5F00" />
-      </svg>
-    ),
-  },
-  {
-    name: "Amex",
-    icon: (
-      <svg width="22" height="18" viewBox="0 0 36 24" fill="none" aria-hidden="true">
-        <rect width="36" height="24" rx="4" fill="#016FD0" />
-        <text x="18" y="16" fontSize="8" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="700">AMEX</text>
-      </svg>
-    ),
-  },
-  {
-    name: "RuPay",
-    icon: (
-      <svg width="22" height="18" viewBox="0 0 36 24" fill="none" aria-hidden="true">
-        <rect width="36" height="24" rx="4" fill="#f5f5f5" stroke="#ddd" strokeWidth="0.5" />
-        <rect x="0" y="8" width="36" height="8" fill="#E31837" />
-        <text x="18" y="15" fontSize="5.5" fill="white" textAnchor="middle" fontFamily="sans-serif" fontWeight="700">RuPay</text>
-      </svg>
-    ),
+    name: "Debit/Credit Card",
+    icon: "https://www.freepnglogos.com/uploads/mastercard-png/what-are-the-visa-and-mastercard-limited-acceptance-programs-8.png",
   },
   {
     name: "Net Banking",
-    icon: (
-      <svg width="22" height="18" viewBox="0 0 36 24" fill="none" aria-hidden="true">
-        <rect width="36" height="24" rx="4" fill="#fff" stroke="#e0e0e0" strokeWidth="0.5" />
-        <text x="18" y="10" fontSize="5" fill="#444" textAnchor="middle" fontFamily="sans-serif" fontWeight="600">NET</text>
-        <text x="18" y="17" fontSize="5" fill="#444" textAnchor="middle" fontFamily="sans-serif" fontWeight="600">BANKING</text>
-      </svg>
-    ),
+    icon: "https://cdn-icons-png.flaticon.com/512/2655/2655001.png",
   },
 ];
 
@@ -96,8 +45,8 @@ export default function CheckoutPageFooter() {
             key={name}
             className="inline-flex items-center gap-2 rounded-[10px] border border-gray-100 bg-white px-3.5 py-1.5 text-sm font-medium text-gray-500 shadow-none transition-colors hover:border-[#b0b8a6]"
           >
-            {icon}
-            {name}
+            <img src={icon} alt={name} className="h-5 " />
+            <span className="text-[11px] font-semibold">{name}</span>
           </span>
         ))}
         <span className="inline-flex items-center gap-1.5 rounded-[10px] border border-gray-100 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-500">
@@ -107,7 +56,10 @@ export default function CheckoutPageFooter() {
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-5">
         {trustItems.map(({ icon: Icon, label }) => (
-          <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div
+            key={label}
+            className="flex items-center gap-1.5 text-xs text-gray-500"
+          >
             <Icon size={14} strokeWidth={2} />
             {label}
           </div>

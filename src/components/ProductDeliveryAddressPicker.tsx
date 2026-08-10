@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Autocomplete,
-  Circle,
   GoogleMap,
   Marker,
   useJsApiLoader,
@@ -251,33 +250,63 @@ export default function ProductDeliveryAddressPicker({
     useState<ShippingServiceabilityResponse | null>(null);
   const [isCheckingShipping, setIsCheckingShipping] = useState(false);
   const [shippingQuery, setShippingQuery] = useState(EMPTY_SHIPPING_QUERY);
-  const [showServiceOverlay, setShowServiceOverlay] = useState(true);
-  const [showRestrictionOverlay, setShowRestrictionOverlay] = useState(true);
   const [resolvedDeliveryAddress, setResolvedDeliveryAddress] =
     useState<DeliveryAddress>(() =>
       buildDeliveryAddress(effectiveInitialAddress, undefined),
     );
   const mapRef = useRef<google.maps.Map | null>(null);
+  const circleRef = useRef<google.maps.Circle | null>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const lastAutoResolvedAddressRef = useRef("");
+  const locationRequestIdRef = useRef(0);
   const hasAddress = address.trim().length > 0;
   const canCommitDeliveryAddress = Boolean(
     hasAddress && shippingServiceability?.serviceable && !isCheckingShipping,
   );
-  const shouldShowServiceOverlay = Boolean(
-    shippingServiceability?.serviceable && showServiceOverlay,
-  );
-  const shouldShowRestrictionOverlay = Boolean(
-    shippingServiceability &&
-    !shippingServiceability.serviceable &&
-    showRestrictionOverlay,
-  );
   const shouldPersistToProfile =
     persistToProfile ??
-    (variant === "field" ||
+      (variant === "field" ||
       variant === "home-strip" ||
       variant === "header-inline");
+
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current) {
+      return () => {
+        circleRef.current?.setMap(null);
+        circleRef.current = null;
+      };
+    }
+
+    circleRef.current?.setMap(null);
+    circleRef.current = null;
+
+    if (shippingServiceability) {
+      circleRef.current = new google.maps.Circle({
+        map: mapRef.current,
+        center: markerPos,
+        radius: 1200,
+        fillColor: shippingServiceability.serviceable
+          ? DEFAULT_SERVICE_ZONE_STYLES.fillColor
+          : DEFAULT_RESTRICTION_ZONE_STYLES.fillColor,
+        fillOpacity: 0.16,
+        strokeColor: shippingServiceability.serviceable
+          ? DEFAULT_SERVICE_ZONE_STYLES.strokeColor
+          : DEFAULT_RESTRICTION_ZONE_STYLES.strokeColor,
+        strokeOpacity: 1,
+        strokeWeight: 3,
+        clickable: false,
+        draggable: false,
+        editable: false,
+        zIndex: 1,
+      });
+    }
+
+    return () => {
+      circleRef.current?.setMap(null);
+      circleRef.current = null;
+    };
+  }, [isLoaded, markerPos, shippingServiceability]);
 
   useEffect(() => {
     const nextAddress = effectiveInitialAddress;
@@ -373,6 +402,7 @@ export default function ProductDeliveryAddressPicker({
 
   useEffect(() => {
     const normalizedInitialAddress = effectiveInitialAddress.trim();
+    const requestId = ++locationRequestIdRef.current;
 
     if (
       !autoResolveInitialAddress ||
@@ -387,9 +417,13 @@ export default function ProductDeliveryAddressPicker({
     lastAutoResolvedAddressRef.current = normalizedInitialAddress;
 
     const geocoder = new google.maps.Geocoder();
-    geocoder.geocode(
-      { address: normalizedInitialAddress },
-      (results, status) => {
+      geocoder.geocode(
+        { address: normalizedInitialAddress },
+        (results, status) => {
+        if (requestId !== locationRequestIdRef.current) {
+          return;
+        }
+
         if (status !== "OK" || !results?.[0]?.geometry?.location) {
           setStatusMessage(
             "Confirm this address on the map to calculate delivery charges.",
@@ -429,6 +463,12 @@ export default function ProductDeliveryAddressPicker({
   ]);
 
   function reverseGeocode(nextPosition: Position, fallbackAddress = "") {
+    const requestId = ++locationRequestIdRef.current;
+
+    setMarkerPos(nextPosition);
+    setShippingServiceability(null);
+    setStatusMessage("Checking delivery service area...");
+
     if (!isLoaded) {
       applyLocation(nextPosition, fallbackAddress || address);
       return;
@@ -436,6 +476,10 @@ export default function ProductDeliveryAddressPicker({
 
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ location: nextPosition }, (results, status) => {
+      if (requestId !== locationRequestIdRef.current) {
+        return;
+      }
+
       const resolvedAddress =
         status === "OK" && results?.[0]?.formatted_address
           ? results[0].formatted_address
@@ -474,6 +518,8 @@ export default function ProductDeliveryAddressPicker({
     if (!place?.geometry?.location) {
       return;
     }
+
+    locationRequestIdRef.current += 1;
 
     applyLocation(
       {
@@ -572,7 +618,7 @@ export default function ProductDeliveryAddressPicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="hidden items-center gap-2 border-b-1 border-[#cccccc] px-3 py-2 text-sm text-[#233d1d] transition hover:bg-gray-100 lg:inline-flex"
+        className="hidden items-center gap-2 border-b-1 border-[#cccccc] px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100 cursor-pointer lg:inline-flex"
       >
         <MapPin size={16} className="shrink-0 text-[#214f14]" />
         <span className="max-w-[170px] truncate">{address || emptyLabel}</span>
@@ -591,7 +637,7 @@ export default function ProductDeliveryAddressPicker({
           <span className="block text-[11px] font-semibold leading-5 text-[#171410]">
             {address ? "Your location" : "Set location"}
           </span>
-          <span className="mt-0.5 block truncate text-[9px] leading-4 text-[#7a7a7a]">
+          <span className="mt-0.5 block truncate text-[9px] leading-4 text-gray-700">
             {address || emptyLabel}
           </span>
         </span>
@@ -776,43 +822,36 @@ export default function ProductDeliveryAddressPicker({
                   <div className="mt-4 overflow-hidden rounded-xl md:rounded-2xl border border-[#dce8ce]">
                     <div className="flex items-center justify-between gap-3 border-b border-[#e7efde] px-4 py-2 text-[11px] font-medium text-gray-700">
                       <span>Serviceability on map</span>
-                      <div className="flex items-center gap-2 normal-case tracking-normal">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowServiceOverlay((value) => !value)
-                          }
-                          aria-pressed={showServiceOverlay}
+                      {shippingServiceability ? (
+                        <span
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold transition ${
-                            showServiceOverlay
+                            shippingServiceability.serviceable
                               ? "bg-[#e8f4e6] text-[#1f6a34] ring-1 ring-[#8fd19e]"
-                              : "bg-white text-[#7ca287] ring-1 ring-[#dce8ce]"
+                              : "bg-[#fdecec] text-[#b42318] ring-1 ring-[#f2a7a7]"
                           }`}
                         >
-                          <span className="h-2 w-2 rounded-full bg-[#1f6a34]" />
-                          Service
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowRestrictionOverlay((value) => !value)
-                          }
-                          aria-pressed={showRestrictionOverlay}
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold transition ${
-                            showRestrictionOverlay
-                              ? "bg-[#fdecec] text-[#b42318] ring-1 ring-[#f2a7a7]"
-                              : "bg-white text-[#b98b8b] ring-1 ring-[#efd6d6]"
-                          }`}
-                        >
-                          <span className="h-2 w-2 rounded-full bg-[#b42318]" />
-                          Non-service
-                        </button>
-                      </div>
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              shippingServiceability.serviceable
+                                ? "bg-[#1f6a34]"
+                                : "bg-[#b42318]"
+                            }`}
+                          />
+                          {shippingServiceability.serviceable
+                            ? "Service"
+                            : "Non-service"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-white px-2 py-1 text-[10px] font-bold text-[#7ca287] ring-1 ring-[#dce8ce]">
+                          Select location
+                        </span>
+                      )}
                     </div>
                     <GoogleMap
                       mapContainerStyle={{
                         width: "100%",
                         height: "min(52vh, 420px)",
+                        touchAction: "manipulation",
                       }}
                       center={markerPos}
                       zoom={13}
@@ -822,48 +861,14 @@ export default function ProductDeliveryAddressPicker({
                       }}
                       options={{
                         disableDefaultUI: true,
+                        gestureHandling: "greedy",
+                        draggable: true,
+                        scrollwheel: true,
                         zoomControl: true,
                         streetViewControl: false,
                         fullscreenControl: false,
                       }}
                     >
-                      {shouldShowServiceOverlay ? (
-                        <Circle
-                          center={markerPos}
-                          radius={1200}
-                          options={{
-                            fillColor: DEFAULT_SERVICE_ZONE_STYLES.fillColor,
-                            fillOpacity: 0.16,
-                            strokeColor:
-                              DEFAULT_SERVICE_ZONE_STYLES.strokeColor,
-                            strokeOpacity: 1,
-                            strokeWeight: 3,
-                            clickable: false,
-                            draggable: false,
-                            editable: false,
-                            zIndex: 1,
-                          }}
-                        />
-                      ) : null}
-                      {shouldShowRestrictionOverlay ? (
-                        <Circle
-                          center={markerPos}
-                          radius={1200}
-                          options={{
-                            fillColor:
-                              DEFAULT_RESTRICTION_ZONE_STYLES.fillColor,
-                            fillOpacity: 0.16,
-                            strokeColor:
-                              DEFAULT_RESTRICTION_ZONE_STYLES.strokeColor,
-                            strokeOpacity: 1,
-                            strokeWeight: 3,
-                            clickable: false,
-                            draggable: false,
-                            editable: false,
-                            zIndex: 2,
-                          }}
-                        />
-                      ) : null}
                       <Marker position={markerPos} />
                     </GoogleMap>
                     <div

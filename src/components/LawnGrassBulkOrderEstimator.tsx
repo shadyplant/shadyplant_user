@@ -29,6 +29,11 @@ import WishlistButton from "@/components/WishlistButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCartStore } from "@/components/cartStore";
 import { requestJson } from "@/lib/api";
+import {
+  fetchDeliveryConfigSnapshot,
+  resolveServerDeliveryWeightCapKg,
+  type DeliveryConfigSnapshot,
+} from "@/lib/deliveryConfig";
 import { formatCurrency } from "@/lib/formatCurrency";
 import {
   buildCheckoutDeliveryAddressPayload,
@@ -40,7 +45,12 @@ import {
   type CheckoutPosition,
   writeCheckoutDraft,
 } from "@/lib/checkoutSession";
-import type { Product, ProductQuantityPricingSlab } from "@/lib/products";
+import {
+  clampProductQuantity,
+  resolveProductQuantityBounds,
+  type Product,
+  type ProductQuantityPricingSlab,
+} from "@/lib/products";
 import type { DeliveryAddress } from "@/lib/validation";
 
 type DeliveryQuoteResponse = {
@@ -79,6 +89,20 @@ function resolveQuantitySlab(
       .find((slab) => normalizedQuantity >= slab.minQuantity) ||
     null
   );
+}
+
+function parseQuantityInput(value: string) {
+  const parsedValue = Number(value);
+
+  return Number.isFinite(parsedValue) ? Math.floor(parsedValue) : null;
+}
+
+function normalizeQuantityInput(value: string, minimumQuantity: number) {
+  const parsedValue = parseQuantityInput(value);
+
+  return parsedValue === null
+    ? minimumQuantity
+    : Math.max(minimumQuantity, parsedValue);
 }
 
 function BlankEstimatePlaceholder() {
@@ -251,6 +275,8 @@ export default function LawnGrassBulkOrderEstimator({
   const estimateSnackTimerRef = useRef<number | null>(null);
   const estimateSnackDismissTimerRef = useRef<number | null>(null);
   const estimateBlockTimerRef = useRef<number | null>(null);
+  const quantityValidationTimerRef = useRef<number | null>(null);
+  const quantityAlertTimerRef = useRef<number | null>(null);
   const [estimateSnack, setEstimateSnack] = useState<{
     id: number;
     message: string;
@@ -261,6 +287,8 @@ export default function LawnGrassBulkOrderEstimator({
   const [estimateBlockedUntil, setEstimateBlockedUntil] = useState<
     number | null
   >(null);
+  const [deliveryConfig, setDeliveryConfig] =
+    useState<DeliveryConfigSnapshot | null>(null);
 
   const carouselImages = useMemo(
     () =>
@@ -273,10 +301,12 @@ export default function LawnGrassBulkOrderEstimator({
       ).slice(0, 5),
     [product.image, product.images],
   );
-
-  const [quantity, setQuantity] = useState(
-    String(Math.max(1, Math.floor(product.minOrderQuantity || 1))),
+  const minimumOrderQuantity = useMemo(
+    () => Math.max(1, Math.floor(Number(product.minOrderQuantity || 1))),
+    [product.minOrderQuantity],
   );
+
+  const [quantity, setQuantity] = useState(String(minimumOrderQuantity));
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
   const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState(() =>
     sanitizeFormattedDeliveryAddress(savedCheckoutDraft?.deliveryAddress),
@@ -289,13 +319,35 @@ export default function LawnGrassBulkOrderEstimator({
     useState<DeliveryAddress | null>(
       () => savedCheckoutDraft?.deliveryAddressDetails || null,
     );
+  const [isDeliverySheetOpen, setIsDeliverySheetOpen] = useState(false);
   const [deliveryCharge, setDeliveryCharge] = useState<number | null>(null);
   const [totalAmount, setTotalAmount] = useState<number | null>(null);
   const [quoteMessage, setQuoteMessage] = useState("");
   const [quoteError, setQuoteError] = useState("");
+  const [quantityAlert, setQuantityAlert] = useState<string | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSavingCart, setIsSavingCart] = useState(false);
   const [hasCalculatedQuote, setHasCalculatedQuote] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    void fetchDeliveryConfigSnapshot()
+      .then((config) => {
+        if (isActive) {
+          setDeliveryConfig(config);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setDeliveryConfig(null);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -310,10 +362,77 @@ export default function LawnGrassBulkOrderEstimator({
       if (estimateBlockTimerRef.current) {
         window.clearTimeout(estimateBlockTimerRef.current);
       }
+
+      if (quantityAlertTimerRef.current) {
+        window.clearTimeout(quantityAlertTimerRef.current);
+      }
+
+      if (quantityValidationTimerRef.current) {
+        window.clearTimeout(quantityValidationTimerRef.current);
+      }
     };
   }, []);
 
-  const quantityValue = Math.max(1, Math.floor(Number(quantity || 1)));
+  const selectedState = (
+    selectedDeliveryAddressDetails?.state || ""
+  ).trim();
+  const serverMaxWeightKg = resolveServerDeliveryWeightCapKg(
+    deliveryConfig,
+    selectedState,
+  );
+  const quantityBounds = useMemo(
+    () =>
+      resolveProductQuantityBounds(
+        {
+          minOrderQuantity: minimumOrderQuantity,
+          maxPurchaseQuantity: product.maxPurchaseQuantity,
+        },
+        product.stock,
+        {
+          serverMaximumQuantity:
+            serverMaxWeightKg !== null && Number(product.weight || 0) > 0
+              ? Math.floor(serverMaxWeightKg / Number(product.weight || 1)) > 0
+                ? Math.floor(serverMaxWeightKg / Number(product.weight || 1))
+                : null
+              : null,
+        },
+      ),
+    [
+      minimumOrderQuantity,
+      product.maxPurchaseQuantity,
+      product.stock,
+      product.weight,
+      serverMaxWeightKg,
+    ],
+  );
+
+  useEffect(() => {
+    setQuantity((current) => {
+      if (String(current || "").trim() === "") {
+        return current;
+      }
+
+      const parsedValue = parseQuantityInput(current);
+
+      if (parsedValue === null) {
+        return current;
+      }
+
+      return String(clampProductQuantity(parsedValue, quantityBounds));
+    });
+  }, [minimumOrderQuantity, product.id, quantityBounds]);
+
+  const parsedQuantity = parseQuantityInput(quantity);
+  const isQuantityBelowMinimum =
+    parsedQuantity === null || parsedQuantity < minimumOrderQuantity;
+  const isQuantityAboveMaximum =
+    quantityBounds.maximumQuantity !== null &&
+    parsedQuantity !== null &&
+    parsedQuantity > quantityBounds.maximumQuantity;
+  const quantityValue = clampProductQuantity(
+    normalizeQuantityInput(quantity, minimumOrderQuantity),
+    quantityBounds,
+  );
   const selectedSlab = resolveQuantitySlab(
     product.quantityPricingSlabs || [],
     quantityValue,
@@ -323,6 +442,17 @@ export default function LawnGrassBulkOrderEstimator({
   const deliveryAddressForPicker =
     sanitizeFormattedDeliveryAddress(selectedDeliveryAddress) ||
     formatDeliveryAddress(savedCheckoutDraft?.deliveryAddressDetails || null);
+  const deliveryDisplayName =
+    selectedDeliveryAddressDetails?.recipientName?.trim() ||
+    selectedDeliveryAddressDetails?.buildingName?.trim() ||
+    "Deliver To";
+  const deliveryDisplayAddress =
+    selectedDeliveryAddress ||
+    formatDeliveryAddress(selectedDeliveryAddressDetails) ||
+    "Add address details";
+  const selectedWeightKg = Number(product.weight || 0) * quantityValue;
+  const isServerWeightCapExceeded =
+    serverMaxWeightKg !== null && selectedWeightKg > serverMaxWeightKg;
   const hasLocation = Boolean(
     selectedDeliveryPosition &&
     Number.isFinite(Number(selectedDeliveryPosition.lat)) &&
@@ -331,6 +461,11 @@ export default function LawnGrassBulkOrderEstimator({
   const isReadyToQuote = Boolean(
     deliveryAddressForPicker.trim() && hasLocation && phoneNumber.trim(),
   );
+  const canCalculateEstimate =
+    isReadyToQuote &&
+    !isQuantityBelowMinimum &&
+    !isQuantityAboveMaximum &&
+    !isServerWeightCapExceeded;
 
   const orderTotalPreview = useMemo(() => {
     if (hasCalculatedQuote && totalAmount !== null) {
@@ -398,6 +533,102 @@ export default function LawnGrassBulkOrderEstimator({
       );
       estimateBlockTimerRef.current = null;
     }, durationMs);
+  }
+
+  function showQuantityAlert(message: string) {
+    setQuantityAlert(message);
+
+    if (quantityAlertTimerRef.current) {
+      window.clearTimeout(quantityAlertTimerRef.current);
+    }
+
+    quantityAlertTimerRef.current = window.setTimeout(() => {
+      setQuantityAlert(null);
+      quantityAlertTimerRef.current = null;
+    }, 2600);
+  }
+
+  function resetEstimatePreviewState() {
+    setDeliveryCharge(null);
+    setTotalAmount(null);
+    setQuoteError("");
+    setQuoteMessage("");
+    setHasCalculatedQuote(false);
+  }
+
+  function handleQuantityInputChange(value: string) {
+    const nextValue = String(value || "");
+    const parsedValue = parseQuantityInput(nextValue);
+
+    if (nextValue.trim() === "") {
+      setQuantity(nextValue);
+      if (quantityValidationTimerRef.current) {
+        window.clearTimeout(quantityValidationTimerRef.current);
+        quantityValidationTimerRef.current = null;
+      }
+      setQuantityAlert(null);
+      resetEstimatePreviewState();
+      return;
+    }
+
+    if (parsedValue === null) {
+      setQuantity(nextValue);
+      if (quantityValidationTimerRef.current) {
+        window.clearTimeout(quantityValidationTimerRef.current);
+        quantityValidationTimerRef.current = null;
+      }
+      setQuantityAlert(null);
+      resetEstimatePreviewState();
+      return;
+    }
+
+    setQuantity(String(parsedValue));
+    if (quantityValidationTimerRef.current) {
+      window.clearTimeout(quantityValidationTimerRef.current);
+    }
+
+    quantityValidationTimerRef.current = window.setTimeout(() => {
+      if (parsedValue < minimumOrderQuantity) {
+        showQuantityAlert(
+          `Required Min Qty ${minimumOrderQuantity.toLocaleString("en-IN")} sqft`,
+        );
+      } else if (
+        quantityBounds.maximumQuantity !== null &&
+        parsedValue > quantityBounds.maximumQuantity
+      ) {
+        showQuantityAlert(
+          `Required Max Qty ${quantityBounds.maximumQuantity.toLocaleString(
+            "en-IN",
+          )} sqft`,
+        );
+      } else {
+        setQuantityAlert(null);
+      }
+    }, 700);
+
+    resetEstimatePreviewState();
+  }
+
+  function commitQuantityInput() {
+    if (quantityValidationTimerRef.current) {
+      window.clearTimeout(quantityValidationTimerRef.current);
+      quantityValidationTimerRef.current = null;
+    }
+
+    const parsedValue = parseQuantityInput(quantity);
+
+    if (parsedValue === null) {
+      setQuantity(String(minimumOrderQuantity));
+      setQuantityAlert(null);
+      resetEstimatePreviewState();
+      return;
+    }
+
+    const nextQuantity = clampProductQuantity(parsedValue, quantityBounds);
+
+    setQuantity(String(nextQuantity));
+    setQuantityAlert(null);
+    resetEstimatePreviewState();
   }
 
   function registerEstimateAttempt() {
@@ -492,6 +723,31 @@ export default function LawnGrassBulkOrderEstimator({
     if (!isReadyToQuote || !selectedDeliveryPosition) {
       setQuoteError(
         "Select a delivery location on the map before calculating charges.",
+      );
+      return;
+    }
+
+    if (isQuantityBelowMinimum) {
+      setQuoteError(
+        `Enter at least ${minimumOrderQuantity.toLocaleString("en-IN")} sqft before estimating.`,
+      );
+      return;
+    }
+
+    if (isQuantityAboveMaximum) {
+      setQuoteError(
+        `Enter no more than ${quantityBounds.maximumQuantity?.toLocaleString("en-IN")} sqft before estimating.`,
+      );
+      return;
+    }
+
+    if (isServerWeightCapExceeded) {
+      setQuoteError(
+        serverMaxWeightKg !== null
+          ? `Order weight exceeds the server limit of ${serverMaxWeightKg.toLocaleString(
+              "en-IN",
+            )} kg for this delivery zone.`
+          : "Order weight exceeds the server delivery limit for this zone.",
       );
       return;
     }
@@ -608,7 +864,7 @@ export default function LawnGrassBulkOrderEstimator({
     setHasCalculatedQuote(false);
   }
 
-  const heroTitle = `Buy ${product.name || "Lawn Grass"} with Home Delivery`;
+  const heroTitle = `${product.name || "Lawn Grass"} `;
   const heroDescription =
     "🔥 Save More & Unlock Better Prices as You Add More to Your Order, with Fair Shipping Based on Your Location";
   const ratePerSqft = salePricePerUnit;
@@ -720,14 +976,19 @@ export default function LawnGrassBulkOrderEstimator({
                     onClick={() => {
                       setQuantity((current) =>
                         String(
-                          Math.max(1, Math.floor(Number(current || 1)) - 1),
+                          Math.max(
+                            minimumOrderQuantity,
+                            clampProductQuantity(
+                              normalizeQuantityInput(
+                                current,
+                                minimumOrderQuantity,
+                              ) - 1,
+                              quantityBounds,
+                            ),
+                          ),
                         ),
                       );
-                      setDeliveryCharge(null);
-                      setTotalAmount(null);
-                      setQuoteError("");
-                      setQuoteMessage("");
-                      setHasCalculatedQuote(false);
+                      resetEstimatePreviewState();
                     }}
                     className="inline-flex w-10 items-center justify-center bg-[#E7F9E7] text-[#0d9a55] transition hover:bg-[#24913c] sm:w-12"
                     aria-label="Decrease quantity"
@@ -736,32 +997,40 @@ export default function LawnGrassBulkOrderEstimator({
                   </button>
                   <input
                     type="number"
-                    min="1"
+                    min={minimumOrderQuantity}
+                    max={quantityBounds.maximumQuantity ?? undefined}
                     value={quantity}
-                    onChange={(event) => {
-                      setQuantity(event.target.value);
-                      setDeliveryCharge(null);
-                      setTotalAmount(null);
-                      setQuoteError("");
-                      setQuoteMessage("");
-                      setHasCalculatedQuote(false);
+                    onChange={(event) =>
+                      handleQuantityInputChange(event.target.value)
+                    }
+                    onBlur={() => commitQuantityInput()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                      }
                     }}
-                    className="min-w-0 flex-1 border-x border-[#e4e4e4] text-center text-[0.95rem] font-semibold tracking-[-0.04em] text-[#111111] outline-none placeholder:text-[#a0a0a0] sm:text-[1.05rem]"
-                    placeholder="10,000"
+                    className="min-w-0 flex-1 border-x border-[#e4e4e4] text-center text-[0.95rem] font-semibold tracking-[-0.04em] text-[#111111] outline-none placeholder:text-gray-200 sm:text-[1.05rem]"
+                    placeholder={String(minimumOrderQuantity)}
                   />
                   <button
                     type="button"
                     onClick={() => {
                       setQuantity((current) =>
                         String(
-                          Math.max(1, Math.floor(Number(current || 1)) + 1),
+                          Math.max(
+                            minimumOrderQuantity,
+                            clampProductQuantity(
+                              normalizeQuantityInput(
+                                current,
+                                minimumOrderQuantity,
+                              ) + 1,
+                              quantityBounds,
+                            ),
+                          ),
                         ),
                       );
-                      setDeliveryCharge(null);
-                      setTotalAmount(null);
-                      setQuoteError("");
-                      setQuoteMessage("");
-                      setHasCalculatedQuote(false);
+                      resetEstimatePreviewState();
                     }}
                     className="inline-flex w-10 items-center justify-center bg-[#E7F9E7] text-[#0d9a55] transition hover:bg-[#24913c] sm:w-12"
                     aria-label="Increase quantity"
@@ -769,6 +1038,18 @@ export default function LawnGrassBulkOrderEstimator({
                     <Plus size={16} className="sm:size-[18px]" />
                   </button>
                 </div>
+                <p className="mt-1 text-[11px] leading-4 text-[#6f6f6f]">
+                  Minimum order quantity:{" "}
+                  {minimumOrderQuantity.toLocaleString("en-IN")} sqft
+                </p>
+
+                {quantityAlert ? (
+                  <div className="pointer-events-none relative mt-2 h-0">
+                    <div className="qty-alert-blink absolute left-0 top-0 z-20 w-full rounded-full border border-[#f4c4c4] bg-[#fff5f5] px-3 py-2 text-center text-[11px] font-semibold text-[#b42318] shadow-[0_10px_24px_rgba(0,0,0,0.12)]">
+                      {quantityAlert}
+                    </div>
+                  </div>
+                ) : null}
               </label>
 
               <label className="block">
@@ -793,40 +1074,78 @@ export default function LawnGrassBulkOrderEstimator({
 
             <div className="mt-4">
               <div className="text-[12px] font-medium text-gray-800 md:text-[15px]">
-                Select Delivery Point ( Point On Map ){" "}
-                <span className="text-red-500">*</span>
+                Deliver To <span className="text-red-500">*</span>
               </div>
-              <div className="mt-2 overflow-hidden rounded-[0.55rem] border border-[#e4e4e4] bg-white pl-3 pr-0 py-1.5 md:pl-4 md:pr-0 md:py-3">
-                <ProductDeliveryAddressPicker
-                  variant="checkout-card"
-                  initialAddress={deliveryAddressForPicker}
-                  initialPosition={selectedDeliveryPosition}
-                  autoResolveInitialAddress
-                  emptyLabel="Select Delivery Point"
-                  onAddressChange={handleAddressChange}
-                  onDone={handleAddressChange}
-                />
+              <div
+                onClick={() => setIsDeliverySheetOpen(true)}
+                className="mt-3 rounded-[1rem] border border-[#e4e4e4] bg-white px-4 py-4"
+              >
+                <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:items-center">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eaf5ea] text-[#207958]">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-[18px] w-[18px]"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 0 1 16 0Z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-semibold leading-5 text-[#171410]">
+                      {deliveryDisplayName}
+                    </p>
+                    <p className="mt-0.5 break-words text-xs leading-5 text-gray-600">
+                      {deliveryDisplayAddress}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDeliverySheetOpen(true)}
+                    className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#207958] px-4 text-sm font-semibold text-[#207958] transition hover:bg-[#f4fbf4] self-start sm:self-center"
+                  >
+                    {selectedDeliveryAddress ? "Change" : "Set Address"}
+                  </button>
+                </div>
               </div>
+
+              <ProductDeliveryAddressPicker
+                variant="checkout-card"
+                initialAddress={deliveryAddressForPicker}
+                initialPosition={selectedDeliveryPosition}
+                autoResolveInitialAddress
+                emptyLabel="Add address details"
+                hideTrigger
+                isOpen={isDeliverySheetOpen}
+                onOpenChange={setIsDeliverySheetOpen}
+                onAddressChange={handleAddressChange}
+                onDone={() => setIsDeliverySheetOpen(false)}
+              />
             </div>
 
             <button
               type="button"
               onClick={() => void handleCalculate()}
-              disabled={isCalculating || !isReadyToQuote || isEstimateBlocked}
+              disabled={
+                isCalculating || !canCalculateEstimate || isEstimateBlocked
+              }
               className="mt-4 inline-flex h-12 md:h-14 w-full items-center justify-center rounded-[0.45rem] bg-[#207958] px-6 text-[1.05rem] font-semibold text-white transition hover:bg-[#3f7b4c] disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               {isCalculating
                 ? "Calculating..."
-                : isEstimateBlocked
-                  ? "Please wait..."
-                  : "Estimate Cost"}
+                : isQuantityBelowMinimum
+                  ? `Min ${minimumOrderQuantity.toLocaleString("en-IN")} sqft`
+                  : isQuantityAboveMaximum
+                    ? `Max ${quantityBounds.maximumQuantity?.toLocaleString("en-IN")} sqft`
+                    : isEstimateBlocked
+                      ? "Please wait..."
+                      : "Estimate Cost"}
             </button>
-
-            <p className="mt-2 flex items-start gap-2 text-[10px] md:text-[0.8rem] text-[#8d8d8d]">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              This estimate will cover lawn rate and transportation charges
-              together.
-            </p>
 
             {/* {quoteError ? (
               <div className="mt-3 flex items-start gap-2 rounded-[0.75rem] border border-[#f2d3d3] bg-[#fff7f7] px-4 py-3 text-sm text-[#b42318]">
@@ -855,7 +1174,9 @@ export default function LawnGrassBulkOrderEstimator({
               </div>
 
               <div className="flex items-center justify-between gap-4 border-b border-[#d9d9d9] pb-3">
-                <span className="text-xs text-[#333333]">₹ Rate Per Sqft</span>
+                <span className="text-xs text-[#333333]">
+                  ₹ Rate Per Sqft (including shipping charge)
+                </span>
                 <span className="text-xs font-medium text-[#2f2f2f]">
                   {hasCalculatedQuote ? (
                     ratePerSqft.toFixed(2)
@@ -868,6 +1189,9 @@ export default function LawnGrassBulkOrderEstimator({
               <div className="flex items-center justify-between gap-4">
                 <span className="text-base font-semibold text-[#333333]">
                   Total Amount
+                  <span className="text-xs font-normal px-1">
+                    (Inc. shipping charges)
+                  </span>
                 </span>
                 <span className="text-[1.1rem] font-semibold tracking-[-0.03em] text-[#07AB4E]">
                   {orderTotalPreview !== null ? (
@@ -881,16 +1205,16 @@ export default function LawnGrassBulkOrderEstimator({
                 </span>
               </div>
 
-              {hasCalculatedQuote && deliveryCharge !== null ? (
+              {/* {hasCalculatedQuote && deliveryCharge !== null ? (
                 <p className="text-[0.78rem] leading-5 text-[#7f7f7f]">
                   Delivery charge included: {formatCurrency(deliveryCharge)}
                 </p>
-              ) : null}
+              ) : null} */}
 
-              <p className="flex items-start gap-2 text-[10px] md:text-[0.78rem] leading-5 text-[#7f7f7f]">
+              {/* <p className="flex items-start gap-2 text-[10px] md:text-[0.78rem] leading-5 text-[#7f7f7f]">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Total amount includes lawn price + transport charges.
-              </p>
+                Total amount includes lawn price and shipping charges.
+              </p> */}
 
               {hasCalculatedQuote && savingsAmount > 0 ? (
                 <div className="rounded-[0.35rem] bg-[#c8f5b930] px-3 py-2 text-center text-xs font-semibold text-[#0d6b2d]">

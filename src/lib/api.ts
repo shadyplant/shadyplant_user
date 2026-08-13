@@ -1,5 +1,4 @@
-// const DEFAULT_API_BASE_URL = "http://localhost:8080/api/v1";
-const DEFAULT_API_BASE_URL = "http://192.168.1.42:8080/api/v1";
+const DEFAULT_API_BASE_URL = "http://localhost:8080/api/v1";
 
 function isLocalHostname(hostname: string) {
   const normalizedHostname = String(hostname || "").trim().toLowerCase();
@@ -10,6 +9,31 @@ function isLocalHostname(hostname: string) {
   );
 }
 
+function isPrivateNetworkHostname(hostname: string) {
+  const normalizedHostname = String(hostname || "").trim().toLowerCase();
+
+  if (!normalizedHostname) {
+    return false;
+  }
+
+  if (isLocalHostname(normalizedHostname)) {
+    return true;
+  }
+
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalizedHostname)) {
+    return true;
+  }
+
+  if (
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(normalizedHostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(normalizedHostname)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function buildBrowserApiBaseUrl() {
   if (typeof window === "undefined") {
     return DEFAULT_API_BASE_URL;
@@ -17,7 +41,11 @@ function buildBrowserApiBaseUrl() {
 
   const protocol = window.location.protocol === "https:" ? "https:" : "http:";
   const hostname = window.location.hostname || "localhost";
-  return `${protocol}//${hostname}:8080/api/v1`;
+  if (isPrivateNetworkHostname(hostname)) {
+    return `${protocol}//${hostname}:8080/api/v1`;
+  }
+
+  return `${window.location.origin.replace(/\/+$/, "")}/api/v1`;
 }
 
 export type ApiResponse<T> = {

@@ -42,17 +42,22 @@ export function formatDeliveryAddress(
   }
 
   const formattedAddress = cleanAddressPart(deliveryAddress.formattedAddress);
-  const line1 = cleanAddressPart(deliveryAddress.line1);
-  const line2 = cleanAddressPart(deliveryAddress.line2);
+  const buildingName = cleanAddressPart(
+    deliveryAddress.buildingName || deliveryAddress.line1,
+  );
+  const locality = cleanAddressPart(
+    deliveryAddress.locality || deliveryAddress.line2,
+  );
   const city = cleanAddressPart(deliveryAddress.city);
   const state = cleanAddressPart(deliveryAddress.state);
   const postalCode = cleanAddressPart(deliveryAddress.postalCode);
 
   const compactLabel = dedupeAddressParts([
-    line2,
-    line1 && line1.toLowerCase() !== city.toLowerCase() ? line1 : "",
+    buildingName,
+    locality,
     city,
     state,
+    postalCode,
   ]).join(", ");
 
   if (compactLabel) {
@@ -63,7 +68,13 @@ export function formatDeliveryAddress(
     return formattedAddress;
   }
 
-  return dedupeAddressParts([line1, line2, city, state, postalCode]).join(", ");
+  return dedupeAddressParts([
+    buildingName,
+    locality,
+    city,
+    state,
+    postalCode,
+  ]).join(", ");
 }
 
 export function buildCheckoutDeliveryAddressPayload(
@@ -108,30 +119,11 @@ export function buildPersistedDeliveryAddress(
   const cleanedFormattedAddress =
     cleanAddressPart(normalizedDeliveryAddress.formattedAddress) ||
     cleanAddressPart(normalizedDeliveryAddress.line1);
-  const hasStructuredAddress = Boolean(
-    cleanAddressPart(normalizedDeliveryAddress.line1) &&
-      cleanAddressPart(normalizedDeliveryAddress.city) &&
-      cleanAddressPart(normalizedDeliveryAddress.state) &&
-      cleanAddressPart(normalizedDeliveryAddress.postalCode),
-  );
-
-  if (hasStructuredAddress) {
-    return {
-      ...normalizedDeliveryAddress,
-      formattedAddress:
-        cleanedFormattedAddress ||
-        formatDeliveryAddress(normalizedDeliveryAddress),
-    };
-  }
 
   return {
-    formattedAddress: cleanedFormattedAddress,
-    line1: "",
-    line2: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    landmark: "",
-    notes: "",
+    ...normalizedDeliveryAddress,
+    formattedAddress:
+      cleanedFormattedAddress ||
+      formatDeliveryAddress(normalizedDeliveryAddress),
   };
 }

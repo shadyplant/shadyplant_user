@@ -41,7 +41,7 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="px-2 py-8 md:px-6 md:py-12">
+    <section className="home-faq-section px-2 py-8 md:px-6 md:py-12">
       <div className="mx-auto max-w-7xl">
         <div className="w-full mb-4 flex items-center justify-center md:mb-6">
           <span className="text-base text-gray-800 md:text-2xl">

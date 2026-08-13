@@ -9,17 +9,23 @@ import {
 import ProductBuyNowButton from "@/components/ProductBuyNowButton";
 import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
 import QuantityStepper from "@/components/QuantityStepper";
+import {
+  clampProductQuantity,
+  resolveProductQuantityBounds,
+} from "@/lib/products";
 
 type ProductMobileActionBarProps = {
   productId: string;
   stock: number;
   minOrderQuantity: number;
+  maxPurchaseQuantity?: number | null;
 };
 
 export default function ProductMobileActionBar({
   productId,
   stock,
   minOrderQuantity,
+  maxPurchaseQuantity,
 }: ProductMobileActionBarProps) {
   const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
@@ -34,11 +40,16 @@ export default function ProductMobileActionBar({
       Number((selectedOptionContext?.resolved.stock ?? stock) || 0),
     ),
   );
-  const effectiveMinimumQuantity =
-    availableStock > 0
-      ? Math.max(1, Math.min(minOrderQuantity, availableStock))
-      : Math.max(1, minOrderQuantity);
-  const displayQuantity = Math.max(effectiveMinimumQuantity, quantity);
+  const quantityBounds = resolveProductQuantityBounds(
+    { minOrderQuantity, maxPurchaseQuantity: maxPurchaseQuantity ?? null },
+    availableStock,
+  );
+  const effectiveMinimumQuantity = quantityBounds.minimumQuantity;
+  const effectiveMaximumQuantity = quantityBounds.maximumQuantity;
+  const displayQuantity = clampProductQuantity(
+    quantity || effectiveMinimumQuantity,
+    quantityBounds,
+  );
   const inputValue = draftQuantity ?? String(displayQuantity);
   const activeLineId = selectedOptionContext?.resolved.lineId || `${productId}::default`;
 
@@ -57,7 +68,10 @@ export default function ProductMobileActionBar({
   }
 
   async function handleIncrease() {
-    if (availableStock <= 0 || quantity >= availableStock) {
+    if (
+      availableStock <= 0 ||
+      (effectiveMaximumQuantity !== null && quantity >= effectiveMaximumQuantity)
+    ) {
       return;
     }
 
@@ -88,13 +102,7 @@ export default function ProductMobileActionBar({
       return;
     }
 
-    const nextQuantity = Math.max(
-      effectiveMinimumQuantity,
-      Math.min(
-        availableStock || effectiveMinimumQuantity,
-        Math.floor(numericQuantity),
-      ),
-    );
+    const nextQuantity = clampProductQuantity(Math.floor(numericQuantity), quantityBounds);
 
     if (quantity <= 0) {
       await addItem(activeProductId, nextQuantity, selectedOptionContext
@@ -129,12 +137,15 @@ export default function ProductMobileActionBar({
           <QuantityStepper
             value={inputValue}
             min={effectiveMinimumQuantity}
-            max={availableStock}
+            max={effectiveMaximumQuantity ?? Math.max(1, availableStock)}
             ariaLabel="Cart quantity"
             decreaseAriaLabel="Decrease cart quantity"
             increaseAriaLabel="Increase cart quantity"
             className="h-12"
-            increaseDisabled={quantity >= availableStock}
+            increaseDisabled={
+              effectiveMaximumQuantity !== null &&
+              quantity >= effectiveMaximumQuantity
+            }
             onInputFocus={() => setDraftQuantity(String(displayQuantity))}
             onChange={setDraftQuantity}
             onCommit={commitQuantity}
@@ -147,6 +158,7 @@ export default function ProductMobileActionBar({
           productId={activeProductId}
           availableStock={availableStock}
           minOrderQuantity={minOrderQuantity}
+          maxPurchaseQuantity={maxPurchaseQuantity}
           className="flex h-12 items-center justify-center rounded-md bg-[#207958] px-4 text-sm text-white transition hover:bg-[#3f764c]"
         >
           Buy Now

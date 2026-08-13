@@ -393,18 +393,20 @@ export default function NotificationPageClient() {
     <SiteShell hideHeader hideMobileBottomNav>
       <section className="min-h-screen px-0 py-4 md:px-6 md:py-8">
         <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-3xl flex-col md:min-h-[calc(100vh-4rem)]">
-          <div className="mb-4 flex items-center justify-between rounded-[1rem] px-2 py-0 md:px-0 md:py-0 md:shadow-none">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition hover:bg-gray-100"
-              aria-label="Go back"
-            >
-              <ArrowLeft size={22} />
-            </button>
-            <h1 className="text-base font-semibold text-gray-900 md:text-xl">
-              {pageTitle}
-            </h1>
+          <div className="mb-4 flex items-center justify-between gap-4 rounded-[1rem] px-2 py-0 md:px-0 md:py-0 md:shadow-none">
+            <div className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700 transition hover:bg-gray-100"
+                aria-label="Go back"
+              >
+                <ArrowLeft size={22} />
+              </button>
+              <h1 className="min-w-0 text-base font-semibold text-gray-900 md:text-xl">
+                {pageTitle}
+              </h1>
+            </div>
             <button
               type="button"
               onClick={() => void markAllAsRead()}

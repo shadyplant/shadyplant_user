@@ -47,7 +47,7 @@ export default function MobileSearchHeader({
 
   return (
     <div
-      className={`border-b border-[#e4ebdf] bg-white/95 backdrop-blur md:hidden ${
+      className={`border-b border-gray-200 bg-white/95 backdrop-blur md:hidden ${
         sticky ? "sticky top-0 z-50" : ""
       }`}
     >
@@ -65,7 +65,7 @@ export default function MobileSearchHeader({
         {/* Search */}
         <form
           onSubmit={submitSearch}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md border border-gray-300 px-4 py-2 shadow-[0_4px_14px_rgba(28,45,20,0.05)]"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md border border-gray-300 px-4 py-2 "
         >
           <Search
             size={18}
@@ -78,7 +78,7 @@ export default function MobileSearchHeader({
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search for products"
-            className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-gray-700 outline-none placeholder:text-gray-500 md:text-base"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-300 md:text-base"
           />
 
           {searchInput.length > 0 && (

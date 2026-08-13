@@ -7,9 +7,7 @@ type CategorySectionProps = {
   pulseIndices?: number | number[];
 };
 
-export default function CategorySection({
-  items = [],
-}: CategorySectionProps) {
+export default function CategorySection({ items = [] }: CategorySectionProps) {
   const categoryStories = items
     .filter((item) => item.isActive)
     .sort((left, right) => left.sortOrder - right.sortOrder)
@@ -29,13 +27,8 @@ export default function CategorySection({
 
   return (
     <section className="bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-2 md:px-2 md:py-6">
-        {/* <div className="mb-4 flex w-full items-center justify-center md:mb-10">
-          <span className="text-center text-lg leading-none text-[#163915] md:text-2xl">
-            Shop by category
-          </span>
-        </div> */}
-        <div className="flex gap-4 overflow-x-auto px-1 scrollbar-hide md:justify-center md:gap-8">
+      <div className="mx-auto max-w-7xl px-3 py-2 md:px-2 md:py-6">
+        <div className="flex gap-4 overflow-x-auto scrollbar-hide md:justify-center md:gap-8">
           {categoryStories.map((story) => (
             <Link
               href={story.href}
@@ -53,17 +46,15 @@ export default function CategorySection({
                         %
                       </span>
                     </div>
-                  ) : (
-                    story.image ? (
-                      <Image
-                        src={story.image}
-                        alt={story.label}
-                        fill
-                        sizes="112px"
-                        className="object-cover transition duration-300 group-hover/story:scale-105"
-                      />
-                    ) : null
-                  )}
+                  ) : story.image ? (
+                    <Image
+                      src={story.image}
+                      alt={story.label}
+                      fill
+                      sizes="112px"
+                      className="object-cover transition duration-300 group-hover/story:scale-105"
+                    />
+                  ) : null}
                 </div>
               </div>
 

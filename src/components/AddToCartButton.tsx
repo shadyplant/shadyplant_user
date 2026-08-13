@@ -8,12 +8,17 @@ import {
 } from "@/components/cartStore";
 import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
 import QuantityStepper from "@/components/QuantityStepper";
+import {
+  clampProductQuantity,
+  resolveProductQuantityBounds,
+} from "@/lib/products";
 
 type AddToCartButtonProps = {
   productId: string;
   quantity?: number;
   availableStock?: number;
   minOrderQuantity?: number;
+  maxPurchaseQuantity?: number | null;
   showQuantityControls?: boolean;
   className?: string;
   compact?: boolean;
@@ -153,6 +158,7 @@ export default function AddToCartButton({
   quantity = 1,
   availableStock,
   minOrderQuantity = 1,
+  maxPurchaseQuantity,
   showQuantityControls = false,
   className = "",
   compact = false,
@@ -181,15 +187,20 @@ export default function AddToCartButton({
       ),
     ),
   );
-  const effectiveMinimumQuantity =
-    stockAvailable > 0
-      ? Math.max(1, Math.min(minOrderQuantity, stockAvailable))
-      : Math.max(1, minOrderQuantity);
+  const quantityBounds = resolveProductQuantityBounds(
+    {
+      minOrderQuantity,
+      maxPurchaseQuantity: maxPurchaseQuantity ?? null,
+    },
+    effectiveAvailableStock ?? null,
+  );
+  const effectiveMinimumQuantity = quantityBounds.minimumQuantity;
+  const effectiveMaximumQuantity = quantityBounds.maximumQuantity;
   const isOutOfStock =
     effectiveAvailableStock !== undefined && stockAvailable <= 0;
-  const hasReachedStockLimit =
-    effectiveAvailableStock !== undefined && quantityInCart >= stockAvailable;
-  const displayQuantity = Math.max(effectiveMinimumQuantity, quantityInCart);
+  const hasReachedQuantityLimit =
+    effectiveMaximumQuantity !== null && quantityInCart >= effectiveMaximumQuantity;
+  const displayQuantity = clampProductQuantity(quantityInCart || effectiveMinimumQuantity, quantityBounds);
   const inputValue = draftQuantity ?? String(displayQuantity);
 
   function stopNestedNavigation(
@@ -205,7 +216,7 @@ export default function AddToCartButton({
     event.preventDefault();
     event.stopPropagation();
 
-    if (isOutOfStock || hasReachedStockLimit) {
+    if (isOutOfStock || hasReachedQuantityLimit) {
       return;
     }
 
@@ -238,7 +249,7 @@ export default function AddToCartButton({
   }
 
   async function increaseQuantity() {
-    if (isOutOfStock || hasReachedStockLimit) {
+    if (isOutOfStock || hasReachedQuantityLimit) {
       return;
     }
 
@@ -273,13 +284,7 @@ export default function AddToCartButton({
       return;
     }
 
-    const nextQuantity = Math.max(
-      effectiveMinimumQuantity,
-      Math.min(
-        stockAvailable || effectiveMinimumQuantity,
-        Math.floor(numericQuantity),
-      ),
-    );
+    const nextQuantity = clampProductQuantity(Math.floor(numericQuantity), quantityBounds);
 
     if (quantityInCart <= 0) {
       await addItem(
@@ -313,7 +318,7 @@ export default function AddToCartButton({
               ? `Add one more, ${quantityInCart} already in cart`
               : label
         }
-        disabled={isOutOfStock || hasReachedStockLimit}
+        disabled={isOutOfStock || hasReachedQuantityLimit}
         className={`group relative isolate overflow-hidden z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
       >
         <span
@@ -339,15 +344,15 @@ export default function AddToCartButton({
 
   if (showQuantityControls && quantityInCart > 0 && !isOutOfStock) {
     return (
-      <QuantityStepper
-        value={inputValue}
-        min={effectiveMinimumQuantity}
-        max={stockAvailable || effectiveMinimumQuantity}
-        ariaLabel="Cart quantity"
-        decreaseAriaLabel="Decrease cart quantity"
-        increaseAriaLabel="Increase cart quantity"
-        className="h-12 min-w-[12.5rem] sm:min-w-[13.5rem]"
-        increaseDisabled={hasReachedStockLimit}
+        <QuantityStepper
+          value={inputValue}
+          min={effectiveMinimumQuantity}
+        max={effectiveMaximumQuantity ?? Math.max(1, stockAvailable || effectiveMinimumQuantity)}
+          ariaLabel="Cart quantity"
+          decreaseAriaLabel="Decrease cart quantity"
+          increaseAriaLabel="Increase cart quantity"
+          className="h-12 min-w-[12.5rem] sm:min-w-[13.5rem]"
+        increaseDisabled={hasReachedQuantityLimit}
         onMouseDown={stopNestedNavigation}
         onTouchStart={stopNestedNavigation}
         onInputFocus={(event) => {
@@ -370,7 +375,7 @@ export default function AddToCartButton({
       onClick={handleClick}
       className={`group relative isolate overflow-hidden z-30 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
       aria-label={isOutOfStock ? "Add to cart unavailable" : label}
-      disabled={isOutOfStock || hasReachedStockLimit}
+      disabled={isOutOfStock || hasReachedQuantityLimit}
     >
       <span
         aria-hidden="true"

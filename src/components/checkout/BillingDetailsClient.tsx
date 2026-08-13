@@ -141,6 +141,12 @@ function buildDeliveryAddressFromBilling(
         .filter(Boolean)
         .join(", "),
     line1: form.address.trim(),
+    buildingName: form.address.trim(),
+    locality: form.city.trim(),
+    recipientName: form.name.trim(),
+    phoneNumber: form.contact.trim(),
+    alternatePhoneNumber: "",
+    addressType: "home",
     city: form.city.trim(),
     state: form.state.trim(),
     postalCode,

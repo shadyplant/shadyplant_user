@@ -37,6 +37,7 @@ const fallbackProduct: Product = {
   weight: 1,
   offer: "",
   minOrderQuantity: 1,
+  maxPurchaseQuantity: null,
   stock: 999999,
   isOnTrend: false,
   isFeaturedLatest: false,

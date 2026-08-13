@@ -25,7 +25,7 @@ export default function MobileBottomNav() {
     wishlistCount > 99 ? "99+" : String(wishlistCount);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#d7dfd2] bg-white/95 px-3 py-2 backdrop-blur md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#d7dfd2] bg-white px-3 py-2 backdrop-blur md:hidden">
       <div className="mx-auto grid max-w-xl grid-cols-4">
         {items.map(({ label, href, icon: Icon }) => {
           const resolvedHref =

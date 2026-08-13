@@ -262,6 +262,7 @@ export default function WishlistPageClient() {
                             productId={product.id}
                             stock={product.stock}
                             minOrderQuantity={product.minOrderQuantity}
+                            maxPurchaseQuantity={product.maxPurchaseQuantity}
                           />
                         </div>
                       </div>

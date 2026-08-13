@@ -161,7 +161,7 @@ export default function HomeSlider({ slides = [] }: HomeSliderProps) {
     <section className="px-0 pt-0 md:px-0">
       <div className="w-full">
         <div className="px-0 md:p-0">
-          <div className="relative aspect-[390/210] w-full overflow-hidden border border-[#d7e1d3] bg-[#eef4ea] sm:aspect-[390/190] md:aspect-[2000/598]">
+          <div className="relative aspect-[390/210] w-full overflow-hidden bg-[#eef4ea] sm:aspect-[390/190] md:aspect-[2000/598]">
             <div
               className={`flex h-full ${
                 isTransitionEnabled

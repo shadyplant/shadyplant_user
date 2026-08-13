@@ -27,14 +27,14 @@ function ProductGridSection({ title, products }: ProductSection) {
     <section className="px-2 md:px-6">
       <div className="mx-auto max-w-7xl p-0 md:p-2">
         <div className="mb-2 flex items-center justify-between gap-4 md:mb-6">
-          <div className="flex items-center gap-3 min-w-0 px-2 md:px-0">
+          <div className="flex items-center gap-3 min-w-0 px-1 md:px-0">
             <span className="block truncate text-md text-black/80 md:text-2xl">
               {title}
             </span>
           </div>
           <Link
             href="/search"
-            className="shrink-0 inline-flex items-center justify-center gap-1 text-xs text-black/70 transition-all border border-transparent md:text-xs"
+            className="shrink-0 inline-flex items-center px-1 justify-center gap-1 text-xs text-black/70 transition-all border border-transparent md:text-xs"
           >
             <span className="text-sm">View all</span>
           </Link>

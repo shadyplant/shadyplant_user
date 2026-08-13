@@ -440,7 +440,7 @@ export default function EcomHeader({
                   width={188}
                   height={54}
                   priority
-                  className="h-8 w-auto md:h-10 pl-2"
+                  className="h-10 w-auto md:h-10 "
                 />
                 <span className="sr-only">ShadyPlant</span>
               </Link>

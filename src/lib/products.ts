@@ -34,6 +34,7 @@ export type Product = {
   weight: number;
   offer: string;
   minOrderQuantity: number;
+  maxPurchaseQuantity: number | null;
   stock: number;
   isOnTrend: boolean;
   isFeaturedLatest: boolean;
@@ -99,6 +100,14 @@ type ProductApi = Omit<
   usesImages?: string[];
   videoClips?: Array<Partial<ProductVideoClip> & { image?: string }>;
   quantityPricingSlabs?: Array<Partial<ProductQuantityPricingSlab>>;
+  min_order_quantity?: number;
+  minimumOrderQuantity?: number;
+  minQuantity?: number;
+  minQty?: number;
+  max_purchase_quantity?: number;
+  maximumPurchaseQuantity?: number;
+  maxQuantity?: number;
+  maxQty?: number;
 };
 
 function normalizeProductDetailSections(
@@ -138,6 +147,107 @@ function normalizeProductDetailSections(
 function normalizeOptionValue(value: unknown) {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : null;
+}
+
+function normalizePositiveInteger(value: unknown) {
+  const parsedValue = Number(value);
+
+  return Number.isFinite(parsedValue) && parsedValue > 0
+    ? Math.floor(parsedValue)
+    : null;
+}
+
+function resolveMinimumOrderQuantity(
+  product: Pick<
+    ProductApi,
+    | "minOrderQuantity"
+    | "min_order_quantity"
+    | "minimumOrderQuantity"
+    | "minQuantity"
+    | "minQty"
+  >,
+  quantityPricingSlabs: ProductQuantityPricingSlab[],
+) {
+  const explicitMinimum =
+    normalizePositiveInteger(product.minOrderQuantity) ??
+    normalizePositiveInteger(product.min_order_quantity) ??
+    normalizePositiveInteger(product.minimumOrderQuantity) ??
+    normalizePositiveInteger(product.minQuantity) ??
+    normalizePositiveInteger(product.minQty);
+
+  const slabMinimum = quantityPricingSlabs.length
+    ? quantityPricingSlabs.reduce(
+        (smallest, slab) => Math.min(smallest, slab.minQuantity),
+        quantityPricingSlabs[0].minQuantity,
+      )
+    : null;
+
+  return Math.max(1, explicitMinimum ?? 1, slabMinimum ?? 1);
+}
+
+export type ProductQuantityBounds = {
+  minimumQuantity: number;
+  maximumQuantity: number | null;
+};
+
+export function resolveProductQuantityBounds(
+  product: Pick<
+    Product,
+    "minOrderQuantity" | "maxPurchaseQuantity"
+  >,
+  availableStock?: number | null,
+  options?: {
+    serverMaximumQuantity?: number | null;
+  },
+): ProductQuantityBounds {
+  const minimumQuantity = Math.max(
+    1,
+    Math.floor(Number(product.minOrderQuantity || 1)),
+  );
+  const productMaximumQuantity =
+    product.maxPurchaseQuantity === null ||
+    product.maxPurchaseQuantity === undefined
+      ? null
+      : Math.max(1, Math.floor(Number(product.maxPurchaseQuantity)));
+  const stockMaximumQuantity =
+    availableStock === null || availableStock === undefined
+      ? null
+      : Math.max(0, Math.floor(Number(availableStock)));
+  const serverMaximumQuantity =
+    options?.serverMaximumQuantity === null ||
+    options?.serverMaximumQuantity === undefined
+      ? null
+      : Math.max(1, Math.floor(Number(options.serverMaximumQuantity)));
+  const quantityCandidates = [
+    productMaximumQuantity,
+    stockMaximumQuantity,
+    serverMaximumQuantity,
+  ].filter((value): value is number => value !== null && value > 0);
+  const maximumQuantity = quantityCandidates.length
+    ? Math.min(...quantityCandidates)
+    : null;
+
+  return {
+    minimumQuantity:
+      maximumQuantity !== null
+        ? Math.min(minimumQuantity, maximumQuantity)
+        : minimumQuantity,
+    maximumQuantity,
+  };
+}
+
+export function clampProductQuantity(
+  quantity: number,
+  bounds: ProductQuantityBounds,
+) {
+  const normalizedQuantity = Math.max(
+    bounds.minimumQuantity,
+    Math.floor(Number(quantity || bounds.minimumQuantity)),
+  );
+
+  return bounds.maximumQuantity === null
+    ? normalizedQuantity
+    : Math.min(bounds.maximumQuantity, normalizedQuantity);
 }
 
 function formatOptionValue(value: number) {
@@ -297,6 +407,42 @@ function normalizeProduct(product: ProductApi): Product {
   const tags = Array.isArray(product.tags)
     ? [...new Set(product.tags.map((tag) => String(tag || "").trim()).filter(Boolean))]
     : [];
+  const quantityPricingSlabs = Array.isArray(product.quantityPricingSlabs)
+    ? product.quantityPricingSlabs
+        .map((slab, index) => {
+          if (!slab || typeof slab !== "object") {
+            return null;
+          }
+
+          const rawSlab = slab as Partial<ProductQuantityPricingSlab>;
+          const minQuantity = Math.max(
+            1,
+            Math.floor(Number(rawSlab.minQuantity || 1)),
+          );
+          const maxQuantity =
+            rawSlab.maxQuantity === null || rawSlab.maxQuantity === undefined
+              ? null
+              : Math.max(minQuantity, Math.floor(Number(rawSlab.maxQuantity)));
+          const pricePerUnit = Number(rawSlab.pricePerUnit);
+          const label =
+            String(rawSlab.label || "").trim() ||
+            (maxQuantity !== null ? `${minQuantity}-${maxQuantity}` : `${minQuantity}+`);
+
+          if (!Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
+            return null;
+          }
+
+          return {
+            key: String(rawSlab.key || label || `slab-${index + 1}`).trim(),
+            label,
+            minQuantity,
+            maxQuantity,
+            pricePerUnit,
+            note: String(rawSlab.note || "").trim(),
+          };
+        })
+        .filter((slab): slab is ProductQuantityPricingSlab => Boolean(slab))
+    : [];
 
   return {
     ...product,
@@ -330,8 +476,13 @@ function normalizeProduct(product: ProductApi): Product {
     mrp: Math.max(Number(product.mrp || 0), Number(product.price || 0)),
     weight: Number(product.weight) > 0 ? Number(product.weight) : 0,
     offer: String(product.offer || "").trim(),
-    minOrderQuantity:
-      Number(product.minOrderQuantity) > 0 ? Number(product.minOrderQuantity) : 1,
+    minOrderQuantity: resolveMinimumOrderQuantity(product, quantityPricingSlabs),
+    maxPurchaseQuantity:
+      normalizePositiveInteger(product.maxPurchaseQuantity) ??
+      normalizePositiveInteger(product.max_purchase_quantity) ??
+      normalizePositiveInteger(product.maximumPurchaseQuantity) ??
+      normalizePositiveInteger(product.maxQuantity) ??
+      normalizePositiveInteger(product.maxQty),
     stock: Math.max(0, Math.floor(Number(product.stock || 0))),
     isOnTrend: Boolean(product.isOnTrend),
     isFeaturedLatest: Boolean(product.isFeaturedLatest),
@@ -341,39 +492,7 @@ function normalizeProduct(product: ProductApi): Product {
     tags,
     optionGroups: normalizeProductOptionGroups(product.optionGroups),
     detailSections: normalizeProductDetailSections(product.detailSections),
-    quantityPricingSlabs: Array.isArray(product.quantityPricingSlabs)
-      ? product.quantityPricingSlabs
-          .map((slab, index) => {
-            if (!slab || typeof slab !== "object") {
-              return null;
-            }
-
-            const rawSlab = slab as Partial<ProductQuantityPricingSlab>;
-            const minQuantity = Math.max(1, Math.floor(Number(rawSlab.minQuantity || 1)));
-            const maxQuantity =
-              rawSlab.maxQuantity === null || rawSlab.maxQuantity === undefined
-                ? null
-                : Math.max(minQuantity, Math.floor(Number(rawSlab.maxQuantity)));
-            const pricePerUnit = Number(rawSlab.pricePerUnit);
-            const label =
-              String(rawSlab.label || "").trim() ||
-              (maxQuantity !== null ? `${minQuantity}-${maxQuantity}` : `${minQuantity}+`);
-
-            if (!Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
-              return null;
-            }
-
-            return {
-              key: String(rawSlab.key || label || `slab-${index + 1}`).trim(),
-              label,
-              minQuantity,
-              maxQuantity,
-              pricePerUnit,
-              note: String(rawSlab.note || "").trim(),
-            };
-          })
-          .filter((slab): slab is ProductQuantityPricingSlab => Boolean(slab))
-      : [],
+    quantityPricingSlabs,
     videoClips: resolveProductVideoClips({
       id: String(product.id || "").trim(),
       productId: String(product.productId || product.id || "").trim(),
@@ -408,11 +527,14 @@ export async function fetchProducts(query?: Record<string, string | number | und
   });
 
   const queryString = params.toString();
+
   const response = await fetchJson<ProductListResponse>(
     `${getApiBaseUrl()}/products${queryString ? `?${queryString}` : ""}`,
   );
 
-  return response.data.products.map(normalizeProduct);
+  const products = response.data.products.map(normalizeProduct);
+
+  return products;
 }
 
 export async function fetchProductById(productId: string) {

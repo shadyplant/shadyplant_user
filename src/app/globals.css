@@ -34,6 +34,27 @@ body,
   -ms-overflow-style: none;
 }
 
+body,
+body * {
+  user-select: none;
+}
+
+input,
+textarea,
+select,
+option,
+[contenteditable="true"] {
+  user-select: text;
+}
+
+input *,
+textarea *,
+select *,
+option *,
+[contenteditable="true"] * {
+  user-select: text;
+}
+
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,
 *::-webkit-scrollbar {
@@ -56,4 +77,23 @@ html[data-is-app="true"] .site-footer {
   display: none !important;
 }
 
+html[data-is-app="true"] .home-faq-section {
+  display: none !important;
+}
 
+@keyframes qty-alert-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    opacity: 0.35;
+    transform: translateY(-1px) scale(1.01);
+  }
+}
+
+.qty-alert-blink {
+  animation: qty-alert-blink 0.7s ease-in-out infinite;
+}

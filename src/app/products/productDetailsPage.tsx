@@ -216,6 +216,7 @@ export async function renderProductDetailsPage({
               productId={product.id}
               stock={product.stock}
               minOrderQuantity={product.minOrderQuantity}
+              maxPurchaseQuantity={product.maxPurchaseQuantity}
             />
           </ProductOptionSelectionProvider>
         </section>
@@ -334,6 +335,7 @@ export async function renderProductDetailsPage({
                         productId={product.id}
                         availableStock={product.stock}
                         minOrderQuantity={product.minOrderQuantity}
+                        maxPurchaseQuantity={product.maxPurchaseQuantity}
                         showQuantityControls
                         className="flex h-12 w-full items-center justify-center rounded-[0.5rem] bg-[#207958] px-4 text-sm font-semibold text-white shadow-none transition hover:bg-[#18664a]"
                       />
@@ -341,6 +343,7 @@ export async function renderProductDetailsPage({
                         productId={product.id}
                         availableStock={product.stock}
                         minOrderQuantity={product.minOrderQuantity}
+                        maxPurchaseQuantity={product.maxPurchaseQuantity}
                         className="rounded-[0.5rem] border border-[#b5b5b5] bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#2f2f2f] md:px-5 md:py-3"
                       >
                         Buy Now

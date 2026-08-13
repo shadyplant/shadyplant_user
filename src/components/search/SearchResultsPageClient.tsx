@@ -15,6 +15,7 @@ import MobileSearchHeader from "@/components/MobileSearchHeader";
 import ProductCard from "@/components/ProductCard";
 import SiteShell from "@/components/SiteShell";
 import type { Product } from "@/lib/products";
+import { normalizeText, searchProducts } from "@/lib/productSearch";
 
 type SortKey = "relevance" | "price-asc" | "price-desc" | "name-asc";
 
@@ -49,45 +50,6 @@ const priceRanges: PriceRange[] = [
     matches: (price) => price > 450,
   },
 ];
-
-function computeRelevanceScore(product: Product, normalizedQuery: string) {
-  if (!normalizedQuery) {
-    return 0;
-  }
-
-  const productName = product.name.toLowerCase();
-  const category = product.category.toLowerCase();
-  const badge = product.badge.toLowerCase();
-  const description = product.description.toLowerCase();
-
-  let score = 0;
-
-  if (productName === normalizedQuery) {
-    score += 100;
-  }
-
-  if (productName.startsWith(normalizedQuery)) {
-    score += 40;
-  }
-
-  if (productName.includes(normalizedQuery)) {
-    score += 28;
-  }
-
-  if (category.includes(normalizedQuery)) {
-    score += 16;
-  }
-
-  if (badge.includes(normalizedQuery)) {
-    score += 12;
-  }
-
-  if (description.includes(normalizedQuery)) {
-    score += 8;
-  }
-
-  return score;
-}
 
 function joinSearchParams(
   query: string,
@@ -149,14 +111,9 @@ export default function SearchResultsPageClient({
   const sort = (searchParams?.get("sort") as SortKey | null) ?? "relevance";
   const activeSortOption =
     sortOptions.find((option) => option.value === sort) || sortOptions[0];
-  const normalizedQuery = query.trim().toLowerCase();
-  const results = products
-    .map((product, index) => ({
-      product,
-      index,
-      relevance: computeRelevanceScore(product, normalizedQuery),
-    }))
-    .filter(({ product, relevance }) => {
+  const normalizedQuery = normalizeText(query);
+  const scoredProducts = searchProducts(products, query);
+  const results = scoredProducts.filter(({ product, relevance }) => {
       const matchesQuery = !normalizedQuery || relevance > 0;
       const matchesCategory =
         !selectedCategories.length ||

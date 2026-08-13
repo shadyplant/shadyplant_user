@@ -1,16 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BellRing } from "lucide-react";
 import { getCartQuantity, useCartStore } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProductStockAlertStore } from "@/components/productStockAlertStore";
 import QuantityStepper from "@/components/QuantityStepper";
+import {
+  clampProductQuantity,
+  resolveProductQuantityBounds,
+} from "@/lib/products";
 
 type ProductCardCartControlProps = {
   productId: string;
   stock: number;
   minOrderQuantity: number;
+  maxPurchaseQuantity?: number | null;
   tone?: "green" | "neutral";
   compact?: boolean;
 };
@@ -82,33 +87,71 @@ export default function ProductCardCartControl({
   productId,
   stock,
   minOrderQuantity,
+  maxPurchaseQuantity,
   tone = "green",
   compact = false,
 }: ProductCardCartControlProps) {
   const [draftQuantity, setDraftQuantity] = useState<string | null>(null);
   const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
   const { items: requestedAlertItems, requestAlert } =
     useProductStockAlertStore();
+  const alertTimerRef = useRef<number | null>(null);
   const hasRequestedNotify = requestedAlertItems.includes(productId);
   const quantity = getCartQuantity(items, productId);
   const defaultLineId = `${productId}::default`;
   const availableStock = Math.max(0, Math.floor(Number(stock || 0)));
-  const effectiveMinimumQuantity =
-    availableStock > 0
-      ? Math.max(1, Math.min(minOrderQuantity, availableStock))
-      : Math.max(1, minOrderQuantity);
-  const displayQuantity = Math.max(effectiveMinimumQuantity, quantity);
+  const quantityBounds = resolveProductQuantityBounds(
+    { minOrderQuantity, maxPurchaseQuantity: maxPurchaseQuantity ?? null },
+    availableStock,
+  );
+  const effectiveMinimumQuantity = quantityBounds.minimumQuantity;
+  const effectiveMaximumQuantity = quantityBounds.maximumQuantity;
+  const displayQuantity = clampProductQuantity(
+    quantity || effectiveMinimumQuantity,
+    quantityBounds,
+  );
   const inputValue = draftQuantity ?? String(displayQuantity);
   const isNeutralTone = tone === "neutral";
   const isCompact = compact;
   const addButtonClassName = isNeutralTone
-    ? `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#4b5563] px-3 text-base font-bold tracking-normal text-white transition hover:bg-[#374151] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg cursor-pointer`
-    : `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#207958] px-3 text-white transition hover:bg-[#07ab4e] sm:h-12 sm:text-lg cursor-pointer`;
+    ? `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#4b5563] px-2 text-base font-bold tracking-normal text-white transition hover:bg-[#374151] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg cursor-pointer`
+    : `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] bg-[#207958] px-2 text-white transition hover:bg-[#07ab4e] sm:h-12 sm:text-lg cursor-pointer`;
   const notifyButtonClassName = isNeutralTone
-    ? `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#cfd5db] bg-transparent px-3 text-base font-bold tracking-normal text-[#4b5563] transition hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg`
-    : `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#55ad35] bg-transparent px-3 text-base font-bold tracking-normal text-[#2f6d1d] transition hover:bg-[#07ab4e] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg`;
+    ? `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#cfd5db] bg-transparent px-2 text-base font-bold tracking-normal text-[#4b5563] transition hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg`
+    : `${isCompact ? "relative z-30 mt-4 inline-flex h-11 w-auto min-w-[10rem]" : "relative z-30 mt-4 flex h-11 w-full"} touch-manipulation items-center justify-center gap-2 rounded-[0.5rem] border border-[#55ad35] bg-transparent px-2 text-base font-bold tracking-normal text-[#2f6d1d] transition hover:bg-[#07ab4e] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-lg`;
+
+  useEffect(() => {
+    return () => {
+      if (alertTimerRef.current) {
+        window.clearTimeout(alertTimerRef.current);
+      }
+    };
+  }, []);
+
+  function triggerQuantityVibration() {
+    if (typeof navigator === "undefined" || !("vibrate" in navigator)) {
+      return;
+    }
+
+    navigator.vibrate?.([80, 35, 80]);
+  }
+
+  function showQuantityAlert(message: string) {
+    setAlertMessage(message);
+    triggerQuantityVibration();
+
+    if (alertTimerRef.current) {
+      window.clearTimeout(alertTimerRef.current);
+    }
+
+    alertTimerRef.current = window.setTimeout(() => {
+      setAlertMessage(null);
+      alertTimerRef.current = null;
+    }, 2600);
+  }
 
   function swallowCardNavigation(
     event:
@@ -151,6 +194,10 @@ export default function ProductCardCartControl({
     }
 
     if (quantity <= effectiveMinimumQuantity) {
+      triggerQuantityVibration();
+      showQuantityAlert(
+        `Required Min Qty ${effectiveMinimumQuantity.toLocaleString("en-IN")}`,
+      );
       await removeItem(defaultLineId);
       setDraftQuantity(null);
       return;
@@ -164,7 +211,23 @@ export default function ProductCardCartControl({
   }
 
   async function increaseQuantity() {
-    if (availableStock <= 0 || quantity >= availableStock) {
+    if (
+      availableStock <= 0 ||
+      (effectiveMaximumQuantity !== null &&
+        quantity >= effectiveMaximumQuantity)
+    ) {
+      if (
+        effectiveMaximumQuantity !== null &&
+        quantity >= effectiveMaximumQuantity
+      ) {
+        triggerQuantityVibration();
+        showQuantityAlert(
+          `Required Max Qty ${effectiveMaximumQuantity.toLocaleString(
+            "en-IN",
+          )}`,
+        );
+      }
+
       return;
     }
 
@@ -185,13 +248,26 @@ export default function ProductCardCartControl({
       return;
     }
 
-    const nextQuantity = Math.max(
-      effectiveMinimumQuantity,
-      Math.min(
-        availableStock || effectiveMinimumQuantity,
-        Math.floor(numericValue),
-      ),
+    const normalizedQuantity = Math.floor(numericValue);
+    const nextQuantity = clampProductQuantity(
+      normalizedQuantity,
+      quantityBounds,
     );
+
+    if (normalizedQuantity < effectiveMinimumQuantity) {
+      triggerQuantityVibration();
+      showQuantityAlert(
+        `Required Min Qty ${effectiveMinimumQuantity.toLocaleString("en-IN")}`,
+      );
+    } else if (
+      effectiveMaximumQuantity !== null &&
+      normalizedQuantity > effectiveMaximumQuantity
+    ) {
+      triggerQuantityVibration();
+      showQuantityAlert(
+        `Required Max Qty ${effectiveMaximumQuantity.toLocaleString("en-IN")}`,
+      );
+    }
 
     if (quantity <= 0) {
       await addItem(productId, nextQuantity);
@@ -202,68 +278,75 @@ export default function ProductCardCartControl({
     setDraftQuantity(null);
   }
 
-  if (availableStock <= 0) {
-    return (
-      <button
-        type="button"
-        onMouseDown={swallowCardNavigation}
-        onTouchStart={swallowCardNavigation}
-        onClick={() => void requestProductNotify()}
-        disabled={hasRequestedNotify || isSubmittingNotify}
-        aria-label={
-          hasRequestedNotify
-            ? "Stock notification already requested"
-            : "Get stock notification"
-        }
-        className={notifyButtonClassName}
-      >
-        <span>
-          {hasRequestedNotify
-            ? "Requested"
-            : isSubmittingNotify
-              ? "Processing..."
-              : "Get Notify"}
-        </span>
-        <BellRing size={18} strokeWidth={2.2} />
-      </button>
-    );
-  }
-
-  if (quantity <= 0) {
-    return (
-      <button
-        type="button"
-        onMouseDown={swallowCardNavigation}
-        onTouchStart={swallowCardNavigation}
-        onClick={() => void addFirstItem()}
-        className={addButtonClassName}
-      >
-        <AddCartIcon />
-        <span className="text-sm">Add to cart</span>
-      </button>
-    );
-  }
-
   return (
-    <QuantityStepper
-      value={inputValue}
-      min={effectiveMinimumQuantity}
-      max={availableStock}
-      ariaLabel="Cart quantity"
-      decreaseAriaLabel="Decrease cart quantity"
-      increaseAriaLabel="Increase cart quantity"
-      className={`relative z-30 mt-4 transition ${isCompact ? "w-auto max-w-[14rem]" : ""}`}
-      increaseDisabled={quantity >= availableStock}
-      onMouseDown={swallowCardNavigation}
-      onTouchStart={swallowCardNavigation}
-      onInputFocus={(event) => {
-        swallowCardNavigation(event);
-        setDraftQuantity(String(displayQuantity));
-      }}
-      onChange={setDraftQuantity}
-      onCommit={commitQuantity}
-      onDecrease={decreaseQuantity}
-      onIncrease={increaseQuantity}
-    />
+    <div className="relative">
+      {availableStock <= 0 ? (
+        <button
+          type="button"
+          onMouseDown={swallowCardNavigation}
+          onTouchStart={swallowCardNavigation}
+          onClick={() => void requestProductNotify()}
+          disabled={hasRequestedNotify || isSubmittingNotify}
+          aria-label={
+            hasRequestedNotify
+              ? "Stock notification already requested"
+              : "Get stock notification"
+          }
+          className={notifyButtonClassName}
+        >
+          <span>
+            {hasRequestedNotify
+              ? "Requested"
+              : isSubmittingNotify
+                ? "Processing..."
+                : "Get Notify"}
+          </span>
+          <BellRing size={18} strokeWidth={2.2} />
+        </button>
+      ) : quantity <= 0 ? (
+        <button
+          type="button"
+          onMouseDown={swallowCardNavigation}
+          onTouchStart={swallowCardNavigation}
+          onClick={() => void addFirstItem()}
+          className={addButtonClassName}
+        >
+          <span className="text-sm font-medium">Add to cart</span>
+          <img src="/cart_icon.svg" alt="Add to cart" className="h-5 w-5" />
+        </button>
+      ) : (
+        <QuantityStepper
+          value={inputValue}
+          min={effectiveMinimumQuantity}
+          max={effectiveMaximumQuantity ?? Math.max(1, availableStock)}
+          ariaLabel="Cart quantity"
+          decreaseAriaLabel="Decrease cart quantity"
+          increaseAriaLabel="Increase cart quantity"
+          className={`relative z-30 mt-4 transition ${isCompact ? "w-auto max-w-[14rem]" : ""}`}
+          increaseDisabled={
+            effectiveMaximumQuantity !== null &&
+            quantity >= effectiveMaximumQuantity
+          }
+          onMouseDown={swallowCardNavigation}
+          onTouchStart={swallowCardNavigation}
+          onInputFocus={(event) => {
+            swallowCardNavigation(event);
+            setDraftQuantity(String(displayQuantity));
+          }}
+          onChange={setDraftQuantity}
+          onCommit={commitQuantity}
+          onDecrease={decreaseQuantity}
+          onIncrease={increaseQuantity}
+        />
+      )}
+
+      {alertMessage ? (
+        <div className="pointer-events-none absolute left-0 right-0 top-full z-40 mt-2 flex justify-center px-2">
+          <div className="qty-alert-blink rounded-md border border-[#f4c4c4] bg-[#fff5f5] px-3 py-1.5 text-[11px] font-semibold text-[#b42318] shadow-[0_10px_24px_rgba(0,0,0,0.12)]">
+            {alertMessage}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

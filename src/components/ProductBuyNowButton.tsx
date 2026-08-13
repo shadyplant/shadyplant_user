@@ -5,11 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCartStore } from "@/components/cartStore";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useOptionalProductOptionSelection } from "@/components/ProductOptionSelectionContext";
+import {
+  clampProductQuantity,
+  resolveProductQuantityBounds,
+} from "@/lib/products";
 
 type ProductBuyNowButtonProps = {
   productId: string;
   availableStock?: number;
   minOrderQuantity?: number;
+  maxPurchaseQuantity?: number | null;
   className?: string;
   children: ReactNode;
 };
@@ -18,6 +23,7 @@ export default function ProductBuyNowButton({
   productId,
   availableStock,
   minOrderQuantity = 1,
+  maxPurchaseQuantity,
   className,
   children,
 }: ProductBuyNowButtonProps) {
@@ -34,10 +40,11 @@ export default function ProductBuyNowButton({
     0,
     Math.floor(Number(effectiveAvailableStock ?? 0)),
   );
-  const effectiveMinimumQuantity =
-    stockAvailable > 0
-      ? Math.max(1, Math.min(minOrderQuantity, stockAvailable))
-      : Math.max(1, minOrderQuantity);
+  const quantityBounds = resolveProductQuantityBounds(
+    { minOrderQuantity, maxPurchaseQuantity: maxPurchaseQuantity ?? null },
+    effectiveAvailableStock ?? null,
+  );
+  const effectiveMinimumQuantity = quantityBounds.minimumQuantity;
   const isOutOfStock =
     effectiveAvailableStock !== undefined && stockAvailable <= 0;
 
@@ -57,21 +64,21 @@ export default function ProductBuyNowButton({
       const existingItem = selectedOptionContext
         ? items.find((item) => item.id === selectedOptionContext.resolved.lineId)
         : items.find((item) => item.productId === productId && !item.variantId);
+      const existingQuantity = existingItem
+        ? clampProductQuantity(existingItem.quantity, quantityBounds)
+        : 0;
 
-      if (!existingItem || existingItem.quantity <= 0) {
+      if (!existingItem || existingQuantity <= 0) {
         await addItem(activeProductId, effectiveMinimumQuantity, selectedOptionContext
           ? {
               variantId: selectedOptionContext.resolved.variantId,
               optionSelections: selectedOptionContext.resolved.optionSelections,
             }
           : undefined);
-      } else if (existingItem.quantity < effectiveMinimumQuantity) {
+      } else if (existingQuantity < effectiveMinimumQuantity) {
         await updateQuantity(existingItem.id, effectiveMinimumQuantity);
-      } else if (
-        effectiveAvailableStock !== undefined &&
-        existingItem.quantity > stockAvailable
-      ) {
-        await updateQuantity(existingItem.id, stockAvailable);
+      } else if (existingItem.quantity !== existingQuantity) {
+        await updateQuantity(existingItem.id, existingQuantity);
       }
 
       router.push("/cart");

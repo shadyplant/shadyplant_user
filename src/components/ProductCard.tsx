@@ -22,7 +22,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     .filter(Boolean);
 
   return (
-    <article className="group isolate overflow-hidden rounded-[0.5rem] bg-[#ffffff] p-1 transition-all duration-300 hover:border-[#b8cdb0] hover:shadow-[0_14px_34px_rgba(23,20,16,0.08)] sm:p-3">
+    <article className="group isolate overflow-visible rounded-[0.5rem] bg-[#ffffff] p-1 transition-all duration-300 hover:border-[#b8cdb0] hover:shadow-[0_14px_34px_rgba(23,20,16,0.08)] sm:p-3">
       <div className="relative">
         <Link
           href={productHref}
@@ -59,7 +59,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       <div className="relative z-10 pt-3">
         <Link href={productHref} className="block min-w-0">
-          <h3 className="mt-1 min-h-0 md:min-h-[2.2rem] text-xs font-medium text-gray-700 line-clamp-1 md:line-clamp-2 sm:min-h-0 sm:line-clamp-none  sm:text-lg">
+          <h3 className="mt-1 min-h-0 md:min-h-[2.2rem] text-sm font-medium text-gray-700 line-clamp-1 md:line-clamp-2 sm:min-h-0 sm:line-clamp-none  sm:text-lg">
             {product.name}
           </h3>
 
@@ -89,13 +89,14 @@ export default function ProductCard({ product }: ProductCardProps) {
               </span>
             ) : null}
           </div>
-          <p className="mt-0 text-[11px] text-[#707070]  sm:text-xs">
-            Min. Qty - {product.minOrderQuantity} Pcs.
+          <p className="mt-0 text-[11px] text-gray-700  sm:text-xs">
+            <span className="font-medium px-2 py-1 bg-gradient-to-r from-[#07ab4e80] to-[#07ab4e00] ">Min. Qty</span> - {product.minOrderQuantity} Pcs.
           </p>
           <ProductCardCartControl
             productId={product.id}
             stock={product.stock}
             minOrderQuantity={product.minOrderQuantity}
+            maxPurchaseQuantity={product.maxPurchaseQuantity}
           />
         </div>
       </div>

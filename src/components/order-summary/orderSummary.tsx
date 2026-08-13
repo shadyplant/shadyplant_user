@@ -17,6 +17,11 @@ import SiteShell from "@/components/SiteShell";
 import { useProductsStore } from "@/components/productsStore";
 import type { ApiResponse } from "@/lib/api";
 import {
+  fetchDeliveryConfigSnapshot,
+  resolveServerDeliveryWeightCapKg,
+  type DeliveryConfigSnapshot,
+} from "@/lib/deliveryConfig";
+import {
   cleanupPaymentGatewayReturnUrl,
   clearPaymentGatewayCheckoutSession,
   getPaymentGatewayReturnState,
@@ -160,6 +165,8 @@ export default function OrderSummaryClient() {
   const [hasHandledGatewayReturn, setHasHandledGatewayReturn] = useState(false);
   const [checkoutDraft, setCheckoutDraft] = useState(() => readCheckoutDraft());
   const [billingDetailsDraft] = useState(() => readBillingDetailsDraft());
+  const [deliveryConfig, setDeliveryConfig] =
+    useState<DeliveryConfigSnapshot | null>(null);
   const {
     fetchWithAuth,
     isAuthenticated,
@@ -183,6 +190,26 @@ export default function OrderSummaryClient() {
     "";
   const deliveryPosition = checkoutDraft?.deliveryPosition || null;
   const deliveryAddressDetails = checkoutDraft?.deliveryAddressDetails || null;
+
+  useEffect(() => {
+    let isActive = true;
+
+    void fetchDeliveryConfigSnapshot()
+      .then((config) => {
+        if (isActive) {
+          setDeliveryConfig(config);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setDeliveryConfig(null);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const items = useMemo(
     () =>
@@ -224,6 +251,26 @@ export default function OrderSummaryClient() {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .join(", ");
+  const totalWeightKg = useMemo(
+    () =>
+      items.reduce(
+        (sum, item) => sum + Number(item.product.weight || 0) * item.quantity,
+        0,
+      ),
+    [items],
+  );
+  const deliveryState = (
+    deliveryAddressDetails?.state ||
+    billingDetails.state ||
+    user?.deliveryAddress?.state ||
+    ""
+  ).trim();
+  const serverWeightCapKg = resolveServerDeliveryWeightCapKg(
+    deliveryConfig,
+    deliveryState,
+  );
+  const isServerWeightCapExceeded =
+    serverWeightCapKg !== null && totalWeightKg > serverWeightCapKg;
 
   useEffect(() => {
     if (isAuthReady && !isAuthenticated) {
@@ -381,6 +428,18 @@ export default function OrderSummaryClient() {
       return;
     }
 
+    if (isServerWeightCapExceeded) {
+      setPreview(null);
+      setPreviewError(
+        serverWeightCapKg !== null
+          ? `Order weight exceeds the server limit of ${serverWeightCapKg.toLocaleString(
+              "en-IN",
+            )} kg for this delivery zone.`
+          : "Order weight exceeds the server delivery limit for this zone.",
+      );
+      return;
+    }
+
     let isActive = true;
     setStatusMessage("");
     setPreviewError("");
@@ -461,6 +520,8 @@ export default function OrderSummaryClient() {
     appliedCouponCode,
     persistCouponError,
     user?.deliveryAddress,
+    isServerWeightCapExceeded,
+    serverWeightCapKg,
   ]);
 
   const effectivePreview = canRequestPreview ? preview : null;
@@ -472,6 +533,17 @@ export default function OrderSummaryClient() {
       !deliveryAddress
     ) {
       router.push("/cart");
+      return;
+    }
+
+    if (isServerWeightCapExceeded) {
+      setStatusMessage(
+        serverWeightCapKg !== null
+          ? `Order weight exceeds the server limit of ${serverWeightCapKg.toLocaleString(
+              "en-IN",
+            )} kg for this delivery zone.`
+          : "Order weight exceeds the server delivery limit for this zone.",
+      );
       return;
     }
 

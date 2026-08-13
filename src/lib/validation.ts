@@ -1,7 +1,15 @@
+export type DeliveryAddressType = "home" | "work" | "other" | "";
+
 export type DeliveryAddress = {
   formattedAddress: string;
   line1: string;
   line2: string;
+  buildingName: string;
+  locality: string;
+  recipientName: string;
+  phoneNumber: string;
+  alternatePhoneNumber: string;
+  addressType: DeliveryAddressType;
   city: string;
   state: string;
   postalCode: string;
@@ -18,6 +26,12 @@ export const EMPTY_DELIVERY_ADDRESS: DeliveryAddress = {
   formattedAddress: "",
   line1: "",
   line2: "",
+  buildingName: "",
+  locality: "",
+  recipientName: "",
+  phoneNumber: "",
+  alternatePhoneNumber: "",
+  addressType: "",
   city: "",
   state: "",
   postalCode: "",
@@ -57,12 +71,38 @@ export function isValidIdentifier(identifier: string) {
 export function normalizeDeliveryAddress(
   deliveryAddress: Partial<DeliveryAddress> | null | undefined,
 ): DeliveryAddress {
+  const buildingName = String(
+    deliveryAddress?.buildingName || deliveryAddress?.line1 || "",
+  ).trim();
+  const locality = String(
+    deliveryAddress?.locality || deliveryAddress?.line2 || "",
+  ).trim();
+  const addressTypeValue = String(deliveryAddress?.addressType || "")
+    .trim()
+    .toLowerCase();
+  const addressType: DeliveryAddressType = ["home", "work", "other"].includes(
+    addressTypeValue,
+  )
+    ? (addressTypeValue as DeliveryAddressType)
+    : "";
+
   return {
     formattedAddress: String(
-      deliveryAddress?.formattedAddress || deliveryAddress?.line1 || "",
+      deliveryAddress?.formattedAddress ||
+        buildingName ||
+        locality ||
+        "",
     ).trim(),
-    line1: String(deliveryAddress?.line1 || "").trim(),
-    line2: String(deliveryAddress?.line2 || "").trim(),
+    line1: buildingName,
+    line2: locality,
+    buildingName,
+    locality,
+    recipientName: String(deliveryAddress?.recipientName || "").trim(),
+    phoneNumber: String(deliveryAddress?.phoneNumber || "").trim(),
+    alternatePhoneNumber: String(
+      deliveryAddress?.alternatePhoneNumber || "",
+    ).trim(),
+    addressType,
     city: String(deliveryAddress?.city || "").trim(),
     state: String(deliveryAddress?.state || "").trim(),
     postalCode: String(deliveryAddress?.postalCode || "").trim(),
